@@ -1,0 +1,108 @@
+---
+title: "Interactive GPU Geospatial Analysis with glmap"
+subtitle: "Zero-Copy C++17 Binary Vectors & Float32 Rasters in Quarto"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: false
+execute:
+  warning: false
+  message: false
+---
+
+## Overview
+
+This Quarto document demonstrates how **`glmap`** embeds multi-layer WebGL2 GPU maps directly into standalone HTML reports without the massive GeoJSON payload bloat of `leaflet`.
+
+Because `glmap` compresses its C++17 `GEXP` (vector) and `GEXR` (`Float32` raster) binary buffers with `zlib`/`deflate` and decodes them in the browser via the native `DecompressionStream` API, this document remains **fast, compact, and 100% self-contained**.
+
+```{r}
+library(glmap)
+
+# Generate synthetic Montreal - Quebec City corridor dataset
+# (100,000 points, 2,000 polygons, and a 200x200 Float32 DEM raster)
+bench <- gl_benchmark_data(
+  n_points = 100000L,
+  n_polygons = 2000L,
+  raster_dim = c(200L, 200L)
+)
+```
+
+## 1. Multi-Layer GPU Map (`terra` DEM + `sf` Polygons + Hexbins + 100k Points)
+
+Use the **GPU Layers** panel (top-left) to toggle layers, or use the **GPU Shader Palette** dropdown and **Real-Time GPU Hillshade** checkbox (bottom-right) to recolor the `Float32` terrain model in **0 ms** on the GPU:
+
+```{r}
+glmap(basemap = gl_providers$CartoDB.DarkMatter) |>
+  add_raster(
+    bench$raster_mat,
+    palette = "terrain",
+    hillshade = TRUE,
+    opacity = 0.70,
+    group = "GPU Terrain DEM (Float32)"
+  ) |>
+  add_polygons(
+    bench$polygons_sf,
+    fill_color = ~elevation,
+    palette = "viridis",
+    fill_opacity = 0.65,
+    group = "C++ Earcut Polygons (2k)"
+  ) |>
+  add_hexbin(
+    bench$points_df,
+    hex_radius = 0.035,
+    palette = "plasma",
+    opacity = 0.75,
+    group = "C++ Hexbin Aggregation"
+  ) |>
+  add_points(
+    bench$points_df,
+    color = ~intensity,
+    palette = "turbo",
+    radius = 3.0,
+    opacity = 0.85,
+    group = "GPU Instanced Points (100k)"
+  ) |>
+  use_plugin("export_png")
+```
+
+## 2. Geodesic Circles, Bounding Rectangles & Halo Text Labels
+
+`glmap` also provides drop-in equivalents for `leaflet::addCircles()` (radius in meters on the ground), `leaflet::addRectangles()`, and `leaflet::addLabelOnlyMarkers()`:
+
+```{r}
+hubs <- data.frame(
+  lon = c(-73.5673, -71.2080, -72.5481, -71.8991),
+  lat = c(45.5017,  46.8139,  46.3432,  45.4042),
+  name = c("Montréal", "Québec", "Trois-Rivières", "Sherbrooke"),
+  radius_m = c(18000, 15000, 12000, 12000),
+  score = c(95, 88, 76, 81)
+)
+
+glmap(hubs, basemap = gl_providers$CartoDB.Positron) |>
+  add_rectangles(
+    lng1 = -74.0, lat1 = 45.1,
+    lng2 = -70.8, lat2 = 47.1,
+    fill_color = "#38bdf8",
+    fill_opacity = 0.12,
+    line_color = "#0284c7",
+    line_width = 2,
+    group = "Study Corridor"
+  ) |>
+  add_circles(
+    radius = ~radius_m,
+    fill_color = ~score,
+    palette = "viridis",
+    fill_opacity = 0.65,
+    popup = ~name,
+    group = "ServiceBuffers (m)"
+  ) |>
+  add_labels(
+    text = ~name,
+    size = 13,
+    color = "#0f172a",
+    halo_color = "#ffffff",
+    group = "City Labels"
+  )
+```

@@ -1,0 +1,109 @@
+url: https://meztez.github.io/glmap/
+template:
+  bootstrap: 5
+  bootswatch: darkly
+
+home:
+  title: "glmap: High-Performance GPU Geospatial Mapping for R"
+  description: >
+    Zero-copy C++17 binary geometry & Float32 raster streaming to WebGL2 and
+    MapLibre GL for R, Shiny, and Quarto.
+
+reference:
+  - title: "Map Initialization, Camera & Providers"
+    desc: "Initialize a GPU map and control camera position, bounds, basemap providers, API keys, terrain, and projection."
+    contents:
+      - glmap
+      - gexplore
+      - gx_map
+      - set_view
+      - fit_bounds
+      - fly_to
+      - fly_to_bounds
+      - set_max_bounds
+      - set_basemap
+      - add_provider_tiles
+      - gl_providers
+      - gl_list_providers
+      - gl_set_api_key
+      - gl_get_api_key
+      - set_terrain
+      - set_projection
+      - add_control
+      - add_legend
+      - gl_save_html
+      - gx_save_html
+
+  - title: "GPU Vector, Raster & Out-of-Core Layers"
+    desc: "Add high-density point clouds, geodesic circles, rectangles, lines, earcut-triangulated polygons, Float32 rasters, hexbins, heatmaps, WMS, PMTiles, and DuckDB layers."
+    contents:
+      - add_sf
+      - add_points
+      - add_circles
+      - add_rectangles
+      - add_lines
+      - add_polygons
+      - add_raster
+      - add_hexbin
+      - add_heatmap
+      - add_labels
+      - add_popups
+      - add_wms_tiles
+      - add_pmtiles
+      - add_mvt
+      - add_geojson
+      - add_duckdb
+
+  - title: "Shiny Proxy, Group Controls & Live GPU Updates"
+    desc: "Update layers, groups, visibility, opacity, filters, and GPU raster shaders in 0ms without re-rendering."
+    contents:
+      - glmapOutput
+      - renderGlmap
+      - glmap_proxy
+      - gexploreOutput
+      - renderGexplore
+      - gexplore_proxy
+      - show_group
+      - hide_group
+      - clear_group
+      - clear_layer
+      - clear_layers
+      - set_layer_visibility
+      - set_layer_opacity
+      - set_raster_style
+      - set_filter
+
+  - title: "Plugins, Custom Shaders & Binary Engine"
+    desc: "Extend glmap with custom JS plugins, GLSL shaders, C++17 binary packers, and spatial indices."
+    contents:
+      - register_plugin
+      - use_plugin
+      - list_plugins
+      - add_webgl_shader_layer
+      - add_deck_layer
+      - gl_pack_sf_binary
+      - gl_pack_raster_binary
+      - gl_spatial_index
+      - gl_query_index
+      - gl_duckdb_index
+      - gl_serve_start
+      - gl_serve_stop
+      - gl_server_status
+      - gl_benchmark_data
+      - gx_pack_sf_binary
+      - gx_pack_raster_binary
+      - gx_spatial_index
+      - gx_query_index
+      - gx_duckdb_index
+      - gx_serve_start
+      - gx_serve_stop
+      - gx_server_status
+      - gx_benchmark_data
+
+articles:
+  - title: "Guides, Benchmarks & Migration"
+    navbar: ~
+    contents:
+      - getting-started
+      - leaflet-migration
+      - benchmarks-and-leaflet-parity

@@ -1,0 +1,48 @@
+Package: glmap
+Title: High-Performance GPU Geospatial Mapping for 'sf' and 'terra'
+Version: 0.1.0
+Authors@R: 
+    person("Beneva", "Geospatial Team", , "geospatial@example.com", role = c("aut", "cre"))
+Description: A compact, high-performance WebGL2 and 'MapLibre GL' interactive
+    mapping engine for R designed as a next-generation GPU alternative to 'leaflet'.
+    Bypasses 'htmlwidgets' JSON bottlenecks by streaming zero-copy 'GEXP' and
+    'GeoArrow' binary vertex/attribute buffers directly from C++17 to WebGL2 GPU
+    shaders, with C++ 'mapbox/earcut' polygon hole triangulation, in-memory spatial
+    R-tree dynamic viewport slicing, 'DuckDB' out-of-core Parquet pushdown, live
+    GPU fragment shaders for 'terra' rasters (0ms colormaps, hillshading,
+    contrast stretching, and band math), full 'Shiny' proxy diffing, 'crosstalk'
+    linked brushing, and a modular plugin architecture.
+URL: https://meztez.github.io/glmap/, https://github.com/meztez/glmap
+BugReports: https://github.com/meztez/glmap/issues
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+SystemRequirements: C++17
+VignetteBuilder: knitr
+LinkingTo: cpp11
+Imports:
+    base64enc,
+    cli,
+    grDevices,
+    htmlwidgets,
+    httpuv,
+    jsonlite,
+    rlang,
+    stats,
+    utils,
+    viridisLite
+Suggests:
+    crosstalk,
+    DBI,
+    duckdb,
+    htmltools,
+    knitr,
+    nanoarrow,
+    rmarkdown,
+    sf,
+    shiny,
+    terra,
+    testthat (>= 3.0.0),
+    wk
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0

@@ -1,0 +1,10 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^README\.Rmd$
+^benchmark_.*\.html$
+^demo_.*\.html$
+^_pkgdown\.yml$
+^docs$
+^AGENTS\.md$
+^\.github$
+
