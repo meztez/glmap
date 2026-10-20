@@ -7,7 +7,7 @@
 #' viewport filters (`WHERE lon BETWEEN xmin AND xmax AND lat BETWEEN ymin AND ymax`)
 #' and Level-of-Detail (LOD) sampling (`USING SAMPLE` or deterministic stride)
 #' directly into DuckDB's vectorized execution engine, then packs the resulting
-#' slice in C++17 (`cpp_pack_points_xy`) and streams the `GEXP` binary buffer
+#' slice in C++17 (`cpp_pack_points_xy`) and streams the `GLMP` binary buffer
 #' to WebGL2 over the local `httpuv` server on every pan/zoom!
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
@@ -270,7 +270,7 @@ query_duckdb_slice <- function(idx, xmin, ymin, xmax, ymax, max_features = 10000
   }
 
   raw_buf <- cpp_pack_points_xy(df[["_gl_x"]], df[["_gl_y"]], col_res$rgba, rad_vec, numeric(0))
-  hdr <- read_gexp_header(raw_buf)
+  hdr <- read_glmp_header(raw_buf)
   attr(raw_buf, "bbox") <- hdr$bbox
   attr(raw_buf, "geom_type") <- "POINT"
   attr(raw_buf, "n_features") <- hdr$n_features

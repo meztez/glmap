@@ -55,8 +55,8 @@ When asked to migrate an R script or Shiny app from `leaflet` to `glmap`, apply 
 - **`src/glmap_cpp.cpp` & `src/cpp11.cpp`**:
   - C++17 backend using `cpp11`.
   - Binary packet formats:
-    - `GEXP` (48-byte packed header + `Float32` coords + `Uint32` vertex feature IDs + `Uint32` ring starts + `Uint32` earcut triangle indices + `Uint8` RGBA + optional `Float32` radius & elevation).
-    - `GEXR` (48-byte packed header + `Float32` raster band values).
+    - `GLMP` (48-byte packed header + `Float32` coords + `Uint32` vertex feature IDs + `Uint32` ring starts + `Uint32` earcut triangle indices + `Uint8` RGBA + optional `Float32` radius & elevation).
+    - `GLMR` (48-byte packed header + `Float32` raster band values).
   - Note: On Windows without `decor` installed, keep `src/cpp11.cpp` and `R/cpp11.R` synchronized manually when adding new `[[cpp11::register]]` functions, and compile via `R CMD INSTALL --no-multiarch .`.
 - **`R/transport.R`**:
   - `gl_pack_sf_binary()` (supports `sf`, `sfc`, `wk_xy`, `wk_wkb`, `wk_wkt`, `nanoarrow_array`, `data.frame`), `gl_pack_raster_binary()` (supports `terra::SpatRaster` and `matrix`), `gl_spatial_index()`, and `httpuv` daemon server (`gl_serve_start()`, `gl_serve_stop()`).
@@ -65,4 +65,4 @@ When asked to migrate an R script or Shiny app from `leaflet` to `glmap`, apply 
 - **`R/plugins.R` & `R/shiny.R`**:
   - Extension registry (`register_plugin()`, `use_plugin()`, `add_webgl_shader_layer()`, `add_deck_layer()`) and Shiny proxy (`glmap_proxy()`).
 - **`inst/htmlwidgets/glmap.js`**:
-  - Zero-dependency WebGL2 + MapLibre GL JS engine, `GEXP`/`GEXR` binary parser, `DecompressionStream("deflate")` decoder, custom GLSL shaders (SDF instanced points, triangulated polygon mesh, additive Gaussian heatmap, multi-band `Float32` raster LUT + surface-normal hillshader), and interactive Measure / Box Brush / PNG Export tools.
+  - Zero-dependency WebGL2 + MapLibre GL JS engine, `GLMP`/`GLMR` binary parser, `DecompressionStream("deflate")` decoder, custom GLSL shaders (SDF instanced points, triangulated polygon mesh, additive Gaussian heatmap, multi-band `Float32` raster LUT + surface-normal hillshader), and interactive Measure / Box Brush / PNG Export tools.

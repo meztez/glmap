@@ -17,7 +17,7 @@ next_layer_id <- function(prefix = "layer") {
 #' Start the local zero-copy binary & tile server (`gl_serve_start`)
 #'
 #' Starts a background `httpuv` daemon server on `127.0.0.1` that streams
-#' `GEXP` and `GEXR` binary buffers, gzipped payloads, and dynamic spatial
+#' `GLMP` and `GLMR` binary buffers, gzipped payloads, and dynamic spatial
 #' viewport slices directly to the browser without JSON serialization.
 #'
 #' @param port Optional integer port. If `NULL`, a random available port is chosen.
@@ -36,7 +36,7 @@ gl_serve_start <- function(port = NULL) {
     "Access-Control-Allow-Origin" = "*",
     "Access-Control-Allow-Methods" = "GET, HEAD, OPTIONS",
     "Access-Control-Allow-Headers" = "Range, Content-Type, Accept, Origin",
-    "Access-Control-Expose-Headers" = "Content-Length, Content-Range, X-Gexplore-Features",
+    "Access-Control-Expose-Headers" = "Content-Length, Content-Range, X-Glmap-Features",
     "Cache-Control" = "no-cache"
   )
 
@@ -207,7 +207,7 @@ parse_query_string <- function(qs) {
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
-#' Pack an sf, sfc, or data.frame object into a GEXP binary buffer (`gl_pack_sf_binary`)
+#' Pack an sf, sfc, or data.frame object into a GLMP binary buffer (`gl_pack_sf_binary`)
 #'
 #' @param data An `sf`, `sfc`, or `data.frame` object.
 #' @param lon Column name for longitude when `data` is a `data.frame`.
@@ -215,7 +215,7 @@ parse_query_string <- function(qs) {
 #' @param rgba Integer vector of RGBA bytes (length 4 for constant color or `4 * nrow(data)`).
 #' @param radius Numeric vector of radii (length 0, 1, or `nrow(data)`).
 #' @param elevation Numeric vector of extrusion heights (length 0, 1, or `nrow(data)`).
-#' @return A `raw` vector in `GEXP` binary format with attribute `"bbox"` and `"geom_type"`.
+#' @return A `raw` vector in `GLMP` binary format with attribute `"bbox"` and `"geom_type"`.
 #' @export
 gl_pack_sf_binary <- function(
     data,
@@ -233,7 +233,7 @@ gl_pack_sf_binary <- function(
   if (inherits(data, "wk_xy")) {
     un <- unclass(data)
     raw_buf <- cpp_pack_points_xy(as.numeric(un$x), as.numeric(un$y), rgba, radius, elevation)
-    hdr <- read_gexp_header(raw_buf)
+    hdr <- read_glmp_header(raw_buf)
     attr(raw_buf, "bbox") <- hdr$bbox
     attr(raw_buf, "geom_type") <- "POINT"
     attr(raw_buf, "n_features") <- hdr$n_features
@@ -254,7 +254,7 @@ gl_pack_sf_binary <- function(
     coords_df <- wk::wk_coords(data)
     if (length(unique(coords_df$feature_id)) == nrow(coords_df)) {
       raw_buf <- cpp_pack_points_xy(as.numeric(coords_df$x), as.numeric(coords_df$y), rgba, radius, elevation)
-      hdr <- read_gexp_header(raw_buf)
+      hdr <- read_glmp_header(raw_buf)
       attr(raw_buf, "bbox") <- hdr$bbox
       attr(raw_buf, "geom_type") <- "POINT"
       attr(raw_buf, "n_features") <- hdr$n_features
@@ -296,7 +296,7 @@ gl_pack_sf_binary <- function(
     x <- as.numeric(data[[lon]])
     y <- as.numeric(data[[lat]])
     raw_buf <- cpp_pack_points_xy(x, y, rgba, radius, elevation)
-    hdr <- read_gexp_header(raw_buf)
+    hdr <- read_glmp_header(raw_buf)
     attr(raw_buf, "bbox") <- hdr$bbox
     attr(raw_buf, "geom_type") <- "POINT"
     attr(raw_buf, "n_features") <- hdr$n_features
@@ -336,7 +336,7 @@ gl_pack_sf_binary <- function(
   }
 
   raw_buf <- cpp_pack_sfc_binary(sfc, geom_type_int, rgba, radius, elevation)
-  hdr <- read_gexp_header(raw_buf)
+  hdr <- read_glmp_header(raw_buf)
   attr(raw_buf, "bbox") <- hdr$bbox
   attr(raw_buf, "geom_type") <- c("POINT", "LINESTRING", "POLYGON")[geom_type_int]
   attr(raw_buf, "n_features") <- hdr$n_features
@@ -345,13 +345,13 @@ gl_pack_sf_binary <- function(
   raw_buf
 }
 
-#' Pack a terra SpatRaster or matrix into a GEXR Float32 binary buffer (`gl_pack_raster_binary`)
+#' Pack a terra SpatRaster or matrix into a GLMR Float32 binary buffer (`gl_pack_raster_binary`)
 #'
 #' @param raster A `terra::SpatRaster` object, or a numeric `matrix`.
 #' @param max_cells Maximum number of cells to stream (downsamples overview if exceeded).
 #' @param bands Integer vector of band indices to include (default `1L`).
 #' @param bbox Numeric vector `c(xmin, ymin, xmax, ymax)` when `raster` is a matrix.
-#' @return A `raw` vector in `GEXR` Float32 binary format with metadata attributes.
+#' @return A `raw` vector in `GLMR` Float32 binary format with metadata attributes.
 #' @export
 gl_pack_raster_binary <- function(
     raster,
@@ -400,7 +400,7 @@ gl_pack_raster_binary <- function(
 
   nodata <- -999999.0
   raw_buf <- cpp_pack_raster_float32(vals, as.integer(width), as.integer(height), as.integer(n_bands), bb, nodata)
-  hdr <- read_gexr_header(raw_buf)
+  hdr <- read_glmr_header(raw_buf)
   attr(raw_buf, "bbox") <- hdr$bbox
   attr(raw_buf, "width") <- hdr$width
   attr(raw_buf, "height") <- hdr$height
@@ -410,7 +410,7 @@ gl_pack_raster_binary <- function(
   raw_buf
 }
 
-read_gexp_header <- function(raw_buf) {
+read_glmp_header <- function(raw_buf) {
   con <- rawConnection(raw_buf[1:48], "rb")
   on.exit(close(con), add = TRUE)
   magic <- rawToChar(readBin(con, "raw", 4))
@@ -432,7 +432,7 @@ read_gexp_header <- function(raw_buf) {
   )
 }
 
-read_gexr_header <- function(raw_buf) {
+read_glmr_header <- function(raw_buf) {
   con <- rawConnection(raw_buf[1:48], "rb")
   on.exit(close(con), add = TRUE)
   magic <- rawToChar(readBin(con, "raw", 4))
@@ -548,7 +548,6 @@ gl_slice_indexed_buffer <- function(idx_obj, xmin, ymin, xmax, ymax, max_feature
   }
   gl_pack_sf_binary(idx_obj$sfc[hits], rgba = idx_obj$rgba %||% c(30L, 144L, 255L, 200L))
 }
-
 
 
 

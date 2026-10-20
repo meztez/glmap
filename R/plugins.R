@@ -98,10 +98,10 @@ list_plugins <- function() {
 #' Add a Custom WebGL2 Shader Layer to a `glmap` Map
 #'
 #' Enables R developers and extension packages to write custom GLSL vertex and
-#' fragment shaders driven by `GEXP` binary coordinate/attribute buffers.
+#' fragment shaders driven by `GLMP` binary coordinate/attribute buffers.
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
-#' @param data Optional `sf`, `sfc`, or `data.frame` packed into a `GEXP` binary buffer for the shader.
+#' @param data Optional `sf`, `sfc`, or `data.frame` packed into a `GLMP` binary buffer for the shader.
 #' @param vertex_shader Custom GLSL vertex shader source string.
 #' @param fragment_shader Custom GLSL fragment shader source string.
 #' @param uniforms Named list of uniform values passed to the shader program.
@@ -159,7 +159,7 @@ add_webgl_shader_layer <- function(
 #' Add a Custom Deck.gl / External Layer Specification
 #'
 #' Allows R extension packages to dispatch arbitrary `deck.gl` or `MapLibre`
-#' custom layer specifications fed by `GEXP` binary buffers or JSON props.
+#' custom layer specifications fed by `GLMP` binary buffers or JSON props.
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
 #' @param deck_type Deck.gl layer class name (e.g., `"ArcLayer"`, `"ScatterplotLayer"`, `"TripsLayer"`, `"PathLayer"`).

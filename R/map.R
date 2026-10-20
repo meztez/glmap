@@ -577,7 +577,7 @@ add_sf <- function(map, data = NULL, ...) {
 
 #' Add a GPU Instanced Point Layer (Handles 1M+ Points at 60 FPS)
 #'
-#' Streams points as a zero-copy `GEXP` binary `Float32Array` buffer directly to
+#' Streams points as a zero-copy `GLMP` binary `Float32Array` buffer directly to
 #' a custom WebGL2 instanced point shader (with anti-aliased SDF circles, stroke
 #' outlines, variable radius, and interactive picking).
 #'
@@ -823,7 +823,7 @@ add_polygons <- function(
 
 #' Add a GPU Fragment-Shader Raster Layer for `terra::SpatRaster`
 #'
-#' Streams raw Float32 raster values (`GEXR` binary packet) directly into a
+#' Streams raw Float32 raster values (`GLMR` binary packet) directly into a
 #' WebGL2 `R32F` floating-point texture. Colormapping, hillshading, min/max
 #' contrast stretching, thresholding, and live pixel value inspection happen
 #' entirely on the GPU in 0 ms without re-rendering PNGs in R.
@@ -987,7 +987,7 @@ add_hexbin <- function(
 
   elev <- if (isTRUE(extrude)) as.numeric(bins$count) else numeric(0)
   raw_buf <- cpp_pack_sfc_binary(sfc_hex, 3L, col_res$rgba, numeric(0), elev)
-  hdr <- read_gexp_header(raw_buf)
+  hdr <- read_glmp_header(raw_buf)
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
@@ -1233,7 +1233,7 @@ add_labels <- function(
   }
 
   raw_buf <- cpp_pack_points_xy(x, y, c(255L, 255L, 255L, 255L), as.numeric(size[1]), numeric(0))
-  hdr <- read_gexp_header(raw_buf)
+  hdr <- read_glmp_header(raw_buf)
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 

@@ -134,7 +134,7 @@ test_that("Shiny proxy and custom plugin registration work seamlessly", {
   expect_equal(proxy$calls[[4]]$method, "usePlugin")
 })
 
-test_that("wk::xy, wk::wkb, and nanoarrow GeoArrow inputs pack directly into GEXP binary buffers", {
+test_that("wk::xy, wk::wkb, and nanoarrow GeoArrow inputs pack directly into GLMP binary buffers", {
   if (requireNamespace("wk", quietly = TRUE)) {
     pts_wk <- wk::xy(c(-73.5, -73.6, -73.7), c(45.5, 45.6, 45.7))
     buf_wk <- gl_pack_sf_binary(pts_wk)
@@ -343,6 +343,5 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_equal(prx$calls[[3]]$method, "clearGroup")
   expect_equal(prx$calls[[4]]$method, "flyToBounds")
 })
-
 
 

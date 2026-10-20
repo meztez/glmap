@@ -22,7 +22,7 @@ Think of <code>leaflet</code> like writing down 1,000,000 phone numbers by hand 
 <div class="glmap-tech-box">
 <span class="glmap-box-badge">⚙️ Technical Mode (Architecture Deep Dive)</span><br/>
 <b>Zero-JSON Binary Transport & WebGL2 Shader Pipeline:</b><br/>
-Where <code>leaflet</code> serializes R objects into verbose GeoJSON strings inside HTML via <code>jsonlite</code> and renders via DOM/SVG/2D Canvas, <code>glmap</code> extracts coordinates in <b>C++17</b> (<code>cpp11</code>), runs <code>mapbox/earcut.h</code> polygon hole triangulation in native code, and emits packed 48-byte aligned <code>GEXP</code> (vector) and <code>GEXR</code> (<code>Float32</code> raster) binary packets. Buffers are either compressed via RFC 1950 <code>zlib</code> (decoded in ~5 ms in-browser via native <code>DecompressionStream("deflate")</code>) or streamed via <code>httpuv</code> HTTP Range / viewport slices directly into WebGL2 Vertex Buffer Objects (VBOs) and <code>RGBA32F</code> floating-point textures.
+Where <code>leaflet</code> serializes R objects into verbose GeoJSON strings inside HTML via <code>jsonlite</code> and renders via DOM/SVG/2D Canvas, <code>glmap</code> extracts coordinates in <b>C++17</b> (<code>cpp11</code>), runs <code>mapbox/earcut.h</code> polygon hole triangulation in native code, and emits packed 48-byte aligned <code>GLMP</code> (vector) and <code>GLMR</code> (<code>Float32</code> raster) binary packets. Buffers are either compressed via RFC 1950 <code>zlib</code> (decoded in ~5 ms in-browser via native <code>DecompressionStream("deflate")</code>) or streamed via <code>httpuv</code> HTTP Range / viewport slices directly into WebGL2 Vertex Buffer Objects (VBOs) and <code>RGBA32F</code> floating-point textures.
 </div>
 
 ---
@@ -32,7 +32,7 @@ Where <code>leaflet</code> serializes R objects into verbose GeoJSON strings ins
 | Dimension | `leaflet` (R Package) | `glmap` (C++17 + WebGL2 + MapLibre GL) |
 | :--- | :--- | :--- |
 | **Rendering Engine** | Leaflet.js (2D DOM / SVG / Canvas) | **MapLibre GL JS** + **Custom WebGL2 Shaders** (60 FPS GPU) |
-| **R-to-Browser Data Transfer** | GeoJSON text embedded in HTML (`jsonlite`) | **Zero-JSON `GEXP` / `GEXR` Binary Buffers** (`zlib` stream or `httpuv` Range server) |
+| **R-to-Browser Data Transfer** | GeoJSON text embedded in HTML (`jsonlite`) | **Zero-JSON `GLMP` / `GLMR` Binary Buffers** (`zlib` stream or `httpuv` Range server) |
 | **1,000,000 Points** | ~18–45 sec R serialization, >180 MB HTML, tab crash | **0.05 sec** in C++17 (19.07 MB raw / ~5 MB compressed), 60 FPS |
 | **Polygon Triangulation** | Single-threaded JS `earcut` on browser main thread | **Pre-triangulated in C++17 (`mapbox/earcut.hpp`)** before reaching browser |
 | **1,000,000 Point Hexbinning** | Requires external R pre-aggregation (`sf::st_make_grid`) | **0.10 sec** native C++17 64-bit spatial hash (`add_hexbin()`) |
@@ -203,10 +203,10 @@ For a widget with `outputId = "map"`, `glmap` automatically provides:
    ```r
    register_plugin(
      name = "watermark",
-     css = ".gx-wm { position:absolute; top:12px; left:50%; transform:translateX(-50%); color:#38bdf8; z-index:15; font-weight:700; }",
+     css = ".gl-wm { position:absolute; top:12px; left:50%; transform:translateX(-50%); color:#38bdf8; z-index:15; font-weight:700; }",
      js_init = "function(instance, config) {
        const div = document.createElement('div');
-       div.className = 'gx-wm';
+       div.className = 'gl-wm';
        div.textContent = config.text || 'CONFIDENTIAL';
        instance.el.appendChild(div);
      }",
@@ -217,7 +217,7 @@ For a widget with `outputId = "map"`, `glmap` automatically provides:
    ```
    Built-in plugins ready out of the box: `"measure"`, `"lasso_select"`, `"minimap"`, `"export_png"`.
 2. **Level 2 — Custom WebGL2 GLSL Shaders (`add_webgl_shader_layer()`)**:
-   Pass custom vertex and fragment shader GLSL strings directly from R while leveraging `glmap`'s C++17 `GEXP` binary vertex/attribute buffers.
+   Pass custom vertex and fragment shader GLSL strings directly from R while leveraging `glmap`'s C++17 `GLMP` binary vertex/attribute buffers.
 3. **Level 3 — Custom Deck.gl Layer Bridge (`add_deck_layer()`)**:
    Dispatch arbitrary `deck.gl` layer specifications backed by binary buffers.
 

@@ -13,8 +13,8 @@ using namespace cpp11;
 namespace {
 
 #pragma pack(push, 1)
-struct GexpHeader {
-  char magic[4];           // "GEXP" (4)
+struct GlmpHeader {
+  char magic[4];           // "GLMP" (4)
   uint16_t version;        // 1 (2)
   uint16_t geom_type;      // 1=POINT, 2=LINESTRING, 3=POLYGON, 4=RASTER, 5=HEXBIN (2)
   uint32_t n_features;     // (4)
@@ -26,8 +26,8 @@ struct GexpHeader {
   float bbox[4];           // xmin, ymin, xmax, ymax (16) -> total = 48 bytes
 };
 
-struct GexpRasterHeader {
-  char magic[4];           // "GEXR"
+struct GlmrHeader {
+  char magic[4];           // "GLMR"
   uint16_t version;        // 1
   uint16_t n_bands;
   uint32_t width;
@@ -160,7 +160,7 @@ struct SpatialGridIndex {
 
 } // anonymous namespace
 
-// Pack numeric x, y vectors directly into a GEXP binary point buffer (Ultra-fast path for 1M+ points)
+// Pack numeric x, y vectors directly into a GLMP binary point buffer (Ultra-fast path for 1M+ points)
 [[cpp11::register]]
 cpp11::raws cpp_pack_points_xy(
     cpp11::doubles x,
@@ -177,9 +177,9 @@ cpp11::raws cpp_pack_points_xy(
   uint32_t has_radius = (radius.size() > 0) ? 1u : 0u;
   uint32_t has_elevation = (elevation.size() > 0) ? 1u : 0u;
 
-  GexpHeader hdr;
-  std::memset(&hdr, 0, sizeof(GexpHeader));
-  std::memcpy(hdr.magic, "GEXP", 4);
+  GlmpHeader hdr;
+  std::memset(&hdr, 0, sizeof(GlmpHeader));
+  std::memcpy(hdr.magic, "GLMP", 4);
   hdr.version = 1;
   hdr.geom_type = 1; // POINT
   hdr.n_features = n;
@@ -199,13 +199,13 @@ cpp11::raws cpp_pack_points_xy(
   size_t radius_bytes = has_radius ? (static_cast<size_t>(n) * sizeof(float)) : 0;
   size_t elev_bytes = has_elevation ? (static_cast<size_t>(n) * sizeof(float)) : 0;
 
-  size_t total_bytes = sizeof(GexpHeader) + coords_bytes + feat_id_bytes + rgba_bytes + radius_bytes + elev_bytes;
+  size_t total_bytes = sizeof(GlmpHeader) + coords_bytes + feat_id_bytes + rgba_bytes + radius_bytes + elev_bytes;
   cpp11::writable::raws out(total_bytes);
   uint8_t* base = reinterpret_cast<uint8_t*>(RAW(out));
 
-  float* coords_ptr = reinterpret_cast<float*>(base + sizeof(GexpHeader));
-  uint32_t* feat_ptr = reinterpret_cast<uint32_t*>(base + sizeof(GexpHeader) + coords_bytes);
-  uint8_t* rgba_ptr = base + sizeof(GexpHeader) + coords_bytes + feat_id_bytes;
+  float* coords_ptr = reinterpret_cast<float*>(base + sizeof(GlmpHeader));
+  uint32_t* feat_ptr = reinterpret_cast<uint32_t*>(base + sizeof(GlmpHeader) + coords_bytes);
+  uint8_t* rgba_ptr = base + sizeof(GlmpHeader) + coords_bytes + feat_id_bytes;
   float* rad_ptr = reinterpret_cast<float*>(rgba_ptr + rgba_bytes);
   float* elev_ptr = reinterpret_cast<float*>(reinterpret_cast<uint8_t*>(rad_ptr) + radius_bytes);
 
@@ -262,12 +262,12 @@ cpp11::raws cpp_pack_points_xy(
   hdr.bbox[2] = xmax;
   hdr.bbox[3] = ymax;
 
-  std::memcpy(base, &hdr, sizeof(GexpHeader));
+  std::memcpy(base, &hdr, sizeof(GlmpHeader));
   return out;
 }
 
 // Pack an sfc geometry list column (POINT, LINESTRING, POLYGON, MULTIPOLYGON, etc.)
-// directly into a contiguous GEXP binary buffer with C++ earcut triangulation
+// directly into a contiguous GLMP binary buffer with C++ earcut triangulation
 [[cpp11::register]]
 cpp11::raws cpp_pack_sfc_binary(
     cpp11::list sfc,
@@ -314,9 +314,9 @@ cpp11::raws cpp_pack_sfc_binary(
   uint32_t has_radius = (radius.size() > 0) ? 1u : 0u;
   uint32_t has_elevation = (elevation.size() > 0) ? 1u : 0u;
 
-  GexpHeader hdr;
-  std::memset(&hdr, 0, sizeof(GexpHeader));
-  std::memcpy(hdr.magic, "GEXP", 4);
+  GlmpHeader hdr;
+  std::memset(&hdr, 0, sizeof(GlmpHeader));
+  std::memcpy(hdr.magic, "GLMP", 4);
   hdr.version = 1;
   hdr.geom_type = geom_type;
   hdr.n_features = n_features;
@@ -335,14 +335,14 @@ cpp11::raws cpp_pack_sfc_binary(
   size_t rad_bytes = has_radius ? (static_cast<size_t>(n_features) * sizeof(float)) : 0;
   size_t elev_bytes = has_elevation ? (static_cast<size_t>(n_features) * sizeof(float)) : 0;
 
-  size_t total_bytes = sizeof(GexpHeader) + coords_bytes + feat_id_bytes +
+  size_t total_bytes = sizeof(GlmpHeader) + coords_bytes + feat_id_bytes +
                        ring_bytes + idx_bytes + rgba_bytes + rad_bytes + elev_bytes;
 
   cpp11::writable::raws out(total_bytes);
   uint8_t* ptr = reinterpret_cast<uint8_t*>(RAW(out));
 
-  std::memcpy(ptr, &hdr, sizeof(GexpHeader));
-  ptr += sizeof(GexpHeader);
+  std::memcpy(ptr, &hdr, sizeof(GlmpHeader));
+  ptr += sizeof(GlmpHeader);
 
   if (coords_bytes > 0) {
     std::memcpy(ptr, coords.data(), coords_bytes);
@@ -402,7 +402,7 @@ cpp11::raws cpp_pack_sfc_binary(
   return out;
 }
 
-// Pack a terra raster numeric vector into a GEXR raw Float32 binary packet for GPU fragment shaders
+// Pack a terra raster numeric vector into a GLMR raw Float32 binary packet for GPU fragment shaders
 [[cpp11::register]]
 cpp11::raws cpp_pack_raster_float32(
     cpp11::doubles values,
@@ -413,9 +413,9 @@ cpp11::raws cpp_pack_raster_float32(
     double nodata
 ) {
   size_t n_vals = static_cast<size_t>(values.size());
-  GexpRasterHeader hdr;
-  std::memset(&hdr, 0, sizeof(GexpRasterHeader));
-  std::memcpy(hdr.magic, "GEXR", 4);
+  GlmrHeader hdr;
+  std::memset(&hdr, 0, sizeof(GlmrHeader));
+  std::memcpy(hdr.magic, "GLMR", 4);
   hdr.version = 1;
   hdr.n_bands = static_cast<uint16_t>(n_bands);
   hdr.width = static_cast<uint32_t>(width);
@@ -428,10 +428,10 @@ cpp11::raws cpp_pack_raster_float32(
   float vmin = std::numeric_limits<float>::infinity();
   float vmax = -std::numeric_limits<float>::infinity();
 
-  size_t total_bytes = sizeof(GexpRasterHeader) + n_vals * sizeof(float);
+  size_t total_bytes = sizeof(GlmrHeader) + n_vals * sizeof(float);
   cpp11::writable::raws out(total_bytes);
   uint8_t* base = reinterpret_cast<uint8_t*>(RAW(out));
-  float* fptr = reinterpret_cast<float*>(base + sizeof(GexpRasterHeader));
+  float* fptr = reinterpret_cast<float*>(base + sizeof(GlmrHeader));
 
   const double* vp = REAL(values);
   for (size_t i = 0; i < n_vals; ++i) {
@@ -452,7 +452,7 @@ cpp11::raws cpp_pack_raster_float32(
   }
   hdr.vmin = vmin;
   hdr.vmax = vmax;
-  std::memcpy(base, &hdr, sizeof(GexpRasterHeader));
+  std::memcpy(base, &hdr, sizeof(GlmrHeader));
   return out;
 }
 

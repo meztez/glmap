@@ -1,4 +1,4 @@
-/* gexplore: High-Performance Zero-Copy GPU Geospatial Engine for R */
+/* glmap: High-Performance Zero-Copy GPU Geospatial Engine for R */
 (function () {
   "use strict";
 
@@ -121,8 +121,8 @@
     return bytes.buffer;
   }
 
-  // Parse 48-byte GEXP binary vector packet into zero-copy TypedArray views
-  function parseGexpBuffer(arrayBuffer) {
+  // Parse 48-byte GLMP binary vector packet into zero-copy TypedArray views
+  function parseGlmpBuffer(arrayBuffer) {
     if (!arrayBuffer || arrayBuffer.byteLength < 48) return null;
     const dv = new DataView(arrayBuffer);
     const magic =
@@ -130,8 +130,8 @@
       String.fromCharCode(dv.getUint8(1)) +
       String.fromCharCode(dv.getUint8(2)) +
       String.fromCharCode(dv.getUint8(3));
-    if (magic !== "GEXP") {
-      throw new Error("Invalid GEXP magic header: " + magic);
+    if (magic !== "GLMP") {
+      throw new Error("Invalid GLMP magic header: " + magic);
     }
 
     const version = dv.getUint16(4, true);
@@ -231,8 +231,8 @@
     };
   }
 
-  // Parse 48-byte GEXR Float32 raster packet
-  function parseGexrBuffer(arrayBuffer) {
+  // Parse 48-byte GLMR Float32 raster packet
+  function parseGlmrBuffer(arrayBuffer) {
     if (!arrayBuffer || arrayBuffer.byteLength < 48) return null;
     const dv = new DataView(arrayBuffer);
     const magic =
@@ -240,8 +240,8 @@
       String.fromCharCode(dv.getUint8(1)) +
       String.fromCharCode(dv.getUint8(2)) +
       String.fromCharCode(dv.getUint8(3));
-    if (magic !== "GEXR") {
-      throw new Error("Invalid GEXR magic header: " + magic);
+    if (magic !== "GLMR") {
+      throw new Error("Invalid GLMR magic header: " + magic);
     }
     const version = dv.getUint16(4, true);
     const nBands = dv.getUint16(6, true);
@@ -297,11 +297,11 @@
     return prog;
   }
 
-  // Main GExploreInstance class managing MapLibre GL + synchronized WebGL2 GPU Overlay
-  class GExploreInstance {
+  // Main GLMapInstance class managing MapLibre GL + synchronized WebGL2 GPU Overlay
+  class GLMapInstance {
     constructor(el, width, height) {
       this.el = el;
-      this.el.classList.add("gexplore-container");
+      this.el.classList.add("glmap-container");
       this.layers = new Map();
       this.layerOrder = [];
       this.legends = [];
@@ -330,41 +330,41 @@
       this.el.innerHTML = "";
 
       this.mapContainer = document.createElement("div");
-      this.mapContainer.className = "gexplore-map-canvas";
+      this.mapContainer.className = "glmap-map-canvas";
       this.el.appendChild(this.mapContainer);
 
       this.glCanvas = document.createElement("canvas");
-      this.glCanvas.className = "gexplore-gl-overlay";
+      this.glCanvas.className = "glmap-gl-overlay";
       this.el.appendChild(this.glCanvas);
 
       this.labelCanvas = document.createElement("canvas");
-      this.labelCanvas.className = "gexplore-gl-overlay";
+      this.labelCanvas.className = "glmap-gl-overlay";
       this.el.appendChild(this.labelCanvas);
 
       // Layer switcher panel
       this.switcherEl = document.createElement("div");
-      this.switcherEl.className = "gexplore-panel gexplore-layer-switcher";
+      this.switcherEl.className = "glmap-panel glmap-layer-switcher";
       this.switcherEl.style.display = "none";
       this.el.appendChild(this.switcherEl);
 
       // Toolbar (Measure, Reset View, PNG Export)
       this.toolbarEl = document.createElement("div");
-      this.toolbarEl.className = "gexplore-toolbar";
+      this.toolbarEl.className = "glmap-toolbar";
       this.el.appendChild(this.toolbarEl);
 
       // Bottom-left HUD (FPS, feature count, cursor lon/lat/raster value)
       this.hudEl = document.createElement("div");
-      this.hudEl.className = "gexplore-panel gexplore-hud";
+      this.hudEl.className = "glmap-panel glmap-hud";
       this.el.appendChild(this.hudEl);
 
       // Bottom-right Legends & GPU Raster Shader controls
       this.legendsEl = document.createElement("div");
-      this.legendsEl.className = "gexplore-legends-wrap";
+      this.legendsEl.className = "glmap-legends-wrap";
       this.el.appendChild(this.legendsEl);
 
       // Hover/click tooltip
       this.tooltipEl = document.createElement("div");
-      this.tooltipEl.className = "gexplore-tooltip";
+      this.tooltipEl.className = "glmap-tooltip";
       this.el.appendChild(this.tooltipEl);
     }
 
@@ -618,7 +618,7 @@
         sources: {},
         layers: [
           {
-            id: "gx-background",
+            id: "gl-background",
             type: "background",
             paint: { "background-color": basemap.bg || "#0e1117" }
           }
@@ -628,16 +628,16 @@
       if (styleUrl) {
         mapStyle = styleUrl;
       } else if (Array.isArray(basemap.tiles) && basemap.tiles.length > 0) {
-        mapStyle.sources["gx-basemap"] = {
+        mapStyle.sources["gl-basemap"] = {
           type: "raster",
           tiles: basemap.tiles,
           tileSize: 256,
           attribution: basemap.attribution || ""
         };
         mapStyle.layers.push({
-          id: "gx-basemap-layer",
+          id: "gl-basemap-layer",
           type: "raster",
-          source: "gx-basemap",
+          source: "gl-basemap",
           minzoom: 0,
           maxzoom: 20
         });
@@ -737,7 +737,7 @@
       });
 
       this.el.addEventListener("click", (e) => {
-        if (e.target.closest(".gexplore-panel") || e.target.closest(".gexplore-toolbar")) return;
+        if (e.target.closest(".glmap-panel") || e.target.closest(".glmap-toolbar")) return;
         const rect = this.el.getBoundingClientRect();
         const px = e.clientX - rect.left;
         const py = e.clientY - rect.top;
@@ -768,7 +768,7 @@
 
       if (entry.type === "points" || entry.type === "lines" || entry.type === "polygons" || entry.type === "heatmap" || entry.type === "labels") {
         const ab = await loadBinaryBuffer(entry.buffer);
-        const parsed = parseGexpBuffer(ab);
+        const parsed = parseGlmpBuffer(ab);
         if (parsed && gl) {
           entry.parsed = parsed;
           entry.vboPos = gl.createBuffer();
@@ -797,7 +797,7 @@
         }
       } else if (entry.type === "raster") {
         const ab = await loadBinaryBuffer(entry.buffer);
-        const parsed = parseGexrBuffer(ab);
+        const parsed = parseGlmrBuffer(ab);
         if (parsed && gl) {
           entry.parsed = parsed;
           this._uploadRasterTexture(entry, parsed);
@@ -1228,7 +1228,7 @@
             const resp = await fetch(url);
             if (resp.ok) {
               const ab = await resp.arrayBuffer();
-              const parsed = parseGexpBuffer(ab);
+              const parsed = parseGlmpBuffer(ab);
               if (parsed && this.gl) {
                 layer.parsed = parsed;
                 const gl = this.gl;
@@ -1345,7 +1345,7 @@
       this.toolbarEl.innerHTML = "";
 
       const resetBtn = document.createElement("button");
-      resetBtn.className = "gexplore-btn";
+      resetBtn.className = "glmap-btn";
       resetBtn.textContent = "Fit Data";
       resetBtn.onclick = () => {
         if (this.spec && this.spec.view && this.spec.view.bounds) {
@@ -1355,7 +1355,7 @@
       this.toolbarEl.appendChild(resetBtn);
 
       const measureBtn = document.createElement("button");
-      measureBtn.className = "gexplore-btn";
+      measureBtn.className = "glmap-btn";
       measureBtn.textContent = "Measure";
       measureBtn.onclick = () => {
         this.measureActive = !this.measureActive;
@@ -1366,7 +1366,7 @@
       this.toolbarEl.appendChild(measureBtn);
 
       const brushBtn = document.createElement("button");
-      brushBtn.className = "gexplore-btn";
+      brushBtn.className = "glmap-btn";
       brushBtn.textContent = "Box Brush";
       brushBtn.onclick = () => {
         this.enableBoxSelect();
@@ -1381,19 +1381,19 @@
         return;
       }
       this.switcherEl.style.display = "block";
-      let html = `<div class="gexplore-panel-title"><span>GPU Layers</span><span>${this.layers.size}</span></div>`;
+      let html = `<div class="glmap-panel-title"><span>GPU Layers</span><span>${this.layers.size}</span></div>`;
       for (const id of this.layerOrder) {
         const l = this.layers.get(id);
         const countBadge = l.type === "raster"
           ? `${l.width}x${l.height}`
           : (l.n_features || 0).toLocaleString();
         html += `
-          <div class="gexplore-layer-item">
-            <label class="gexplore-layer-label">
+          <div class="glmap-layer-item">
+            <label class="glmap-layer-label">
               <input type="checkbox" data-layer-id="${l.id}" ${l.visible ? "checked" : ""}/>
               <span>${l.group || l.id}</span>
             </label>
-            <span class="gexplore-badge">${countBadge}</span>
+            <span class="glmap-badge">${countBadge}</span>
           </div>
         `;
       }
@@ -1410,28 +1410,28 @@
       this.legendsEl.innerHTML = "";
       for (const leg of this.legends) {
         const card = document.createElement("div");
-        card.className = "gexplore-panel";
-        let html = `<div class="gexplore-panel-title"><span>${leg.title || "Legend"}</span></div>`;
+        card.className = "glmap-panel";
+        let html = `<div class="glmap-panel-title"><span>${leg.title || "Legend"}</span></div>`;
         if (leg.type === "continuous" && Array.isArray(leg.colors)) {
           const grad = `linear-gradient(to right, ${leg.colors.join(", ")})`;
           const d0 = leg.domain ? Number(leg.domain[0]).toFixed(1) : "0";
           const d1 = leg.domain ? Number(leg.domain[1]).toFixed(1) : "1";
           html += `
-            <div class="gexplore-gradient-bar" style="background: ${grad}"></div>
-            <div class="gexplore-domain-labels"><span>${d0}</span><span>${d1}</span></div>
+            <div class="glmap-gradient-bar" style="background: ${grad}"></div>
+            <div class="glmap-domain-labels"><span>${d0}</span><span>${d1}</span></div>
           `;
           if (leg.is_raster && leg.layer_id && this.layers.has(leg.layer_id)) {
             const rl = this.layers.get(leg.layer_id);
             html += `
-              <div class="gexplore-raster-controls" data-raster-id="${leg.layer_id}">
+              <div class="glmap-raster-controls" data-raster-id="${leg.layer_id}">
                 <label style="font-size:10px;color:#94a3b8">GPU Shader Palette</label>
-                <select class="gx-pal-select">
+                <select class="gl-pal-select">
                   ${["viridis", "magma", "plasma", "turbo", "terrain", "rdylbu"].map(p =>
                     `<option value="${p}" ${(rl.style && rl.style.palette === p) ? "selected" : ""}>${p}</option>`
                   ).join("")}
                 </select>
                 <label style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:3px">
-                  <input type="checkbox" class="gx-hill-cb" ${(rl.style && rl.style.hillshade) ? "checked" : ""}/>
+                  <input type="checkbox" class="gl-hill-cb" ${(rl.style && rl.style.hillshade) ? "checked" : ""}/>
                   Real-Time GPU Hillshade
                 </label>
               </div>
@@ -1440,8 +1440,8 @@
         } else if (leg.type === "categorical" && Array.isArray(leg.labels)) {
           for (let i = 0; i < leg.labels.length; i++) {
             html += `
-              <div class="gexplore-cat-row">
-                <span class="gexplore-cat-swatch" style="background:${leg.colors[i] || '#38bdf8'}"></span>
+              <div class="glmap-cat-row">
+                <span class="glmap-cat-swatch" style="background:${leg.colors[i] || '#38bdf8'}"></span>
                 <span>${leg.labels[i]}</span>
               </div>
             `;
@@ -1450,11 +1450,11 @@
         card.innerHTML = html;
         this.legendsEl.appendChild(card);
 
-        const ctrl = card.querySelector(".gexplore-raster-controls");
+        const ctrl = card.querySelector(".glmap-raster-controls");
         if (ctrl) {
           const rid = ctrl.getAttribute("data-raster-id");
-          const sel = ctrl.querySelector(".gx-pal-select");
-          const cb = ctrl.querySelector(".gx-hill-cb");
+          const sel = ctrl.querySelector(".gl-pal-select");
+          const cb = ctrl.querySelector(".gl-hill-cb");
           if (sel) {
             sel.addEventListener("change", (e) => {
               this.setRasterStyle({ id: rid, palette: e.target.value });
@@ -1494,7 +1494,7 @@
       }
 
       this.hudEl.innerHTML = `
-        <span class="gexplore-hud-fps">${this.fps} FPS</span>
+        <span class="glmap-hud-fps">${this.fps} FPS</span>
         <span>Features: <b>${totalFeats.toLocaleString()}</b></span>
         <span>Lon/Lat: ${lonStr}, ${latStr}</span>
         ${extra}
@@ -1667,7 +1667,7 @@
         let startPx = null;
 
         this.el.addEventListener("mousedown", (e) => {
-          if (!this.boxSelectActive || e.target.closest(".gexplore-panel") || e.target.closest(".gexplore-toolbar")) return;
+          if (!this.boxSelectActive || e.target.closest(".glmap-panel") || e.target.closest(".glmap-toolbar")) return;
           const rect = this.el.getBoundingClientRect();
           startPx = [e.clientX - rect.left, e.clientY - rect.top];
           boxEl.style.left = startPx[0] + "px";
@@ -1739,11 +1739,11 @@
 
     enableExportButton(cfg) {
       const btn = document.createElement("button");
-      btn.className = "gexplore-btn";
+      btn.className = "glmap-btn";
       btn.textContent = "Export PNG";
       btn.onclick = () => {
         const a = document.createElement("a");
-        a.download = (cfg && cfg.filename) || "gexplore-map.png";
+        a.download = (cfg && cfg.filename) || "glmap-map.png";
         a.href = this.glCanvas.toDataURL("image/png");
         a.click();
       };
@@ -1813,8 +1813,8 @@
       name: "glmap",
       type: "output",
       factory: function (el, width, height) {
-        const instance = new GExploreInstance(el, width, height);
-        el._gexploreInstance = instance;
+        const instance = new GLMapInstance(el, width, height);
+        el._glmapInstance = instance;
         return {
           renderValue: function (x) {
             instance.renderValue(x);
@@ -1833,8 +1833,8 @@
     if (HTMLWidgets.shinyMode && typeof Shiny !== "undefined") {
       Shiny.addCustomMessageHandler("glmap-proxy", function (msg) {
         const el = document.getElementById(msg.id);
-        if (!el || !el._gexploreInstance) return;
-        const inst = el._gexploreInstance;
+        if (!el || !el._glmapInstance) return;
+        const inst = el._glmapInstance;
         const m = msg.call.method;
         const args = msg.call.args || {};
         if (m === "addLayer") inst.addLayer(args.layer, args.legend);

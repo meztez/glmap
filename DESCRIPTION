@@ -5,7 +5,7 @@ Authors@R:
     person("Beneva", "Geospatial Team", , "geospatial@example.com", role = c("aut", "cre"))
 Description: A compact, high-performance WebGL2 and 'MapLibre GL' interactive
     mapping engine for R designed as a next-generation GPU alternative to 'leaflet'.
-    Bypasses 'htmlwidgets' JSON bottlenecks by streaming zero-copy 'GEXP' and
+    Bypasses 'htmlwidgets' JSON bottlenecks by streaming zero-copy 'GLMP' and
     'GeoArrow' binary vertex/attribute buffers directly from C++17 to WebGL2 GPU
     shaders, with C++ 'mapbox/earcut' polygon hole triangulation, in-memory spatial
     R-tree dynamic viewport slicing, 'DuckDB' out-of-core Parquet pushdown, live

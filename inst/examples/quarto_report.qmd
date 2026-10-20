@@ -36,7 +36,7 @@ html[data-glmap-mode="tech"] .glmap-eli5-box { display:none !important; }
 </div>
 
 <div class="glmap-tech-box">
-<b>⚙️ Technical Summary:</b> This Quarto document embeds <code>glmap</code> widgets using inline RFC 1950 <code>zlib</code>-compressed C++17 <code>GEXP</code> (vector) and <code>GEXR</code> (<code>Float32</code> raster) binary buffers. At runtime, the browser decodes the binary streams via <code>DecompressionStream("deflate")</code> in ~5 ms and uploads <code>Float32Array</code> views directly into WebGL2 VBOs and <code>RGBA32F</code> textures.
+<b>⚙️ Technical Summary:</b> This Quarto document embeds <code>glmap</code> widgets using inline RFC 1950 <code>zlib</code>-compressed C++17 <code>GLMP</code> (vector) and <code>GLMR</code> (<code>Float32</code> raster) binary buffers. At runtime, the browser decodes the binary streams via <code>DecompressionStream("deflate")</code> in ~5 ms and uploads <code>Float32Array</code> views directly into WebGL2 VBOs and <code>RGBA32F</code> textures.
 </div>
 
 ```{r}

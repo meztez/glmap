@@ -29,7 +29,7 @@ knitr::opts_chunk$set(
 <div class="glmap-tech-box">
 <span class="glmap-box-badge">⚙️ Technical Mode (C++17 + WebGL2 Pipeline)</span><br/>
 Traditional R mapping packages built on <code>Leaflet.js</code> serialize spatial objects into GeoJSON text inside HTML and draw features using DOM/SVG/2D Canvas. When your dataset reaches <b>100,000 to 1,000,000+ features</b> or uses high-resolution <code>terra</code> rasters, R spends tens of seconds converting coordinates to text and the browser tab freezes.<br/><br/>
-<code>glmap</code> eliminates the JSON and DOM bottlenecks entirely via C++17 <code>GEXP</code>/<code>GEXR</code> binary buffers, C++ <code>mapbox/earcut.h</code> polygon triangulation, and WebGL2 instanced SDF &amp; <code>RGBA32F</code> floating-point raster fragment shaders.
+<code>glmap</code> eliminates the JSON and DOM bottlenecks entirely via C++17 <code>GLMP</code>/<code>GLMR</code> binary buffers, C++ <code>mapbox/earcut.h</code> polygon triangulation, and WebGL2 instanced SDF &amp; <code>RGBA32F</code> floating-point raster fragment shaders.
 </div>
 
 ---

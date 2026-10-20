@@ -144,9 +144,9 @@
 <ul><li>C++17 backend using <code>cpp11</code>.</li>
 <li>Binary packet formats:
 <ul><li>
-<code>GEXP</code> (48-byte packed header + <code>Float32</code> coords + <code>Uint32</code> vertex feature IDs + <code>Uint32</code> ring starts + <code>Uint32</code> earcut triangle indices + <code>Uint8</code> RGBA + optional <code>Float32</code> radius &amp; elevation).</li>
+<code>GLMP</code> (48-byte packed header + <code>Float32</code> coords + <code>Uint32</code> vertex feature IDs + <code>Uint32</code> ring starts + <code>Uint32</code> earcut triangle indices + <code>Uint8</code> RGBA + optional <code>Float32</code> radius &amp; elevation).</li>
 <li>
-<code>GEXR</code> (48-byte packed header + <code>Float32</code> raster band values).</li>
+<code>GLMR</code> (48-byte packed header + <code>Float32</code> raster band values).</li>
 </ul></li>
 <li>Note: On Windows without <code>decor</code> installed, keep <code>src/cpp11.cpp</code> and <code>R/cpp11.R</code> synchronized manually when adding new <code>[[cpp11::register]]</code> functions, and compile via <code>R CMD INSTALL --no-multiarch .</code>.</li>
 </ul></li>
@@ -165,7 +165,7 @@
 </ul></li>
 <li>
 <strong><code>inst/htmlwidgets/glmap.js</code></strong>:
-<ul><li>Zero-dependency WebGL2 + MapLibre GL JS engine, <code>GEXP</code>/<code>GEXR</code> binary parser, <code>DecompressionStream("deflate")</code> decoder, custom GLSL shaders (SDF instanced points, triangulated polygon mesh, additive Gaussian heatmap, multi-band <code>Float32</code> raster LUT + surface-normal hillshader), and interactive Measure / Box Brush / PNG Export tools.</li>
+<ul><li>Zero-dependency WebGL2 + MapLibre GL JS engine, <code>GLMP</code>/<code>GLMR</code> binary parser, <code>DecompressionStream("deflate")</code> decoder, custom GLSL shaders (SDF instanced points, triangulated polygon mesh, additive Gaussian heatmap, multi-band <code>Float32</code> raster LUT + surface-normal hillshader), and interactive Measure / Box Brush / PNG Export tools.</li>
 </ul></li>
 </ul></div>
 </div>
