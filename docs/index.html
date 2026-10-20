@@ -15,7 +15,8 @@
 <link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="glmap: High-Performance GPU Geospatial Mapping for R">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><link href="extra.css" rel="stylesheet">
+<script src="extra.js"></script><meta property="og:title" content="glmap: High-Performance GPU Geospatial Mapping for R">
 <meta name="description" content="Zero-copy C++17 binary geometry &amp; Float32 raster streaming to WebGL2 and MapLibre GL for R, Shiny, and Quarto.
 ">
 <meta property="og:description" content="Zero-copy C++17 binary geometry &amp; Float32 raster streaming to WebGL2 and MapLibre GL for R, Shiny, and Quarto.
@@ -71,7 +72,12 @@
 
 <p><strong>High-Performance GPU Geospatial Mapping for R (<code>sf</code>, <code>terra</code>, <code>wk</code>, <code>nanoarrow</code>, <code>DuckDB</code>, <code>Shiny</code>, <code>Quarto</code>)</strong></p>
 <p><code>glmap</code> is a compact, next-generation WebGL2 + <strong>MapLibre GL</strong> interactive mapping package for R built to replace <code>leaflet</code> for modern geospatial workflows (<code>sf</code>, <code>terra</code>, <code>wk</code>, <code>nanoarrow</code>, <code>shiny</code>, and <code>crosstalk</code>).</p>
-<p>Where <code>leaflet</code> serializes R objects into huge GeoJSON text strings inside HTML and renders them on the CPU/DOM (choking at 50k–100k features), <code>glmap</code> packs coordinates, C++17 <code>mapbox/earcut</code>-triangulated polygon meshes (with full interior hole support), and raw <code>Float32</code> raster bands into compact binary packets (<code>GEXP</code> and <code>GEXR</code>) that map directly into WebGL2 GPU vertex buffers and floating-point textures.</p>
+<div class="glmap-eli5-box">
+<p><span class="glmap-box-badge">🌱 ELI5 Mode (Plain English)</span><br><b>Why does <code>leaflet</code> freeze when you plot a big dataset, and how does <code>glmap</code> fix it?</b><br> Think of <code>leaflet</code> like writing down 1,000,000 phone numbers by hand on a giant paper scroll (GeoJSON text) and mailing it to your web browser, which then has to tape 1,000,000 paper stickers onto the screen one by one. Around 50,000 stickers, your browser runs out of breath and freezes.<br><br><b><code>glmap</code> skips the paper scroll completely:</b> C++ packs your numbers into a tiny zip-like binary block in a fraction of a second and hands it straight to your computer’s <b>graphics card (GPU)</b>—the same chip used for 3D video games. Your graphics card draws all 1,000,000 points or raster cells at once at <b>60 frames per second</b>!</p>
+</div>
+<div class="glmap-tech-box">
+<p><span class="glmap-box-badge">⚙️ Technical Mode (Architecture Deep Dive)</span><br><b>Zero-JSON Binary Transport &amp; WebGL2 Shader Pipeline:</b><br> Where <code>leaflet</code> serializes R objects into verbose GeoJSON strings inside HTML via <code>jsonlite</code> and renders via DOM/SVG/2D Canvas, <code>glmap</code> extracts coordinates in <b>C++17</b> (<code>cpp11</code>), runs <code>mapbox/earcut.h</code> polygon hole triangulation in native code, and emits packed 48-byte aligned <code>GEXP</code> (vector) and <code>GEXR</code> (<code>Float32</code> raster) binary packets. Buffers are either compressed via RFC 1950 <code>zlib</code> (decoded in ~5 ms in-browser via native <code>DecompressionStream(“deflate”)</code>) or streamed via <code>httpuv</code> HTTP Range / viewport slices directly into WebGL2 Vertex Buffer Objects (VBOs) and <code>RGBA32F</code> floating-point textures.</p>
+</div>
 <hr>
 <div class="section level2">
 <h2 id="id_1-performance--architecture-comparison-glmap-vs-leaflet">1. Performance &amp; Architecture Comparison: <code>glmap</code> vs. <code>leaflet</code>
@@ -119,7 +125,7 @@
 <td align="left"><strong>1,000,000 Point Hexbinning</strong></td>
 <td align="left">Requires external R pre-aggregation (<code><a href="https://r-spatial.github.io/sf/reference/st_make_grid.html" class="external-link">sf::st_make_grid</a></code>)</td>
 <td align="left">
-<strong>0.10 sec</strong> native C++17 64-bit spatial hash (<code><a href="reference/add_hexbin.html">add_hexbin()</a></code>)</td>
+<strong>0.10 sec</strong> native C++17 64-bit spatial hash (<code><a href="https://rdrr.io/pkg/glmap/man/add_hexbin.html" class="external-link">add_hexbin()</a></code>)</td>
 </tr>
 <tr>
 <td align="left"><strong><code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code> Rendering</strong></td>
@@ -137,7 +143,7 @@
 <td align="left"><strong>Out-of-Core / 10M+ Features</strong></td>
 <td align="left">Not supported</td>
 <td align="left">
-<strong>Native <code>DuckDB</code> / Parquet SQL Pushdown (<code><a href="reference/add_duckdb.html">add_duckdb()</a></code>)</strong> + <strong>C++17 R-Tree Index</strong>
+<strong>Native <code>DuckDB</code> / Parquet SQL Pushdown (<code><a href="https://rdrr.io/pkg/glmap/man/add_duckdb.html" class="external-link">add_duckdb()</a></code>)</strong> + <strong>C++17 R-Tree Index</strong>
 </td>
 </tr>
 <tr>
@@ -156,43 +162,43 @@
 <div class="section level3">
 <h3 id="one-liner-auto-detection">One-Liner Auto-Detection<a class="anchor" aria-label="anchor" href="#one-liner-auto-detection"></a>
 </h3>
-<p>Pass any <code>sf</code>, <code>sfc</code>, <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code>, <code><a href="https://rspatial.github.io/terra/reference/SpatVector-class.html" class="external-link">terra::SpatVector</a></code>, <code><a href="https://paleolimbot.github.io/wk/reference/xy.html" class="external-link">wk::xy</a></code>, <code>nanoarrow_array</code>, <code>stars</code>, <code>data.frame</code>, or <code><a href="https://rdrr.io/pkg/crosstalk/man/SharedData.html" class="external-link">crosstalk::SharedData</a></code> directly to <code><a href="reference/glmap.html">glmap()</a></code>:</p>
+<p>Pass any <code>sf</code>, <code>sfc</code>, <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code>, <code><a href="https://rspatial.github.io/terra/reference/SpatVector-class.html" class="external-link">terra::SpatVector</a></code>, <code><a href="https://paleolimbot.github.io/wk/reference/xy.html" class="external-link">wk::xy</a></code>, <code>nanoarrow_array</code>, <code>stars</code>, <code>data.frame</code>, or <code><a href="https://rdrr.io/pkg/crosstalk/man/SharedData.html" class="external-link">crosstalk::SharedData</a></code> directly to <code><a href="https://rdrr.io/pkg/glmap/man/glmap.html" class="external-link">glmap()</a></code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://meztez.github.io/glmap/">glmap</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Generate synthetic benchmark data (200k points, 3k polygons, 250x250 Float32 DEM)</span></span>
-<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gl_benchmark_data.html">gl_benchmark_data</a></span><span class="op">(</span>n_points <span class="op">=</span> <span class="fl">200000L</span>, n_polygons <span class="op">=</span> <span class="fl">3000L</span><span class="op">)</span></span>
+<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/gl_benchmark_data.html" class="external-link">gl_benchmark_data</a></span><span class="op">(</span>n_points <span class="op">=</span> <span class="fl">200000L</span>, n_polygons <span class="op">=</span> <span class="fl">3000L</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Instant one-line GPU map (auto-detects geometry or raster type)</span></span>
-<span><span class="fu"><a href="reference/glmap.html">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">polygons_sf</span>, fill_color <span class="op">=</span> <span class="op">~</span><span class="va">elevation</span>, palette <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmap.html" class="external-link">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">polygons_sf</span>, fill_color <span class="op">=</span> <span class="op">~</span><span class="va">elevation</span>, palette <span class="op">=</span> <span class="st">"viridis"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="multi-layer-pipeable-workflow-">Multi-Layer Pipeable Workflow (<code>|&gt;</code>)<a class="anchor" aria-label="anchor" href="#multi-layer-pipeable-workflow-"></a>
 </h3>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/glmap.html">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="reference/add_raster.html">add_raster</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmap.html" class="external-link">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_raster.html" class="external-link">add_raster</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">raster_mat</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"terrain"</span>,</span>
 <span>    hillshade <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    opacity <span class="op">=</span> <span class="fl">0.65</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"GPU Terrain DEM (Float32)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="reference/add_polygons.html">add_polygons</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_polygons.html" class="external-link">add_polygons</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">polygons_sf</span>,</span>
 <span>    fill_color <span class="op">=</span> <span class="op">~</span><span class="va">elevation</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"viridis"</span>,</span>
 <span>    fill_opacity <span class="op">=</span> <span class="fl">0.65</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"C++ Earcut Polygons (3k)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="reference/add_hexbin.html">add_hexbin</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_hexbin.html" class="external-link">add_hexbin</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>,</span>
 <span>    hex_radius <span class="op">=</span> <span class="fl">0.035</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"plasma"</span>,</span>
 <span>    opacity <span class="op">=</span> <span class="fl">0.75</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"C++ Hexbin Aggregation"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="reference/add_points.html">add_points</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_points.html" class="external-link">add_points</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>,</span>
 <span>    color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"turbo"</span>,</span>
@@ -200,12 +206,12 @@
 <span>    opacity <span class="op">=</span> <span class="fl">0.85</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"GPU Instanced Points (200k)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="reference/use_plugin.html">use_plugin</a></span><span class="op">(</span><span class="st">"export_png"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/use_plugin.html" class="external-link">use_plugin</a></span><span class="op">(</span><span class="st">"export_png"</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 </div>
 <div class="section level2">
-<h2 id="id_3-transitioning-from-leaflet-to-gexplore-human--agent-cheat-sheet">3. Transitioning from <code>leaflet</code> to <code>gexplore</code> (Human &amp; Agent Cheat Sheet)<a class="anchor" aria-label="anchor" href="#id_3-transitioning-from-leaflet-to-gexplore-human--agent-cheat-sheet"></a>
+<h2 id="id_3-transitioning-from-leaflet-to-glmap-human--agent-cheat-sheet">3. Transitioning from <code>leaflet</code> to <code>glmap</code> (Human &amp; Agent Cheat Sheet)<a class="anchor" aria-label="anchor" href="#id_3-transitioning-from-leaflet-to-glmap-human--agent-cheat-sheet"></a>
 </h2>
 <div class="section level3">
 <h3 id="side-by-side-translation-table">Side-by-Side Translation Table<a class="anchor" aria-label="anchor" href="#side-by-side-translation-table"></a>
@@ -221,13 +227,13 @@
 <th align="left">
 <code>leaflet</code> Code</th>
 <th align="left">
-<code>gexplore</code> Equivalent</th>
+<code>glmap</code> Equivalent</th>
 </tr></thead>
 <tbody>
 <tr>
 <td align="left"><strong>Initialize Map</strong></td>
 <td align="left"><code>leaflet(data) |&gt; addProviderTiles("CartoDB.DarkMatter")</code></td>
-<td align="left"><code>gexplore(data, basemap = "dark")</code></td>
+<td align="left"><code>glmap(data, basemap = "dark")</code></td>
 </tr>
 <tr>
 <td align="left"><strong>Basemap Switch</strong></td>
@@ -259,7 +265,7 @@
 <td align="left"><strong>Add Legend</strong></td>
 <td align="left"><code>addLegend(pal = pal, values = ~val, title = "Val")</code></td>
 <td align="left">
-<strong>Automatic!</strong> (Or customize via <code><a href="reference/add_legend.html">add_legend()</a></code>)</td>
+<strong>Automatic!</strong> (Or customize via <code><a href="https://rdrr.io/pkg/glmap/man/add_legend.html" class="external-link">add_legend()</a></code>)</td>
 </tr>
 <tr>
 <td align="left"><strong>Set Camera View</strong></td>
@@ -278,13 +284,13 @@
 <code>leafletOutput("map")</code> / <code>renderLeaflet({...})</code>
 </td>
 <td align="left">
-<code>gexploreOutput("map")</code> / <code>renderGexplore({...})</code>
+<code>glmapOutput("map")</code> / <code>renderGlmap({...})</code>
 </td>
 </tr>
 <tr>
 <td align="left"><strong>Shiny Live Proxy</strong></td>
 <td align="left"><code>leafletProxy("map") |&gt; clearGroup("pts")</code></td>
-<td align="left"><code>gexplore_proxy("map") |&gt; clear_layer("pts")</code></td>
+<td align="left"><code>glmap_proxy("map") |&gt; clear_layer("pts")</code></td>
 </tr>
 <tr>
 <td align="left"><strong>Out-of-Core DuckDB / Parquet</strong></td>
@@ -294,7 +300,7 @@
 <tr>
 <td align="left"><strong>Save Standalone HTML</strong></td>
 <td align="left"><code>htmlwidgets::saveWidget(m, "map.html")</code></td>
-<td align="left"><code>gx_save_html(m, "map.html")</code></td>
+<td align="left"><code>gl_save_html(m, "map.html")</code></td>
 </tr>
 </tbody>
 </table>
@@ -319,42 +325,42 @@
 <span>    stroke <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rstudio.github.io/leaflet/reference/addLegend.html" class="external-link">addLegend</a></span><span class="op">(</span><span class="st">"bottomright"</span>, pal <span class="op">=</span> <span class="va">pal</span>, values <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, title <span class="op">=</span> <span class="st">"Intensity"</span><span class="op">)</span></span></code></pre></div>
-<p><strong>After (<code>gexplore</code> — concise, automatic legend, 100x faster C++ binary -&gt; WebGL2):</strong></p>
+<p><strong>After (<code>glmap</code> — concise, automatic legend, 100x faster C++ binary -&gt; WebGL2):</strong></p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">gexplore</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://meztez.github.io/glmap/">glmap</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/glmap.html">gexplore</a></span><span class="op">(</span><span class="va">df</span>, basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="reference/add_points.html">add_points</a></span><span class="op">(</span>color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, palette <span class="op">=</span> <span class="st">"viridis"</span>, radius <span class="op">=</span> <span class="fl">4</span>, opacity <span class="op">=</span> <span class="fl">0.8</span>, stroke <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmap.html" class="external-link">glmap</a></span><span class="op">(</span><span class="va">df</span>, basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_points.html" class="external-link">add_points</a></span><span class="op">(</span>color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, palette <span class="op">=</span> <span class="st">"viridis"</span>, radius <span class="op">=</span> <span class="fl">4</span>, opacity <span class="op">=</span> <span class="fl">0.8</span>, stroke <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 </div>
 <div class="section level2">
 <h2 id="id_4-shiny-integration--zero-copy-proxy-updates">4. Shiny Integration &amp; Zero-Copy Proxy Updates<a class="anchor" aria-label="anchor" href="#id_4-shiny-integration--zero-copy-proxy-updates"></a>
 </h2>
-<p>In Shiny applications, <code><a href="reference/glmap_proxy.html">gexplore_proxy()</a></code> updates existing GPU layers in-place without re-creating the basemap or re-uploading unchanged buffers:</p>
+<p>In Shiny applications, <code><a href="https://rdrr.io/pkg/glmap/man/glmap_proxy.html" class="external-link">glmap_proxy()</a></code> updates existing GPU layers in-place without re-creating the basemap or re-uploading unchanged buffers:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">gexplore</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://meztez.github.io/glmap/">glmap</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gl_benchmark_data.html">gx_benchmark_data</a></span><span class="op">(</span>n_points <span class="op">=</span> <span class="fl">100000L</span><span class="op">)</span></span>
+<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/gl_benchmark_data.html" class="external-link">gl_benchmark_data</a></span><span class="op">(</span>n_points <span class="op">=</span> <span class="fl">100000L</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput</a></span><span class="op">(</span><span class="st">"pal"</span>, <span class="st">"Raster GPU Palette:"</span>, choices <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"terrain"</span>, <span class="st">"viridis"</span>, <span class="st">"magma"</span>, <span class="st">"turbo"</span>, <span class="st">"rdylbu"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/checkboxInput.html" class="external-link">checkboxInput</a></span><span class="op">(</span><span class="st">"hill"</span>, <span class="st">"GPU Hillshade"</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="reference/glmapOutput.html">gexploreOutput</a></span><span class="op">(</span><span class="st">"map"</span>, height <span class="op">=</span> <span class="st">"650px"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmapOutput.html" class="external-link">glmapOutput</a></span><span class="op">(</span><span class="st">"map"</span>, height <span class="op">=</span> <span class="st">"650px"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">output</span><span class="op">$</span><span class="va">map</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/renderGlmap.html">renderGexplore</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    <span class="fu"><a href="reference/glmap.html">gexplore</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>      <span class="fu"><a href="reference/add_raster.html">add_raster</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">raster_mat</span>, id <span class="op">=</span> <span class="st">"dem"</span>, palette <span class="op">=</span> <span class="st">"terrain"</span>, hillshade <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>      <span class="fu"><a href="reference/add_points.html">add_points</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>, id <span class="op">=</span> <span class="st">"pts"</span>, color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, palette <span class="op">=</span> <span class="st">"plasma"</span><span class="op">)</span></span>
+<span>  <span class="va">output</span><span class="op">$</span><span class="va">map</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/renderGlmap.html" class="external-link">renderGlmap</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmap.html" class="external-link">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_raster.html" class="external-link">add_raster</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">raster_mat</span>, id <span class="op">=</span> <span class="st">"dem"</span>, palette <span class="op">=</span> <span class="st">"terrain"</span>, hillshade <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/add_points.html" class="external-link">add_points</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>, id <span class="op">=</span> <span class="st">"pts"</span>, color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, palette <span class="op">=</span> <span class="st">"plasma"</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span></span>
 <span>  <span class="co"># 0ms GPU uniform update — does NOT re-send raster data!</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/observeEvent.html" class="external-link">observeEvent</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">input</span><span class="op">$</span><span class="va">pal</span>, <span class="va">input</span><span class="op">$</span><span class="va">hill</span><span class="op">)</span>, <span class="op">{</span></span>
-<span>    <span class="fu"><a href="reference/glmap_proxy.html">gexplore_proxy</a></span><span class="op">(</span><span class="st">"map"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>      <span class="fu"><a href="reference/set_raster_style.html">set_raster_style</a></span><span class="op">(</span><span class="st">"dem"</span>, palette <span class="op">=</span> <span class="va">input</span><span class="op">$</span><span class="va">pal</span>, hillshade <span class="op">=</span> <span class="va">input</span><span class="op">$</span><span class="va">hill</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmap_proxy.html" class="external-link">glmap_proxy</a></span><span class="op">(</span><span class="st">"map"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/set_raster_style.html" class="external-link">set_raster_style</a></span><span class="op">(</span><span class="st">"dem"</span>, palette <span class="op">=</span> <span class="va">input</span><span class="op">$</span><span class="va">pal</span>, hillshade <span class="op">=</span> <span class="va">input</span><span class="op">$</span><span class="va">hill</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>, ignoreInit <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span>  <span class="co"># React to map clicks, viewport bounds, and box-brush selections</span></span>
@@ -368,22 +374,22 @@
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <div class="section level3">
-<h3 id="shiny-input-events-emitted-automatically-by-gexplore">Shiny Input Events Emitted Automatically by <code>gexplore</code>
-<a class="anchor" aria-label="anchor" href="#shiny-input-events-emitted-automatically-by-gexplore"></a>
+<h3 id="shiny-input-events-emitted-automatically-by-glmap">Shiny Input Events Emitted Automatically by <code>glmap</code>
+<a class="anchor" aria-label="anchor" href="#shiny-input-events-emitted-automatically-by-glmap"></a>
 </h3>
-<p>For a widget with <code>outputId = "map"</code>, <code>gexplore</code> automatically provides: - <code>input$map_click</code>: <code>list(lng, lat, raster_value)</code> on map click. - <code>input$map_bounds</code>: <code>list(west, south, east, north)</code> after every pan/zoom (<code>moveend</code>). - <code>input$map_selected</code>: <code>list(bbox, count, indices)</code> when the user drags a selection with the <strong>Box Brush</strong> tool.</p>
+<p>For a widget with <code>outputId = "map"</code>, <code>glmap</code> automatically provides: - <code>input$map_click</code>: <code>list(lng, lat, raster_value)</code> on map click. - <code>input$map_bounds</code>: <code>list(west, south, east, north)</code> after every pan/zoom (<code>moveend</code>). - <code>input$map_selected</code>: <code>list(bbox, count, indices)</code> when the user drags a selection with the <strong>Box Brush</strong> tool.</p>
 <hr>
 </div>
 </div>
 <div class="section level2">
 <h2 id="id_5-extension--plugin-ecosystem-register_plugin-custom-shaders-deckgl">5. Extension &amp; Plugin Ecosystem (<code>register_plugin()</code>, Custom Shaders, Deck.gl)<a class="anchor" aria-label="anchor" href="#id_5-extension--plugin-ecosystem-register_plugin-custom-shaders-deckgl"></a>
 </h2>
-<p><code>gexplore</code> is designed to be extended by third-party packages (<code>gexplore.extras</code>, internal organizational packages, etc.) via three levels:</p>
+<p><code>glmap</code> is designed to be extended by third-party packages (<code>glmap.extras</code>, internal organizational packages, etc.) via three levels:</p>
 <ol style="list-style-type: decimal">
 <li>
-<p><strong>Level 1 — JS/CSS Plugin Registry (<code><a href="reference/register_plugin.html">register_plugin()</a></code> &amp; <code><a href="reference/use_plugin.html">use_plugin()</a></code>)</strong>:</p>
+<p><strong>Level 1 — JS/CSS Plugin Registry (<code><a href="https://rdrr.io/pkg/glmap/man/register_plugin.html" class="external-link">register_plugin()</a></code> &amp; <code><a href="https://rdrr.io/pkg/glmap/man/use_plugin.html" class="external-link">use_plugin()</a></code>)</strong>:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/register_plugin.html">register_plugin</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/glmap/man/register_plugin.html" class="external-link">register_plugin</a></span><span class="op">(</span></span>
 <span>  name <span class="op">=</span> <span class="st">"watermark"</span>,</span>
 <span>  css <span class="op">=</span> <span class="st">".gx-wm { position:absolute; top:12px; left:50%; transform:translateX(-50%); color:#38bdf8; z-index:15; font-weight:700; }"</span>,</span>
 <span>  js_init <span class="op">=</span> <span class="st">"function(instance, config) {</span></span>
@@ -395,11 +401,11 @@
 <span>  default_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>text <span class="op">=</span> <span class="st">"Beneva Geospatial"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/glmap.html">gexplore</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">points_df</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/use_plugin.html">use_plugin</a></span><span class="op">(</span><span class="st">"watermark"</span>, config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>text <span class="op">=</span> <span class="st">"Live Sensor Feed"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/pkg/glmap/man/glmap.html" class="external-link">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">points_df</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/pkg/glmap/man/use_plugin.html" class="external-link">use_plugin</a></span><span class="op">(</span><span class="st">"watermark"</span>, config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>text <span class="op">=</span> <span class="st">"Live Sensor Feed"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Built-in plugins ready out of the box: <code>"measure"</code>, <code>"lasso_select"</code>, <code>"minimap"</code>, <code>"export_png"</code>.</p>
 </li>
-<li><p><strong>Level 2 — Custom WebGL2 GLSL Shaders (<code><a href="reference/add_webgl_shader_layer.html">add_webgl_shader_layer()</a></code>)</strong>: Pass custom vertex and fragment shader GLSL strings directly from R while leveraging <code>gexplore</code>’s C++17 <code>GEXP</code> binary vertex/attribute buffers.</p></li>
-<li><p><strong>Level 3 — Custom Deck.gl Layer Bridge (<code><a href="reference/add_deck_layer.html">add_deck_layer()</a></code>)</strong>: Dispatch arbitrary <code>deck.gl</code> layer specifications backed by binary buffers.</p></li>
+<li><p><strong>Level 2 — Custom WebGL2 GLSL Shaders (<code><a href="https://rdrr.io/pkg/glmap/man/add_webgl_shader_layer.html" class="external-link">add_webgl_shader_layer()</a></code>)</strong>: Pass custom vertex and fragment shader GLSL strings directly from R while leveraging <code>glmap</code>’s C++17 <code>GEXP</code> binary vertex/attribute buffers.</p></li>
+<li><p><strong>Level 3 — Custom Deck.gl Layer Bridge (<code><a href="https://rdrr.io/pkg/glmap/man/add_deck_layer.html" class="external-link">add_deck_layer()</a></code>)</strong>: Dispatch arbitrary <code>deck.gl</code> layer specifications backed by binary buffers.</p></li>
 </ol>
 <hr>
 </div>

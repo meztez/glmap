@@ -1,6 +1,6 @@
 #' Set Map Camera View (Center, Zoom, Pitch, Bearing)
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param lng Longitude of center.
 #' @param lat Latitude of center.
 #' @param zoom Zoom level (`0` to `22`).
@@ -8,7 +8,7 @@
 #' @param bearing Rotation bearing in degrees.
 #' @export
 set_view <- function(map, lng, lat, zoom = 10, pitch = 0, bearing = 0) {
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setView", list(
       center = c(as.numeric(lng), as.numeric(lat)),
       zoom = as.numeric(zoom),
@@ -38,7 +38,7 @@ fly_to_bounds <- function(map, bbox, padding = 40, duration = 1600) {
     bbox <- c(unname(ext[1]), unname(ext[3]), unname(ext[2]), unname(ext[4]))
   }
   bbox <- as.numeric(bbox)[1:4]
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "flyToBounds", list(bounds = bbox, padding = padding, duration = as.integer(duration))))
   }
   map$x$view$bounds <- bbox
@@ -61,7 +61,7 @@ set_max_bounds <- function(map, bbox) {
     bbox <- c(unname(ext[1]), unname(ext[3]), unname(ext[2]), unname(ext[4]))
   }
   bbox <- as.numeric(bbox)[1:4]
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setMaxBounds", list(max_bounds = bbox)))
   }
   map$x$view$max_bounds <- bbox
@@ -70,7 +70,7 @@ set_max_bounds <- function(map, bbox) {
 
 #' Fit Map Camera to a Bounding Box `[xmin, ymin, xmax, ymax]` (`fit_bounds`)
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param bbox Numeric vector `c(xmin, ymin, xmax, ymax)` or an `sf`/`SpatRaster` object.
 #' @param padding Viewport padding in pixels (default `40`).
 #' @export
@@ -82,7 +82,7 @@ fit_bounds <- function(map, bbox, padding = 40) {
     bbox <- c(unname(ext[1]), unname(ext[3]), unname(ext[2]), unname(ext[4]))
   }
   bbox <- as.numeric(bbox)[1:4]
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "fitBounds", list(bounds = bbox, padding = padding)))
   }
   map$x$view$bounds <- bbox
@@ -96,7 +96,7 @@ fit_bounds <- function(map, bbox, padding = 40) {
 #' @param duration Animation duration in milliseconds (default `1600`).
 #' @export
 fly_to <- function(map, lng, lat, zoom = 12, pitch = 45, bearing = 0, duration = 1600) {
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "flyTo", list(
       center = c(as.numeric(lng), as.numeric(lat)),
       zoom = as.numeric(zoom),
@@ -117,7 +117,7 @@ fly_to <- function(map, lng, lat, zoom = 12, pitch = 45, bearing = 0, duration =
 #' @export
 set_basemap <- function(map, basemap = "dark", api_key = NULL) {
   spec <- resolve_basemap_spec(basemap, api_key = api_key)
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setBasemap", list(basemap = spec, name = basemap)))
   }
   map$x$basemap <- spec
@@ -127,7 +127,7 @@ set_basemap <- function(map, basemap = "dark", api_key = NULL) {
 
 #' Enable 3D Terrain Elevation on the Map
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param exaggeration Vertical exaggeration factor (default `1.5`).
 #' @param source_url Optional Terrarium/Mapbox DEM tile URL.
 #' @export
@@ -137,7 +137,7 @@ set_terrain <- function(map, exaggeration = 1.5, source_url = NULL) {
     exaggeration = as.numeric(exaggeration),
     source_url = source_url %||% "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
   )
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setTerrain", terrain_spec))
   }
   map$x$terrain <- terrain_spec
@@ -146,12 +146,12 @@ set_terrain <- function(map, exaggeration = 1.5, source_url = NULL) {
 
 #' Set Map Projection (`"mercator"` or `"globe"`)
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param projection Either `"mercator"` or `"globe"`.
 #' @export
 set_projection <- function(map, projection = c("mercator", "globe")) {
   projection <- match.arg(projection)
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setProjection", list(projection = projection)))
   }
   map$x$view$projection <- projection
@@ -160,7 +160,7 @@ set_projection <- function(map, projection = c("mercator", "globe")) {
 
 #' Configure Map UI Controls
 #'
-#' @param map A `gexplore` widget.
+#' @param map A `glmap` widget.
 #' @param type Control type (`"navigation"`, `"scale"`, `"fullscreen"`, `"layer_switcher"`, `"hud"`, `"draw"`, `"measure"`).
 #' @param enabled Logical; whether the control is enabled.
 #' @param position Control corner (`"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`).
@@ -178,7 +178,7 @@ add_control <- function(
 
 #' Add a Custom Map Legend
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param title Legend title.
 #' @param colors Character vector of hex/CSS colors.
 #' @param labels Character vector of category labels (for categorical legends).
@@ -194,7 +194,7 @@ add_legend <- function(map, title, colors, labels = NULL, domain = NULL, layer_i
     labels = if (!is.null(labels)) as.character(labels) else NULL,
     domain = if (!is.null(domain)) as.numeric(domain) else c(0, 1)
   )
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "addLegend", leg))
   }
   map$x$legends[[length(map$x$legends) + 1L]] <- leg
@@ -309,11 +309,4 @@ gl_benchmark_data <- function(
   )
 }
 
-#' @rdname gl_save_html
-#' @export
-gx_save_html <- gl_save_html
-
-#' @rdname gl_benchmark_data
-#' @export
-gx_benchmark_data <- gl_benchmark_data
 

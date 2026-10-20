@@ -17,13 +17,20 @@ knitr::opts_chunk$set(
 
 ## Why `glmap`?
 
-Traditional R mapping packages built on `Leaflet.js` serialize spatial objects into GeoJSON text inside HTML and draw features using DOM/SVG/2D Canvas. When your dataset reaches **100,000 to 1,000,000+ features** or uses high-resolution `terra` rasters, R spends tens of seconds converting coordinates to text and the browser tab freezes.
+<div class="glmap-eli5-box">
+<span class="glmap-box-badge">🌱 ELI5 (Plain-English Mental Model)</span><br/>
+<ul>
+<li><b>One-Line Magic:</b> Give <code>glmap()</code> almost any spatial object in R (points, polygons, or a <code>terra</code> raster grid) and it figures out how to draw it automatically.</li>
+<li><b>No More Color Functions:</b> In <code>leaflet</code>, you had to build a separate <code>pal &lt;- colorNumeric(...)</code> function and manually wire up a legend. In <code>glmap</code>, you just write <code>color = ~my_column, palette = "viridis"</code> and both the colors and legend appear automatically.</li>
+<li><b>Instant Raster Sliders:</b> When you plot a <code>terra</code> raster, <code>glmap</code> sends the actual numbers to your graphics card. You can flip between palettes or turn on 3D hillshade shadows in the browser in <b>0 milliseconds</b> without waiting for R!</li>
+</ul>
+</div>
 
-`glmap` eliminates the JSON and DOM bottlenecks entirely:
-
-1. **C++17 Binary Packing (`GEXP` & `GEXR`)**: Coordinates, polygon `mapbox/earcut` triangle indices (with full interior hole support), and `Float32` raster bands are packed into contiguous binary buffers in milliseconds.
-2. **WebGL2 GPU Shaders**: Points, lines, polygons, heatmaps, hexagonal bins, and floating-point rasters are rendered directly on the GPU at 60 FPS.
-3. **Zero-Recompute Raster Exploration**: `terra::SpatRaster` layers are uploaded as `Float32` textures. Changing palettes (`viridis`, `magma`, `turbo`, `terrain`, `rdylbu`) or toggling real-time GPU hillshading happens in **0 ms** in the fragment shader.
+<div class="glmap-tech-box">
+<span class="glmap-box-badge">⚙️ Technical Mode (C++17 + WebGL2 Pipeline)</span><br/>
+Traditional R mapping packages built on <code>Leaflet.js</code> serialize spatial objects into GeoJSON text inside HTML and draw features using DOM/SVG/2D Canvas. When your dataset reaches <b>100,000 to 1,000,000+ features</b> or uses high-resolution <code>terra</code> rasters, R spends tens of seconds converting coordinates to text and the browser tab freezes.<br/><br/>
+<code>glmap</code> eliminates the JSON and DOM bottlenecks entirely via C++17 <code>GEXP</code>/<code>GEXR</code> binary buffers, C++ <code>mapbox/earcut.h</code> polygon triangulation, and WebGL2 instanced SDF &amp; <code>RGBA32F</code> floating-point raster fragment shaders.
+</div>
 
 ---
 

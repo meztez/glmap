@@ -6,7 +6,7 @@ This document provides deterministic rules for AI coding agents (GitHub Copilot,
 
 ## 1. Golden Rules When Generating R Mapping Code with `glmap`
 
-1. **Use `glmap()` as the primary entry point** (`gexplore()` and `gx_map()` are also supported as aliases).
+1. **Use `glmap()` as the primary entry point** (`glmap()` and `glmap()` are also supported as aliases).
 2. **Never construct manual palette functions (`leaflet::colorNumeric`, `colorFactor`, `colorBin`)**:
    - In `glmap`, pass the column formula (`~col_name`) or column name string (`"col_name"`) directly to `color =` or `fill_color =`, along with `palette = "viridis"` (or `"plasma"`, `"magma"`, `"turbo"`, `"terrain"`, `"rdylbu"`, `"Spectral"`).
    - `glmap` automatically computes a 256-entry RGB lookup table in R/C++ and attaches a matching continuous or categorical legend automatically.
@@ -50,19 +50,19 @@ When asked to migrate an R script or Shiny app from `leaflet` to `glmap`, apply 
 
 ---
 
-## 3. Repository Architecture (For Agents Modifying `gexplore` Internals)
+## 3. Repository Architecture (For Agents Modifying `glmap` Internals)
 
-- **`src/gexplore_cpp.cpp` & `src/cpp11.cpp`**:
+- **`src/glmap_cpp.cpp` & `src/cpp11.cpp`**:
   - C++17 backend using `cpp11`.
   - Binary packet formats:
     - `GEXP` (48-byte packed header + `Float32` coords + `Uint32` vertex feature IDs + `Uint32` ring starts + `Uint32` earcut triangle indices + `Uint8` RGBA + optional `Float32` radius & elevation).
     - `GEXR` (48-byte packed header + `Float32` raster band values).
   - Note: On Windows without `decor` installed, keep `src/cpp11.cpp` and `R/cpp11.R` synchronized manually when adding new `[[cpp11::register]]` functions, and compile via `R CMD INSTALL --no-multiarch .`.
 - **`R/transport.R`**:
-  - `gx_pack_sf_binary()` (supports `sf`, `sfc`, `wk_xy`, `wk_wkb`, `wk_wkt`, `nanoarrow_array`, `data.frame`), `gx_pack_raster_binary()` (supports `terra::SpatRaster` and `matrix`), `gx_spatial_index()`, and `httpuv` daemon server (`gx_serve_start()`, `gx_serve_stop()`).
+  - `gl_pack_sf_binary()` (supports `sf`, `sfc`, `wk_xy`, `wk_wkb`, `wk_wkt`, `nanoarrow_array`, `data.frame`), `gl_pack_raster_binary()` (supports `terra::SpatRaster` and `matrix`), `gl_spatial_index()`, and `httpuv` daemon server (`gl_serve_start()`, `gl_serve_stop()`).
 - **`R/map.R`, `R/scales.R`, `R/controls.R`**:
-  - User-facing pipeable API (`gexplore()`, `add_sf()`, `add_points()`, `add_lines()`, `add_polygons()`, `add_raster()`, `add_hexbin()`, `add_heatmap()`, `add_pmtiles()`, `add_mvt()`).
+  - User-facing pipeable API (`glmap()`, `add_sf()`, `add_points()`, `add_lines()`, `add_polygons()`, `add_raster()`, `add_hexbin()`, `add_heatmap()`, `add_pmtiles()`, `add_mvt()`).
 - **`R/plugins.R` & `R/shiny.R`**:
-  - Extension registry (`register_plugin()`, `use_plugin()`, `add_webgl_shader_layer()`, `add_deck_layer()`) and Shiny proxy (`gexplore_proxy()`).
-- **`inst/htmlwidgets/gexplore.js`**:
+  - Extension registry (`register_plugin()`, `use_plugin()`, `add_webgl_shader_layer()`, `add_deck_layer()`) and Shiny proxy (`glmap_proxy()`).
+- **`inst/htmlwidgets/glmap.js`**:
   - Zero-dependency WebGL2 + MapLibre GL JS engine, `GEXP`/`GEXR` binary parser, `DecompressionStream("deflate")` decoder, custom GLSL shaders (SDF instanced points, triangulated polygon mesh, additive Gaussian heatmap, multi-band `Float32` raster LUT + surface-normal hillshader), and interactive Measure / Box Brush / PNG Export tools.

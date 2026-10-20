@@ -17,13 +17,20 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`glmap` was designed so that R users familiar with `leaflet` can transition immediately while gaining **100x–500x faster data serialization** and **60 FPS WebGL2 GPU rendering**.
+<div class="glmap-eli5-box">
+<span class="glmap-box-badge">🌱 ELI5 (3 Golden Rules to Switch from Leaflet)</span><br/>
+Switching an existing R script or Shiny app from <code>leaflet</code> to <code>glmap</code> takes three simple habits:
+<ol>
+<li>Replace <code>leaflet() |&gt; addProviderTiles(...)</code> with <b><code>glmap(basemap = "dark")</code></b> (or <code>"positron"</code>).</li>
+<li>Delete <code>pal &lt;- colorNumeric(...)</code> and <code>addLegend(...)</code>—just pass <b><code>color = ~column, palette = "viridis"</code></b> directly into <code>add_points()</code> or <code>add_polygons()</code>.</li>
+<li>In Shiny, replace <code>leafletOutput</code> / <code>renderLeaflet</code> / <code>leafletProxy</code> with <b><code>glmapOutput</code> / <code>renderGlmap</code> / <code>glmap_proxy</code></b>.</li>
+</ol>
+</div>
 
-Key ergonomic improvements over `leaflet`:
-
-1. **No Manual Palette Boilerplate**: You no longer need `pal <- colorNumeric("viridis", df$val)` followed by `color = ~pal(val)` and `addLegend(pal = pal, values = ~val)`. In `glmap`, simply write `color = ~val, palette = "viridis"`—both the C++/R 256-color LUT and the map legend are created automatically.
-2. **Consistent `snake_case` API**: Every function uses clean `snake_case` (`add_points`, `add_lines`, `add_polygons`, `add_raster`, `add_labels`, `set_view`, `fit_bounds`, `fly_to`, `glmap_proxy`).
-3. **Native `sf`, `terra`, `wk`, and `nanoarrow` Support**: Pass spatial objects directly without pre-converting to GeoJSON or RGB rasters.
+<div class="glmap-tech-box">
+<span class="glmap-box-badge">⚙️ Technical Mode (API &amp; Reactivity Mapping)</span><br/>
+<code>glmap</code> was designed so that R users and AI coding agents familiar with <code>leaflet</code> can transition immediately while gaining <b>100x–500x faster C++17 binary serialization</b> and <b>60 FPS WebGL2 GPU rendering</b>. All functions use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics (<code>~expr</code>) via C/R 256-entry RGB lookup tables, and emit <code>leaflet</code>-compatible Shiny input events (<code>_click</code>, <code>_bounds</code>, <code>_zoom</code>, <code>_marker_click</code>, <code>_shape_click</code>).
+</div>
 
 ---
 
@@ -70,11 +77,11 @@ leaflet(nc) |>
   addLegend("bottomright", pal = pal, values = ~BIR74, title = "Births 1974")
 ```
 
-#### `gexplore`
+#### `glmap`
 ```{r}
-library(gexplore)
+library(glmap)
 
-gexplore(nc, basemap = "positron") |>
+glmap(nc, basemap = "positron") |>
   add_polygons(
     fill_color = ~BIR74,
     palette = "viridis",
@@ -98,9 +105,9 @@ leaflet() |>
   addRasterImage(dem, colors = pal, opacity = 0.8)
 ```
 
-#### `gexplore`
+#### `glmap`
 ```{r}
 # Uploads raw Float32 values to GPU texture; user can switch palettes & toggle hillshade at 0ms in browser
-gexplore(basemap = "dark") |>
+glmap(basemap = "dark") |>
   add_raster(dem, palette = "terrain", hillshade = TRUE, opacity = 0.8)
 ```

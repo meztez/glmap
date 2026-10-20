@@ -13,9 +13,31 @@ execute:
 
 ## Overview
 
-This Quarto document demonstrates how **`glmap`** embeds multi-layer WebGL2 GPU maps directly into standalone HTML reports without the massive GeoJSON payload bloat of `leaflet`.
+```{=html}
+<style>
+.glmap-mode-switcher { display:inline-flex; background:#0f172a; border:1px solid #38bdf8; border-radius:999px; padding:3px; margin-bottom:14px; }
+.glmap-mode-btn { border:none; background:transparent; color:#94a3b8; font-size:13px; font-weight:600; padding:5px 14px; border-radius:999px; cursor:pointer; }
+.glmap-mode-btn.active[data-mode="eli5"] { background:#10b981; color:#fff; }
+.glmap-mode-btn.active[data-mode="tech"] { background:#0284c7; color:#fff; }
+.glmap-eli5-box { background:rgba(16,185,129,0.12); border-left:4px solid #10b981; padding:12px 16px; border-radius:8px; margin:10px 0; }
+.glmap-tech-box { background:rgba(56,189,248,0.12); border-left:4px solid #38bdf8; padding:12px 16px; border-radius:8px; margin:10px 0; }
+html[data-glmap-mode="eli5"] .glmap-tech-box { display:none !important; }
+html[data-glmap-mode="tech"] .glmap-eli5-box { display:none !important; }
+</style>
+<div class="glmap-mode-switcher">
+  <button type="button" class="glmap-mode-btn active" data-mode="eli5" onclick="document.documentElement.setAttribute('data-glmap-mode','eli5');this.classList.add('active');this.nextElementSibling.classList.remove('active');">🌱 ELI5 (Simple)</button>
+  <button type="button" class="glmap-mode-btn" data-mode="tech" onclick="document.documentElement.setAttribute('data-glmap-mode','tech');this.classList.add('active');this.previousElementSibling.classList.remove('active');">⚙️ Technical (Deep Dive)</button>
+</div>
+<script>document.documentElement.setAttribute('data-glmap-mode','eli5');</script>
+```
 
-Because `glmap` compresses its C++17 `GEXP` (vector) and `GEXR` (`Float32` raster) binary buffers with `zlib`/`deflate` and decodes them in the browser via the native `DecompressionStream` API, this document remains **fast, compact, and 100% self-contained**.
+<div class="glmap-eli5-box">
+<b>🌱 ELI5 Summary:</b> This Quarto report contains live interactive maps with over <b>100,000 points, 2,000 polygons, and a 3D terrain grid</b>. Normally, putting that much data in a report would create a giant slow file that freezes your browser. <code>glmap</code> compresses the raw numbers and lets your graphics card draw everything smoothly at 60 FPS!
+</div>
+
+<div class="glmap-tech-box">
+<b>⚙️ Technical Summary:</b> This Quarto document embeds <code>glmap</code> widgets using inline RFC 1950 <code>zlib</code>-compressed C++17 <code>GEXP</code> (vector) and <code>GEXR</code> (<code>Float32</code> raster) binary buffers. At runtime, the browser decodes the binary streams via <code>DecompressionStream("deflate")</code> in ~5 ms and uploads <code>Float32Array</code> views directly into WebGL2 VBOs and <code>RGBA32F</code> textures.
+</div>
 
 ```{r}
 library(glmap)

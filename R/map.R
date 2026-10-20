@@ -23,7 +23,7 @@
 #' @param auto_layer Logical; if `TRUE` and `data` is provided, automatically adds a default GPU layer
 #'   when the map is printed/rendered if no explicit `add_*()` layers were called.
 #' @param ... Additional arguments passed to the default layer when `auto_layer = TRUE`.
-#' @return An `htmlwidget` object of class `c("glmap", "gexplore", "htmlwidget")`.
+#' @return An `htmlwidget` object of class `c("glmap", "glmap", "htmlwidget")`.
 #' @export
 glmap <- function(
     data = NULL,
@@ -85,16 +85,16 @@ glmap <- function(
     plugins = list()
   )
 
-  attr(x, "gexplore_data") <- raw_data
-  attr(x, "gexplore_auto_args") <- list(...)
-  attr(x, "gexplore_auto_layer") <- isTRUE(auto_layer)
+  attr(x, "glmap_data") <- raw_data
+  attr(x, "glmap_auto_args") <- list(...)
+  attr(x, "glmap_auto_layer") <- isTRUE(auto_layer)
 
   pre_render <- function(widget) {
     # If user passed `glmap(my_sf)` without adding explicit layers, auto-add layer now
-    if (length(widget$x$layers) == 0L && isTRUE(attr(widget$x, "gexplore_auto_layer"))) {
-      d <- attr(widget$x, "gexplore_data")
+    if (length(widget$x$layers) == 0L && isTRUE(attr(widget$x, "glmap_auto_layer"))) {
+      d <- attr(widget$x, "glmap_data")
       if (!is.null(d)) {
-        extra <- attr(widget$x, "gexplore_auto_args") %||% list()
+        extra <- attr(widget$x, "glmap_auto_args") %||% list()
         if (inherits(d, c("SpatRaster", "RasterLayer", "RasterStack", "RasterBrick", "stars")) || is.matrix(d)) {
           widget <- do.call(add_raster, c(list(map = widget, raster = d), extra))
         } else {
@@ -103,9 +103,9 @@ glmap <- function(
       }
     }
     # Strip heavy R attributes before htmlwidgets serializes `x`
-    attr(widget$x, "gexplore_data") <- NULL
-    attr(widget$x, "gexplore_auto_args") <- NULL
-    attr(widget$x, "gexplore_auto_layer") <- NULL
+    attr(widget$x, "glmap_data") <- NULL
+    attr(widget$x, "glmap_auto_args") <- NULL
+    attr(widget$x, "glmap_auto_layer") <- NULL
     widget
   }
 
@@ -131,17 +131,11 @@ glmap <- function(
       knitr.defaultHeight = "520px"
     )
   )
-  class(w) <- unique(c("glmap", "gexplore", class(w)))
+  class(w) <- unique(c("glmap", "glmap", class(w)))
   w
 }
 
-#' @rdname glmap
-#' @export
-gexplore <- glmap
 
-#' @rdname glmap
-#' @export
-gx_map <- glmap
 
 resolve_basemap_spec <- function(basemap = "dark", api_key = NULL, key_param = NULL, attribution = "") {
   if (is.list(basemap)) return(basemap)
@@ -519,7 +513,7 @@ resolve_basemap_spec <- function(basemap = "dark", api_key = NULL, key_param = N
 }
 
 update_map_bounds <- function(map, bbox) {
-  if (inherits(map, "gexplore_proxy")) return(map)
+  if (inherits(map, "glmap_proxy")) return(map)
   if (is.null(bbox) || length(bbox) < 4 || any(!is.finite(bbox))) return(map)
   cur <- map$x$view$bounds
   if (is.null(cur)) {
@@ -536,7 +530,7 @@ update_map_bounds <- function(map, bbox) {
 }
 
 dispatch_layer <- function(map, layer_spec, legend_spec = NULL, bbox = NULL) {
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     invoke_proxy_method(map, "addLayer", list(layer = layer_spec, legend = legend_spec, bbox = bbox))
     return(map)
   }
@@ -548,17 +542,17 @@ dispatch_layer <- function(map, layer_spec, legend_spec = NULL, bbox = NULL) {
   map
 }
 
-#' Automatically Add an `sf`, `sfc`, or `data.frame` Layer to a `gexplore` Map
+#' Automatically Add an `sf`, `sfc`, or `data.frame` Layer to a `glmap` Map
 #'
 #' Inspects the geometry type of `data` (`POINT`, `LINESTRING`, `POLYGON`, etc.)
 #' and routes to [add_points()], [add_lines()], or [add_polygons()].
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param data An `sf`, `sfc`, or `data.frame` object (defaults to map data).
 #' @param ... Arguments passed on to [add_points()], [add_lines()], or [add_polygons()].
 #' @export
 add_sf <- function(map, data = NULL, ...) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("No `data` supplied to {.fn add_sf}.")
   if (inherits(data, "SharedData")) data <- data$origData()
   if (inherits(data, c("SpatVector", "Spatial")) && requireNamespace("sf", quietly = TRUE)) {
@@ -587,7 +581,7 @@ add_sf <- function(map, data = NULL, ...) {
 #' a custom WebGL2 instanced point shader (with anti-aliased SDF circles, stroke
 #' outlines, variable radius, and interactive picking).
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param data An `sf`, `sfc`, or `data.frame` object.
 #' @param lon Optional longitude column name or formula (`~lon`) for `data.frame`.
 #' @param lat Optional latitude column name or formula (`~lat`) for `data.frame`.
@@ -605,7 +599,7 @@ add_sf <- function(map, data = NULL, ...) {
 #' @param dynamic_viewport Logical; if `TRUE`, builds an in-memory C++ spatial index and streams
 #'   only the visible viewport slice via the local `httpuv` server.
 #' @param legend Logical; whether to automatically add a legend when `color` is mapped to data.
-#' @return Updated `gexplore` map object.
+#' @return Updated `glmap` map object.
 #' @export
 add_points <- function(
     map,
@@ -626,7 +620,7 @@ add_points <- function(
     dynamic_viewport = FALSE,
     legend = TRUE
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_points}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -640,7 +634,7 @@ add_points <- function(
   col_res <- resolve_rgba(color = color, data = data, n = n, opacity = opacity, palette = palette)
   rad_vec <- resolve_numeric_aesthetic(radius, data = data, default = 5.0, range_out = c(2.5, 16))
 
-  raw_buf <- gx_pack_sf_binary(
+  raw_buf <- gl_pack_sf_binary(
     data = data,
     lon = lon,
     lat = lat,
@@ -648,16 +642,16 @@ add_points <- function(
     radius = rad_vec
   )
 
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
   viewport_url <- NULL
   if (isTRUE(dynamic_viewport)) {
-    idx_obj <- gx_spatial_index(data, lon = lon, lat = lat)
+    idx_obj <- gl_spatial_index(data, lon = lon, lat = lat)
     idx_obj$rgba <- col_res$rgba
     idx_obj$radius <- rad_vec
-    assign(id, idx_obj, envir = .gx_env$indices)
-    base_url <- gx_serve_start()
+    assign(id, idx_obj, envir = .gl_env$indices)
+    base_url <- gl_serve_start()
     viewport_url <- sprintf("%s/viewport/%s", base_url, id)
   }
 
@@ -708,7 +702,7 @@ add_lines <- function(
     group = NULL,
     legend = TRUE
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_lines}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -719,13 +713,13 @@ add_lines <- function(
   col_res <- resolve_rgba(color = color, data = data, n = n, opacity = opacity, palette = palette)
   w_vec <- resolve_numeric_aesthetic(width, data = data, default = 2.0, range_out = c(1, 8))
 
-  raw_buf <- gx_pack_sf_binary(
+  raw_buf <- gl_pack_sf_binary(
     data = data,
     rgba = col_res$rgba,
     radius = w_vec
   )
 
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
   tooltips <- build_popup_labels(popup, label, data)
 
@@ -779,7 +773,7 @@ add_polygons <- function(
     group = NULL,
     legend = TRUE
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_polygons}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -790,13 +784,13 @@ add_polygons <- function(
   col_res <- resolve_rgba(color = fill_color, data = data, n = n, opacity = fill_opacity, palette = palette)
   elev_vec <- if (!is.null(extrude)) resolve_numeric_aesthetic(extrude, data = data, default = 0) else numeric(0)
 
-  raw_buf <- gx_pack_sf_binary(
+  raw_buf <- gl_pack_sf_binary(
     data = data,
     rgba = col_res$rgba,
     elevation = elev_vec
   )
 
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
   line_rgb <- as.integer(grDevices::col2rgb(line_color, alpha = FALSE)[, 1])
   tooltips <- build_popup_labels(popup, label, data)
@@ -834,7 +828,7 @@ add_polygons <- function(
 #' contrast stretching, thresholding, and live pixel value inspection happen
 #' entirely on the GPU in 0 ms without re-rendering PNGs in R.
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param raster A `terra::SpatRaster` or numeric `matrix`.
 #' @param palette Color palette name (`"viridis"`, `"terrain"`, `"magma"`, `"turbo"`, `"plasma"`, `"RdYlBu"`).
 #' @param opacity Raster opacity (`0` to `1`).
@@ -861,14 +855,14 @@ add_raster <- function(
     group = NULL,
     legend = TRUE
 ) {
-  raster <- raster %||% attr(map$x, "gexplore_data")
+  raster <- raster %||% attr(map$x, "glmap_data")
   if (is.null(raster)) cli::cli_abort("`raster` must be provided to {.fn add_raster}.")
 
   id <- id %||% next_layer_id("raster")
   group <- group %||% id
 
-  raw_buf <- gx_pack_raster_binary(raster, max_cells = max_cells, bands = bands, bbox = bbox)
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  raw_buf <- gl_pack_raster_binary(raster, max_cells = max_cells, bands = bands, bbox = bbox)
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
   vmin <- attr(raw_buf, "vmin")
@@ -943,7 +937,7 @@ add_hexbin <- function(
     group = NULL,
     legend = TRUE
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_hexbin}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -994,7 +988,7 @@ add_hexbin <- function(
   elev <- if (isTRUE(extrude)) as.numeric(bins$count) else numeric(0)
   raw_buf <- cpp_pack_sfc_binary(sfc_hex, 3L, col_res$rgba, numeric(0), elev)
   hdr <- read_gexp_header(raw_buf)
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
   tooltips <- sprintf("<b>Count:</b> %d<br/><b>Value:</b> %.2f", bins$count, metric)
@@ -1044,7 +1038,7 @@ add_heatmap <- function(
     id = NULL,
     group = NULL
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_heatmap}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -1058,7 +1052,7 @@ add_heatmap <- function(
   col_res <- resolve_rgba(color = weight %||% "#ff6b00", data = data, n = n, opacity = opacity, palette = palette)
   rad_vec <- resolve_numeric_aesthetic(radius, data = data, default = 18.0)
 
-  raw_buf <- gx_pack_sf_binary(
+  raw_buf <- gl_pack_sf_binary(
     data = data,
     lon = lon,
     lat = lat,
@@ -1066,7 +1060,7 @@ add_heatmap <- function(
     radius = rad_vec
   )
 
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
   layer_spec <- list(
@@ -1091,7 +1085,7 @@ add_heatmap <- function(
 
 #' Add a Cloud-Native PMTiles or Mapbox Vector Tile (MVT) Layer
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param url URL to a `.pmtiles` archive or `{z}/{x}/{y}.pbf` vector tile endpoint.
 #' @param source_layer Source layer name inside the vector tiles.
 #' @param layer_type MapLibre layer type: `"fill"`, `"line"`, `"circle"`, or `"fill-extrusion"`.
@@ -1160,7 +1154,7 @@ add_mvt <- function(
 
 #' Add a Raw GeoJSON URL or Object Layer
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param geojson A GeoJSON string, list, or URL.
 #' @param color Feature color.
 #' @param opacity Feature opacity.
@@ -1187,7 +1181,7 @@ add_geojson <- function(map, geojson, color = "#22c55e", opacity = 0.75, id = NU
 #' Renders crisp halo-outlined text labels anchored to `sf` points, polygon centroids,
 #' or `data.frame` coordinates.
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param data An `sf`, `sfc`, or `data.frame` object.
 #' @param text Formula (`~name`), column name string, or character vector of label texts.
 #' @param lon Optional longitude column name or formula (`~lon`).
@@ -1210,7 +1204,7 @@ add_labels <- function(
     id = NULL,
     group = NULL
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_labels}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -1240,7 +1234,7 @@ add_labels <- function(
 
   raw_buf <- cpp_pack_points_xy(x, y, c(255L, 255L, 255L, 255L), as.numeric(size[1]), numeric(0))
   hdr <- read_gexp_header(raw_buf)
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
   layer_spec <- list(
@@ -1295,7 +1289,7 @@ add_circles <- function(
     group = NULL,
     legend = TRUE
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_circles}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
@@ -1384,7 +1378,7 @@ add_rectangles <- function(
     group = NULL,
     legend = FALSE
 ) {
-  data <- data %||% attr(map$x, "gexplore_data")
+  data <- data %||% attr(map$x, "glmap_data")
   x1 <- as.numeric(eval_aesthetic(lng1, data))
   y1 <- as.numeric(eval_aesthetic(lat1, data))
   x2 <- as.numeric(eval_aesthetic(lng2, data))
@@ -1518,4 +1512,3 @@ add_wms_tiles <- function(
 
   dispatch_layer(map, layer_spec)
 }
-

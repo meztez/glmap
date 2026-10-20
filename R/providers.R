@@ -174,13 +174,13 @@ gl_set_api_key <- function(provider, api_key = NULL) {
   }
   fam <- normalize_provider_family(provider)
   if (is.null(api_key) || !nzchar(as.character(api_key[1]))) {
-    if (exists(fam, envir = .gx_env$api_keys, inherits = FALSE)) {
-      rm(list = fam, envir = .gx_env$api_keys)
+    if (exists(fam, envir = .gl_env$api_keys, inherits = FALSE)) {
+      rm(list = fam, envir = .gl_env$api_keys)
     }
     return(invisible(NULL))
   }
   val <- as.character(api_key[1])
-  assign(fam, val, envir = .gx_env$api_keys)
+  assign(fam, val, envir = .gl_env$api_keys)
   invisible(val)
 }
 
@@ -188,8 +188,8 @@ gl_set_api_key <- function(provider, api_key = NULL) {
 #' @export
 gl_get_api_key <- function(provider) {
   fam <- normalize_provider_family(provider)
-  if (exists(fam, envir = .gx_env$api_keys, inherits = FALSE)) {
-    val <- get(fam, envir = .gx_env$api_keys, inherits = FALSE)
+  if (exists(fam, envir = .gl_env$api_keys, inherits = FALSE)) {
+    val <- get(fam, envir = .gl_env$api_keys, inherits = FALSE)
     if (!is.null(val) && nzchar(val)) return(val)
   }
 
@@ -364,7 +364,7 @@ add_provider_tiles <- function(
     attribution = ""
 ) {
   spec <- resolve_basemap_spec(provider, api_key = api_key, key_param = key_param, attribution = attribution)
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setBasemap", list(basemap = spec, name = as.character(provider[1]))))
   }
   map$x$basemap <- spec

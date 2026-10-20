@@ -1,6 +1,6 @@
 #' Add a Live Out-of-Core DuckDB / Parquet Layer (`add_duckdb`)
 #'
-#' Connects `gexplore` directly to a `DuckDB` connection (`DBI`), table name,
+#' Connects `glmap` directly to a `DuckDB` connection (`DBI`), table name,
 #' SQL query, or `.parquet` / `.csv` file path.
 #'
 #' Instead of loading 10M–100M+ rows into R memory, `add_duckdb()` pushes bounding-box
@@ -10,7 +10,7 @@
 #' slice in C++17 (`cpp_pack_points_xy`) and streams the `GEXP` binary buffer
 #' to WebGL2 over the local `httpuv` server on every pan/zoom!
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param con A `DBIConnection` (DuckDB), or `NULL` if `source` is a `.parquet`/`.csv` file path or `data.frame`.
 #' @param source A table name, SQL `SELECT` query, `.parquet` file path, or `data.frame` to register in DuckDB.
 #' @param lon Name of the longitude column (default `"lon"`).
@@ -25,7 +25,7 @@
 #' @param id Optional layer ID.
 #' @param group Optional layer group name shown in the GPU Layer Switcher.
 #' @param legend Logical; whether to display a color legend.
-#' @return Updated `gexplore` map object.
+#' @return Updated `glmap` map object.
 #' @export
 add_duckdb <- function(
     map,
@@ -66,7 +66,7 @@ add_duckdb <- function(
     rad_col <- rlang::as_name(rlang::f_rhs(radius))
   }
 
-  duck_idx <- gx_duckdb_index(
+  duck_idx <- gl_duckdb_index(
     con = con,
     source = source,
     lon = lon,
@@ -86,13 +86,13 @@ add_duckdb <- function(
   init_res <- query_duckdb_slice(duck_idx, bb[1], bb[2], bb[3], bb[4], max_features = as.integer(max_features))
   raw_buf <- init_res$raw_buf
 
-  transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+  transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
 
   viewport_url <- NULL
   if (isTRUE(dynamic_viewport)) {
-    assign(id, duck_idx, envir = .gx_env$indices)
-    base_url <- gx_serve_start()
+    assign(id, duck_idx, envir = .gl_env$indices)
+    base_url <- gl_serve_start()
     viewport_url <- sprintf("%s/viewport/%s", base_url, id)
   }
 
@@ -132,7 +132,7 @@ add_duckdb <- function(
 #' @param color_fixed Fixed hex color when `color_col` is `NULL`.
 #' @param rad_col Optional column name for radius mapping.
 #' @param rad_fixed Fixed numeric radius when `rad_col` is `NULL`.
-#' @return A `gx_duckdb_index` object.
+#' @return A `gl_duckdb_index` object.
 #' @export
 gl_duckdb_index <- function(
     con = NULL,
@@ -149,21 +149,21 @@ gl_duckdb_index <- function(
     max_features = 100000L
 ) {
   if (is.null(con)) {
-    if (is.null(.gx_env$duckdb_con) || !DBI::dbIsValid(.gx_env$duckdb_con)) {
-      .gx_env$duckdb_con <- DBI::dbConnect(duckdb::duckdb())
+    if (is.null(.gl_env$duckdb_con) || !DBI::dbIsValid(.gl_env$duckdb_con)) {
+      .gl_env$duckdb_con <- DBI::dbConnect(duckdb::duckdb())
     }
-    con <- .gx_env$duckdb_con
+    con <- .gl_env$duckdb_con
   }
 
   # Resolve source into a SQL relation expression
   if (is.data.frame(source)) {
-    tbl_name <- sprintf("gx_tbl_%04d", sample.int(9999L, 1L))
+    tbl_name <- sprintf("gl_tbl_%04d", sample.int(9999L, 1L))
     duckdb::duckdb_register(con, tbl_name, source, overwrite = TRUE)
     from_sql <- DBI::dbQuoteIdentifier(con, tbl_name)
   } else if (is.character(source) && length(source) == 1L) {
     s_trim <- trimws(source)
     if (grepl("^SELECT\\b", s_trim, ignore.case = TRUE)) {
-      from_sql <- sprintf("(%s) AS _gx_sub", s_trim)
+      from_sql <- sprintf("(%s) AS _gl_sub", s_trim)
     } else if (grepl("\\.(parquet|csv|tsv|json)$", s_trim, ignore.case = TRUE) || file.exists(s_trim)) {
       norm_p <- gsub("\\\\", "/", normalizePath(s_trim, mustWork = FALSE))
       from_sql <- sprintf("'%s'", norm_p)
@@ -213,22 +213,22 @@ gl_duckdb_index <- function(
       bbox = bbox,
       max_features = as.integer(max_features)
     ),
-    class = c("gx_duckdb_index", "gx_spatial_index")
+    class = c("gl_duckdb_index", "gl_spatial_index")
   )
 }
 
 query_duckdb_slice <- function(idx, xmin, ymin, xmax, ymax, max_features = 100000L) {
   cols <- c(
-    sprintf("CAST(%s AS DOUBLE) AS _gx_x", idx$q_lon),
-    sprintf("CAST(%s AS DOUBLE) AS _gx_y", idx$q_lat)
+    sprintf("CAST(%s AS DOUBLE) AS _gl_x", idx$q_lon),
+    sprintf("CAST(%s AS DOUBLE) AS _gl_y", idx$q_lat)
   )
   if (!is.null(idx$color_col)) {
     q_col <- as.character(DBI::dbQuoteIdentifier(idx$con, idx$color_col))
-    cols <- c(cols, sprintf("%s AS _gx_col", q_col))
+    cols <- c(cols, sprintf("%s AS _gl_col", q_col))
   }
   if (!is.null(idx$rad_col)) {
     q_rad <- as.character(DBI::dbQuoteIdentifier(idx$con, idx$rad_col))
-    cols <- c(cols, sprintf("CAST(%s AS DOUBLE) AS _gx_rad", q_rad))
+    cols <- c(cols, sprintf("CAST(%s AS DOUBLE) AS _gl_rad", q_rad))
   }
 
   limit_sql <- if (max_features > 0L) sprintf("LIMIT %d", as.integer(max_features)) else ""
@@ -254,7 +254,7 @@ query_duckdb_slice <- function(idx, xmin, ymin, xmax, ymax, max_features = 10000
     return(list(raw_buf = raw_buf, legend = NULL))
   }
 
-  col_input <- if (!is.null(idx$color_col)) df[["_gx_col"]] else idx$color_fixed
+  col_input <- if (!is.null(idx$color_col)) df[["_gl_col"]] else idx$color_fixed
   col_res <- resolve_rgba(
     color = col_input,
     n = n,
@@ -264,12 +264,12 @@ query_duckdb_slice <- function(idx, xmin, ymin, xmax, ymax, max_features = 10000
   )
 
   rad_vec <- if (!is.null(idx$rad_col)) {
-    resolve_numeric_aesthetic(df[["_gx_rad"]], default = idx$rad_fixed)
+    resolve_numeric_aesthetic(df[["_gl_rad"]], default = idx$rad_fixed)
   } else {
     as.numeric(idx$rad_fixed)
   }
 
-  raw_buf <- cpp_pack_points_xy(df[["_gx_x"]], df[["_gx_y"]], col_res$rgba, rad_vec, numeric(0))
+  raw_buf <- cpp_pack_points_xy(df[["_gl_x"]], df[["_gl_y"]], col_res$rgba, rad_vec, numeric(0))
   hdr <- read_gexp_header(raw_buf)
   attr(raw_buf, "bbox") <- hdr$bbox
   attr(raw_buf, "geom_type") <- "POINT"
@@ -278,8 +278,3 @@ query_duckdb_slice <- function(idx, xmin, ymin, xmax, ymax, max_features = 10000
 
   list(raw_buf = raw_buf, legend = col_res$legend)
 }
-
-#' @rdname gl_duckdb_index
-#' @export
-gx_duckdb_index <- gl_duckdb_index
-

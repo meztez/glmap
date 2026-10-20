@@ -6,7 +6,7 @@ test_that("C++17 binary point packer packs 1,000,000 points in sub-second time",
   )
 
   t0 <- proc.time()[["elapsed"]]
-  raw_buf <- gx_pack_sf_binary(df, lon = "lon", lat = "lat", rgba = c(0L, 212L, 255L, 200L), radius = 4)
+  raw_buf <- gl_pack_sf_binary(df, lon = "lon", lat = "lat", rgba = c(0L, 212L, 255L, 200L), radius = 4)
   elapsed <- proc.time()[["elapsed"]] - t0
 
   expect_type(raw_buf, "raw")
@@ -20,10 +20,10 @@ test_that("C++17 binary point packer packs 1,000,000 points in sub-second time",
 
 test_that("C++17 earcut polygon triangulation and sfc binary packing works accurately", {
   skip_if_not_installed("sf")
-  bench <- gx_benchmark_data(n_points = 100L, n_polygons = 500L)
+  bench <- gl_benchmark_data(n_points = 100L, n_polygons = 500L)
   poly_sf <- bench$polygons_sf
 
-  raw_buf <- gx_pack_sf_binary(poly_sf)
+  raw_buf <- gl_pack_sf_binary(poly_sf)
   expect_type(raw_buf, "raw")
   expect_equal(attr(raw_buf, "geom_type"), "POLYGON")
   expect_equal(attr(raw_buf, "n_features"), 500L)
@@ -35,7 +35,7 @@ test_that("C++17 Float32 raster binary packing works for terra SpatRaster and ma
   mat <- matrix(seq(10, 500, length.out = 100 * 120), nrow = 100, ncol = 120)
   mat[1:5, 1:5] <- NA_real_
 
-  raw_buf <- gx_pack_raster_binary(mat, bbox = c(-74, 45, -72, 46))
+  raw_buf <- gl_pack_raster_binary(mat, bbox = c(-74, 45, -72, 46))
   expect_type(raw_buf, "raw")
   expect_equal(attr(raw_buf, "width"), 120L)
   expect_equal(attr(raw_buf, "height"), 100L)
@@ -44,7 +44,7 @@ test_that("C++17 Float32 raster binary packing works for terra SpatRaster and ma
 
   if (requireNamespace("terra", quietly = TRUE)) {
     r <- terra::rast(nrows = 60, ncols = 80, xmin = -74, xmax = -72, ymin = 45, ymax = 46, vals = runif(4800, 0, 100))
-    rbuf <- gx_pack_raster_binary(r)
+    rbuf <- gl_pack_raster_binary(r)
     expect_equal(attr(rbuf, "width"), 80L)
     expect_equal(attr(rbuf, "height"), 60L)
   }
@@ -56,20 +56,20 @@ test_that("C++17 spatial index builds and queries 250k points with LOD sampling"
     lon = seq(-75, -70, length.out = n),
     lat = seq(45, 50, length.out = n)
   )
-  idx <- gx_spatial_index(df)
-  expect_s3_class(idx, "gx_spatial_index")
+  idx <- gl_spatial_index(df)
+  expect_s3_class(idx, "gl_spatial_index")
 
-  hits_all <- gx_query_index(idx, c(-73, 47, -72, 48))
+  hits_all <- gl_query_index(idx, c(-73, 47, -72, 48))
   expect_gt(length(hits_all), 40000L)
 
-  hits_lod <- gx_query_index(idx, c(-73, 47, -72, 48), max_features = 5000L)
+  hits_lod <- gl_query_index(idx, c(-73, 47, -72, 48), max_features = 5000L)
   expect_equal(length(hits_lod), 5000L)
 })
 
 test_that("Pipeable R API, formula aesthetics, scales, and layers construct valid widget", {
-  bench <- gx_benchmark_data(n_points = 5000L, n_polygons = 200L, raster_dim = c(80L, 80L))
+  bench <- gl_benchmark_data(n_points = 5000L, n_polygons = 200L, raster_dim = c(80L, 80L))
 
-  m <- gexplore(basemap = "dark") |>
+  m <- glmap(basemap = "dark") |>
     add_raster(bench$raster_mat, palette = "terrain", hillshade = TRUE, id = "dem") |>
     add_polygons(bench$polygons_sf, fill_color = ~elevation, palette = "viridis", id = "polys") |>
     add_points(bench$points_df, color = ~intensity, radius = ~intensity, palette = "plasma", id = "pts") |>
@@ -79,7 +79,7 @@ test_that("Pipeable R API, formula aesthetics, scales, and layers construct vali
     use_plugin("measure") |>
     use_plugin("export_png")
 
-  expect_s3_class(m, "gexplore")
+  expect_s3_class(m, "glmap")
   expect_s3_class(m, "htmlwidget")
   expect_length(m$x$layers, 5L)
   expect_gte(length(m$x$legends), 3L)
@@ -97,19 +97,19 @@ test_that("Pipeable R API, formula aesthetics, scales, and layers construct vali
 })
 
 test_that("Local httpuv zero-copy binary server serves full and HTTP Range requests", {
-  raw_buf <- gx_pack_sf_binary(
+  raw_buf <- gl_pack_sf_binary(
     data.frame(lon = c(-73.5, -73.6), lat = c(45.5, 45.6))
   )
   spec <- glmap:::register_binary_buffer("test_srv_buf", raw_buf, mode = "server")
   expect_equal(spec$mode, "server")
   expect_match(spec$url, "^http://127\\.0\\.0\\.1:[0-9]+/buffer/test_srv_buf$")
 
-  st <- gx_server_status()
+  st <- gl_server_status()
   expect_true(st$running)
   expect_true("test_srv_buf" %in% names(st$buffers))
 
-  gx_serve_stop()
-  expect_false(gx_server_status()$running)
+  gl_serve_stop()
+  expect_false(gl_server_status()$running)
 })
 
 test_that("Shiny proxy and custom plugin registration work seamlessly", {
@@ -120,13 +120,13 @@ test_that("Shiny proxy and custom plugin registration work seamlessly", {
   )
   expect_true("custom_banner" %in% list_plugins())
 
-  proxy <- gexplore_proxy("my_map") |>
+  proxy <- glmap_proxy("my_map") |>
     fly_to(-73.56, 45.50, zoom = 11) |>
     set_raster_style("dem", palette = "turbo", hillshade = TRUE) |>
     clear_layer("old_layer") |>
     use_plugin("custom_banner", config = list(label = "Updated"))
 
-  expect_s3_class(proxy, "gexplore_proxy")
+  expect_s3_class(proxy, "glmap_proxy")
   expect_length(proxy$calls, 4L)
   expect_equal(proxy$calls[[1]]$method, "flyTo")
   expect_equal(proxy$calls[[2]]$method, "setRasterStyle")
@@ -137,19 +137,19 @@ test_that("Shiny proxy and custom plugin registration work seamlessly", {
 test_that("wk::xy, wk::wkb, and nanoarrow GeoArrow inputs pack directly into GEXP binary buffers", {
   if (requireNamespace("wk", quietly = TRUE)) {
     pts_wk <- wk::xy(c(-73.5, -73.6, -73.7), c(45.5, 45.6, 45.7))
-    buf_wk <- gx_pack_sf_binary(pts_wk)
+    buf_wk <- gl_pack_sf_binary(pts_wk)
     expect_type(buf_wk, "raw")
     expect_equal(attr(buf_wk, "n_features"), 3L)
     expect_equal(attr(buf_wk, "geom_type"), "POINT")
 
     wkb_pts <- wk::as_wkb(pts_wk)
-    buf_wkb <- gx_pack_sf_binary(wkb_pts)
+    buf_wkb <- gl_pack_sf_binary(wkb_pts)
     expect_equal(attr(buf_wkb, "n_features"), 3L)
   }
 
   if (requireNamespace("nanoarrow", quietly = TRUE)) {
     arr <- nanoarrow::as_nanoarrow_array(data.frame(lon = c(-73.5, -73.6), lat = c(45.5, 45.6)))
-    buf_na <- gx_pack_sf_binary(arr)
+    buf_na <- gl_pack_sf_binary(arr)
     expect_type(buf_na, "raw")
     expect_equal(attr(buf_na, "n_features"), 2L)
   }
@@ -161,7 +161,7 @@ test_that("DuckDB out-of-core spatial viewport pushdown and SQL filtering work s
 
   con <- DBI::dbConnect(duckdb::duckdb())
   on.exit({
-    gx_serve_stop()
+    gl_serve_stop()
     DBI::dbDisconnect(con, shutdown = TRUE)
   }, add = TRUE)
 
@@ -172,7 +172,7 @@ test_that("DuckDB out-of-core spatial viewport pushdown and SQL filtering work s
   )
   DBI::dbWriteTable(con, "sensors", df, overwrite = TRUE)
 
-  m <- gexplore(basemap = "dark") |>
+  m <- glmap(basemap = "dark") |>
     add_duckdb(
       con = con,
       source = "sensors",
@@ -184,14 +184,14 @@ test_that("DuckDB out-of-core spatial viewport pushdown and SQL filtering work s
       id = "duck_pts"
     )
 
-  expect_s3_class(m, "gexplore")
+  expect_s3_class(m, "glmap")
   expect_equal(m$x$layers[[1]]$total_duckdb_rows, sum(df$intensity >= 50))
   expect_equal(m$x$layers[[1]]$n_features, 10000L)
   expect_match(m$x$layers[[1]]$viewport_url, "^http://127\\.0\\.0\\.1:[0-9]+/viewport/duck_pts$")
 
   # Test viewport slice directly
-  idx_obj <- get("duck_pts", envir = glmap:::.gx_env$indices)
-  slice_buf <- glmap:::gx_slice_indexed_buffer(idx_obj, -72.5, 46.0, -71.5, 46.8, max_features = 5000L)
+  idx_obj <- get("duck_pts", envir = glmap:::.gl_env$indices)
+  slice_buf <- glmap:::gl_slice_indexed_buffer(idx_obj, -72.5, 46.0, -71.5, 46.8, max_features = 5000L)
   expect_type(slice_buf, "raw")
   expect_gt(attr(slice_buf, "n_features"), 1000L)
   expect_lte(attr(slice_buf, "n_features"), 5000L)
@@ -200,16 +200,16 @@ test_that("DuckDB out-of-core spatial viewport pushdown and SQL filtering work s
 test_that("terra::SpatVector, raster::RasterLayer, and sp::Spatial* objects are supported directly", {
   if (requireNamespace("terra", quietly = TRUE)) {
     v <- terra::vect(cbind(c(-73.5, -73.6), c(45.5, 45.6)), type = "points", crs = "EPSG:4326")
-    m_v <- gexplore(v)
-    expect_s3_class(m_v, "gexplore")
-    buf_v <- gx_pack_sf_binary(v)
+    m_v <- glmap(v)
+    expect_s3_class(m_v, "glmap")
+    buf_v <- gl_pack_sf_binary(v)
     expect_equal(attr(buf_v, "n_features"), 2L)
   }
 
   if (requireNamespace("raster", quietly = TRUE)) {
     rl <- raster::raster(nrows = 20, ncols = 20, xmn = -74, xmx = -72, ymn = 45, ymx = 46)
     raster::values(rl) <- runif(400, 10, 100)
-    buf_rl <- gx_pack_raster_binary(rl)
+    buf_rl <- gl_pack_raster_binary(rl)
     expect_equal(attr(buf_rl, "width"), 20L)
   }
 })
@@ -224,7 +224,7 @@ test_that("mapbox/earcut.hpp in C++17 accurately triangulates complex polygons w
   sfc_donut <- sf::st_sfc(poly_with_hole, crs = 4326)
   sf_donut <- sf::st_sf(id = 1L, height = 120.0, geometry = sfc_donut)
 
-  raw_buf <- gx_pack_sf_binary(sf_donut, elevation = 120.0)
+  raw_buf <- gl_pack_sf_binary(sf_donut, elevation = 120.0)
   expect_type(raw_buf, "raw")
   expect_equal(attr(raw_buf, "n_features"), 1L)
   # 8 unique vertices in donut -> 8 triangles = 24 indices
@@ -239,7 +239,7 @@ test_that("add_labels, 3D polygon extrusion, categorical color scales, and camer
     region = factor(c("West", "East", "Center"))
   )
 
-  bench <- gx_benchmark_data(n_points = 50L, n_polygons = 20L)
+  bench <- gl_benchmark_data(n_points = 50L, n_polygons = 20L)
 
   m <- glmap(basemap = "positron", projection = "globe") |>
     add_polygons(bench$polygons_sf, fill_color = ~elevation, extrude = ~elevation, id = "poly3d") |>
@@ -250,7 +250,7 @@ test_that("add_labels, 3D polygon extrusion, categorical color scales, and camer
     fit_bounds(c(-74.5, 45.0, -70.5, 47.2))
 
   expect_s3_class(m, "glmap")
-  expect_s3_class(m, "gexplore")
+  expect_s3_class(m, "glmap")
   expect_length(m$x$layers, 3L)
   expect_true(m$x$layers[[1]]$style$extruded)
   expect_equal(m$x$layers[[3]]$type, "labels")
@@ -343,8 +343,6 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_equal(prx$calls[[3]]$method, "clearGroup")
   expect_equal(prx$calls[[4]]$method, "flyToBounds")
 })
-
-
 
 
 

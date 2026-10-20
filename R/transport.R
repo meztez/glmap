@@ -1,17 +1,17 @@
 # Internal environment for storing active binary buffers, spatial indices, and server handle
-.gx_env <- new.env(parent = emptyenv())
-.gx_env$buffers <- new.env(parent = emptyenv())
-.gx_env$meta <- new.env(parent = emptyenv())
-.gx_env$indices <- new.env(parent = emptyenv())
-.gx_env$plugins <- new.env(parent = emptyenv())
-.gx_env$api_keys <- new.env(parent = emptyenv())
-.gx_env$server <- NULL
-.gx_env$port <- NULL
-.gx_env$counter <- 0L
+.gl_env <- new.env(parent = emptyenv())
+.gl_env$buffers <- new.env(parent = emptyenv())
+.gl_env$meta <- new.env(parent = emptyenv())
+.gl_env$indices <- new.env(parent = emptyenv())
+.gl_env$plugins <- new.env(parent = emptyenv())
+.gl_env$api_keys <- new.env(parent = emptyenv())
+.gl_env$server <- NULL
+.gl_env$port <- NULL
+.gl_env$counter <- 0L
 
 next_layer_id <- function(prefix = "layer") {
-  .gx_env$counter <- .gx_env$counter + 1L
-  sprintf("%s_%04d", prefix, .gx_env$counter)
+  .gl_env$counter <- .gl_env$counter + 1L
+  sprintf("%s_%04d", prefix, .gl_env$counter)
 }
 
 #' Start the local zero-copy binary & tile server (`gl_serve_start`)
@@ -24,8 +24,8 @@ next_layer_id <- function(prefix = "layer") {
 #' @return The local server base URL (e.g., `"http://127.0.0.1:43210"`).
 #' @export
 gl_serve_start <- function(port = NULL) {
-  if (!is.null(.gx_env$server)) {
-    return(sprintf("http://127.0.0.1:%d", .gx_env$port))
+  if (!is.null(.gl_env$server)) {
+    return(sprintf("http://127.0.0.1:%d", .gl_env$port))
   }
 
   if (is.null(port)) {
@@ -50,10 +50,10 @@ gl_serve_start <- function(port = NULL) {
 
       # Status check
       if (identical(path, "/status")) {
-        ids <- ls(.gx_env$buffers)
+        ids <- ls(.gl_env$buffers)
         body <- jsonlite::toJSON(list(
           status = "ok",
-          port = .gx_env$port,
+          port = .gl_env$port,
           buffers = ids,
           n_buffers = length(ids)
         ), auto_unbox = TRUE)
@@ -65,10 +65,10 @@ gl_serve_start <- function(port = NULL) {
       # Binary buffer fetch: /buffer/<id>
       if (startsWith(path, "/buffer/")) {
         buf_id <- sub("^/buffer/", "", path)
-        if (!exists(buf_id, envir = .gx_env$buffers, inherits = FALSE)) {
+        if (!exists(buf_id, envir = .gl_env$buffers, inherits = FALSE)) {
           return(list(status = 404L, headers = cors_headers, body = "Buffer not found"))
         }
-        raw_buf <- get(buf_id, envir = .gx_env$buffers, inherits = FALSE)
+        raw_buf <- get(buf_id, envir = .gl_env$buffers, inherits = FALSE)
 
         # Support HTTP Range requests (for PMTiles / COG / partial reads)
         range_hdr <- req$HTTP_RANGE
@@ -98,10 +98,10 @@ gl_serve_start <- function(port = NULL) {
       # Dynamic spatial index viewport query: /viewport/<id>?bbox=xmin,ymin,xmax,ymax&max=50000
       if (startsWith(path, "/viewport/")) {
         idx_id <- sub("^/viewport/", "", path)
-        if (!exists(idx_id, envir = .gx_env$indices, inherits = FALSE)) {
+        if (!exists(idx_id, envir = .gl_env$indices, inherits = FALSE)) {
           return(list(status = 404L, headers = cors_headers, body = "Spatial index not found"))
         }
-        idx_obj <- get(idx_id, envir = .gx_env$indices, inherits = FALSE)
+        idx_obj <- get(idx_id, envir = .gl_env$indices, inherits = FALSE)
         qs <- req$QUERY_STRING %||% ""
         params <- parse_query_string(qs)
         bbox_str <- params$bbox %||% "-180,-90,180,90"
@@ -109,7 +109,7 @@ gl_serve_start <- function(port = NULL) {
         if (length(bb) < 4 || any(is.na(bb))) bb <- c(-180, -90, 180, 90)
         max_f <- as.integer(params$max %||% "100000")
 
-        sub_buf <- gx_slice_indexed_buffer(idx_obj, bb[1], bb[2], bb[3], bb[4], max_f)
+        sub_buf <- gl_slice_indexed_buffer(idx_obj, bb[1], bb[2], bb[3], bb[4], max_f)
         hdrs <- cors_headers
         hdrs[["Content-Type"]] <- "application/octet-stream"
         hdrs[["Content-Length"]] <- as.character(length(sub_buf))
@@ -120,18 +120,18 @@ gl_serve_start <- function(port = NULL) {
     }
   )
 
-  .gx_env$server <- httpuv::startDaemonizedServer("127.0.0.1", port, app)
-  .gx_env$port <- port
+  .gl_env$server <- httpuv::startDaemonizedServer("127.0.0.1", port, app)
+  .gl_env$port <- port
   sprintf("http://127.0.0.1:%d", port)
 }
 
 #' Stop the local zero-copy binary server (`gl_serve_stop`)
 #' @export
 gl_serve_stop <- function() {
-  if (!is.null(.gx_env$server)) {
-    try(httpuv::stopServer(.gx_env$server), silent = TRUE)
-    .gx_env$server <- NULL
-    .gx_env$port <- NULL
+  if (!is.null(.gl_env$server)) {
+    try(httpuv::stopServer(.gl_env$server), silent = TRUE)
+    .gl_env$server <- NULL
+    .gl_env$port <- NULL
   }
   invisible(TRUE)
 }
@@ -139,12 +139,12 @@ gl_serve_stop <- function() {
 #' Query status of the local binary server and registered buffers (`gl_server_status`)
 #' @export
 gl_server_status <- function() {
-  ids <- ls(.gx_env$buffers)
-  sizes <- vapply(ids, function(id) length(get(id, envir = .gx_env$buffers)), numeric(1))
+  ids <- ls(.gl_env$buffers)
+  sizes <- vapply(ids, function(id) length(get(id, envir = .gl_env$buffers)), numeric(1))
   list(
-    running = !is.null(.gx_env$server),
-    port = .gx_env$port,
-    url = if (!is.null(.gx_env$port)) sprintf("http://127.0.0.1:%d", .gx_env$port) else NULL,
+    running = !is.null(.gl_env$server),
+    port = .gl_env$port,
+    url = if (!is.null(.gl_env$port)) sprintf("http://127.0.0.1:%d", .gl_env$port) else NULL,
     n_buffers = length(ids),
     total_mb = sum(sizes) / (1024^2),
     buffers = stats::setNames(as.list(sizes), ids)
@@ -153,7 +153,7 @@ gl_server_status <- function() {
 
 register_binary_buffer <- function(id, raw_buf, mode = c("auto", "inline", "server")) {
   mode <- match.arg(mode)
-  assign(id, raw_buf, envir = .gx_env$buffers)
+  assign(id, raw_buf, envir = .gl_env$buffers)
 
   # Choose transport:
   # - "inline": gzip + base64 embedded in widget payload (works offline, in standalone HTML, RMarkdown, Quarto)
@@ -162,7 +162,7 @@ register_binary_buffer <- function(id, raw_buf, mode = c("auto", "inline", "serv
   #           also registers on local httpuv server if active
   use_server <- identical(mode, "server")
   if (use_server) {
-    base_url <- gx_serve_start()
+    base_url <- gl_serve_start()
     return(list(
       mode = "server",
       id = id,
@@ -245,7 +245,7 @@ gl_pack_sf_binary <- function(
   if (inherits(data, c("nanoarrow_array", "nanoarrow_array_stream")) && requireNamespace("nanoarrow", quietly = TRUE)) {
     df_conv <- tryCatch(as.data.frame(data), error = function(e) NULL)
     if (!is.null(df_conv) && is.data.frame(df_conv)) {
-      return(gx_pack_sf_binary(df_conv, lon = lon, lat = lat, rgba = rgba, radius = radius, elevation = elevation))
+      return(gl_pack_sf_binary(df_conv, lon = lon, lat = lat, rgba = rgba, radius = radius, elevation = elevation))
     }
   }
 
@@ -279,10 +279,10 @@ gl_pack_sf_binary <- function(
     # Check if data.frame has a wk_xy / sfc geometry column
     for (col_nm in names(data)) {
       if (inherits(data[[col_nm]], "wk_xy")) {
-        return(gx_pack_sf_binary(data[[col_nm]], rgba = rgba, radius = radius, elevation = elevation))
+        return(gl_pack_sf_binary(data[[col_nm]], rgba = rgba, radius = radius, elevation = elevation))
       }
       if (inherits(data[[col_nm]], "sfc")) {
-        return(gx_pack_sf_binary(data[[col_nm]], rgba = rgba, radius = radius, elevation = elevation))
+        return(gl_pack_sf_binary(data[[col_nm]], rgba = rgba, radius = radius, elevation = elevation))
       }
     }
     if (is.null(lon) || is.null(lat)) {
@@ -459,7 +459,7 @@ read_gexr_header <- function(raw_buf) {
 #' @param grid_res Grid resolution along each axis (default `64L`, i.e. 4,096 spatial buckets).
 #' @param lon Optional longitude column name for `data.frame`.
 #' @param lat Optional latitude column name for `data.frame`.
-#' @return A `gx_spatial_index` object holding the C++ external pointer and dataset reference.
+#' @return A `gl_spatial_index` object holding the C++ external pointer and dataset reference.
 #' @export
 gl_spatial_index <- function(data, grid_res = 64L, lon = NULL, lat = NULL) {
   if (is.data.frame(data) && !inherits(data, "sf")) {
@@ -478,7 +478,7 @@ gl_spatial_index <- function(data, grid_res = 64L, lon = NULL, lat = NULL) {
         n = length(x),
         bbox = c(min(x, na.rm = TRUE), min(y, na.rm = TRUE), max(x, na.rm = TRUE), max(y, na.rm = TRUE))
       ),
-      class = "gx_spatial_index"
+      class = "gl_spatial_index"
     )
     return(idx_obj)
   }
@@ -503,20 +503,20 @@ gl_spatial_index <- function(data, grid_res = 64L, lon = NULL, lat = NULL) {
       n = length(sfc),
       bbox = bb
     ),
-    class = "gx_spatial_index"
+    class = "gl_spatial_index"
   )
 }
 
 #' Query a spatial index for features intersecting a bounding box (`gl_query_index`)
 #'
-#' @param index A `gx_spatial_index` object created by [gl_spatial_index()].
+#' @param index A `gl_spatial_index` object created by [gl_spatial_index()].
 #' @param bbox Numeric vector `c(xmin, ymin, xmax, ymax)`.
 #' @param max_features Optional cap on returned features (uses deterministic stride LOD sampling).
 #' @return Integer vector of 1-based feature indices.
 #' @export
 gl_query_index <- function(index, bbox, max_features = 0L) {
-  if (!inherits(index, "gx_spatial_index")) {
-    cli::cli_abort("`index` must be a {.cls gx_spatial_index} object.")
+  if (!inherits(index, "gl_spatial_index")) {
+    cli::cli_abort("`index` must be a {.cls gl_spatial_index} object.")
   }
   cpp_query_spatial_index(
     index$ptr,
@@ -528,8 +528,8 @@ gl_query_index <- function(index, bbox, max_features = 0L) {
   )
 }
 
-gx_slice_indexed_buffer <- function(idx_obj, xmin, ymin, xmax, ymax, max_features = 100000L) {
-  if (inherits(idx_obj, "gx_duckdb_index") || identical(idx_obj$type, "duckdb")) {
+gl_slice_indexed_buffer <- function(idx_obj, xmin, ymin, xmax, ymax, max_features = 100000L) {
+  if (inherits(idx_obj, "gl_duckdb_index") || identical(idx_obj$type, "duckdb")) {
     return(query_duckdb_slice(idx_obj, xmin, ymin, xmax, ymax, max_features = as.integer(max_features))$raw_buf)
   }
   hits <- cpp_query_spatial_index(idx_obj$ptr, xmin, ymin, xmax, ymax, as.integer(max_features))
@@ -546,34 +546,11 @@ gx_slice_indexed_buffer <- function(idx_obj, xmin, ymin, xmax, ymax, max_feature
     if (length(rad) == idx_obj$n) rad <- rad[hits]
     return(cpp_pack_points_xy(idx_obj$x[hits], idx_obj$y[hits], rgba, rad, numeric(0)))
   }
-  gx_pack_sf_binary(idx_obj$sfc[hits], rgba = idx_obj$rgba %||% c(30L, 144L, 255L, 200L))
+  gl_pack_sf_binary(idx_obj$sfc[hits], rgba = idx_obj$rgba %||% c(30L, 144L, 255L, 200L))
 }
 
-#' @rdname gl_serve_start
-#' @export
-gx_serve_start <- gl_serve_start
 
-#' @rdname gl_serve_stop
-#' @export
-gx_serve_stop <- gl_serve_stop
 
-#' @rdname gl_server_status
-#' @export
-gx_server_status <- gl_server_status
 
-#' @rdname gl_pack_sf_binary
-#' @export
-gx_pack_sf_binary <- gl_pack_sf_binary
 
-#' @rdname gl_pack_raster_binary
-#' @export
-gx_pack_raster_binary <- gl_pack_raster_binary
-
-#' @rdname gl_spatial_index
-#' @export
-gx_spatial_index <- gl_spatial_index
-
-#' @rdname gl_query_index
-#' @export
-gx_query_index <- gl_query_index
 

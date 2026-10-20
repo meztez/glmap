@@ -4,44 +4,45 @@
 #include "cpp11/declarations.hpp"
 #include <R_ext/Visibility.h>
 
-// gexplore_cpp.cpp
+// glmap_cpp.cpp
 cpp11::raws cpp_pack_points_xy(cpp11::doubles x, cpp11::doubles y, cpp11::integers rgba, cpp11::doubles radius, cpp11::doubles elevation);
-extern "C" SEXP _gexplore_cpp_pack_points_xy(SEXP x, SEXP y, SEXP rgba, SEXP radius, SEXP elevation) {
+extern "C" SEXP _glmap_cpp_pack_points_xy(SEXP x, SEXP y, SEXP rgba, SEXP radius, SEXP elevation) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_pack_points_xy(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(y), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(rgba), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(radius), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(elevation)));
   END_CPP11
 }
-// gexplore_cpp.cpp
+// glmap_cpp.cpp
 cpp11::raws cpp_pack_sfc_binary(cpp11::list sfc, int geom_type_int, cpp11::integers rgba, cpp11::doubles radius, cpp11::doubles elevation);
-extern "C" SEXP _gexplore_cpp_pack_sfc_binary(SEXP sfc, SEXP geom_type_int, SEXP rgba, SEXP radius, SEXP elevation) {
+extern "C" SEXP _glmap_cpp_pack_sfc_binary(SEXP sfc, SEXP geom_type_int, SEXP rgba, SEXP radius, SEXP elevation) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_pack_sfc_binary(cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(sfc), cpp11::as_cpp<cpp11::decay_t<int>>(geom_type_int), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(rgba), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(radius), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(elevation)));
   END_CPP11
 }
-// gexplore_cpp.cpp
+// glmap_cpp.cpp
 cpp11::raws cpp_pack_raster_float32(cpp11::doubles values, int width, int height, int n_bands, cpp11::doubles bbox, double nodata);
-extern "C" SEXP _gexplore_cpp_pack_raster_float32(SEXP values, SEXP width, SEXP height, SEXP n_bands, SEXP bbox, SEXP nodata) {
+extern "C" SEXP _glmap_cpp_pack_raster_float32(SEXP values, SEXP width, SEXP height, SEXP n_bands, cpp11::doubles bbox, double nodata);
+extern "C" SEXP _glmap_cpp_pack_raster_float32(SEXP values, SEXP width, SEXP height, SEXP n_bands, SEXP bbox, SEXP nodata) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_pack_raster_float32(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(values), cpp11::as_cpp<cpp11::decay_t<int>>(width), cpp11::as_cpp<cpp11::decay_t<int>>(height), cpp11::as_cpp<cpp11::decay_t<int>>(n_bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(bbox), cpp11::as_cpp<cpp11::decay_t<double>>(nodata)));
   END_CPP11
 }
-// gexplore_cpp.cpp
+// glmap_cpp.cpp
 SEXP cpp_build_spatial_index(cpp11::doubles xmin, cpp11::doubles ymin, cpp11::doubles xmax, cpp11::doubles ymax, int grid_res);
-extern "C" SEXP _gexplore_cpp_build_spatial_index(SEXP xmin, SEXP ymin, SEXP xmax, SEXP ymax, SEXP grid_res) {
+extern "C" SEXP _glmap_cpp_build_spatial_index(SEXP xmin, SEXP ymin, SEXP xmax, SEXP ymax, SEXP grid_res) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_build_spatial_index(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(xmin), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(ymin), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(xmax), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(ymax), cpp11::as_cpp<cpp11::decay_t<int>>(grid_res)));
   END_CPP11
 }
-// gexplore_cpp.cpp
+// glmap_cpp.cpp
 cpp11::integers cpp_query_spatial_index(SEXP index_ptr, double qxmin, double qymin, double qxmax, double qymax, int max_features);
-extern "C" SEXP _gexplore_cpp_query_spatial_index(SEXP index_ptr, SEXP qxmin, SEXP qymin, SEXP qxmax, SEXP qymax, SEXP max_features) {
+extern "C" SEXP _glmap_cpp_query_spatial_index(SEXP index_ptr, SEXP qxmin, SEXP qymin, SEXP qxmax, SEXP qymax, SEXP max_features) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_query_spatial_index(index_ptr, cpp11::as_cpp<cpp11::decay_t<double>>(qxmin), cpp11::as_cpp<cpp11::decay_t<double>>(qymin), cpp11::as_cpp<cpp11::decay_t<double>>(qxmax), cpp11::as_cpp<cpp11::decay_t<double>>(qymax), cpp11::as_cpp<cpp11::decay_t<int>>(max_features)));
   END_CPP11
 }
-// gexplore_cpp.cpp
+// glmap_cpp.cpp
 cpp11::writable::list cpp_hexbin_aggregate(cpp11::doubles x, cpp11::doubles y, cpp11::doubles weight, double radius_deg);
-extern "C" SEXP _gexplore_cpp_hexbin_aggregate(SEXP x, SEXP y, SEXP weight, SEXP radius_deg) {
+extern "C" SEXP _glmap_cpp_hexbin_aggregate(SEXP x, SEXP y, SEXP weight, SEXP radius_deg) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_hexbin_aggregate(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(y), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(weight), cpp11::as_cpp<cpp11::decay_t<double>>(radius_deg)));
   END_CPP11
@@ -49,12 +50,12 @@ extern "C" SEXP _gexplore_cpp_hexbin_aggregate(SEXP x, SEXP y, SEXP weight, SEXP
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_gexplore_cpp_build_spatial_index", (DL_FUNC) &_gexplore_cpp_build_spatial_index, 5},
-    {"_gexplore_cpp_hexbin_aggregate",    (DL_FUNC) &_gexplore_cpp_hexbin_aggregate,    4},
-    {"_gexplore_cpp_pack_points_xy",      (DL_FUNC) &_gexplore_cpp_pack_points_xy,      5},
-    {"_gexplore_cpp_pack_raster_float32", (DL_FUNC) &_gexplore_cpp_pack_raster_float32, 6},
-    {"_gexplore_cpp_pack_sfc_binary",     (DL_FUNC) &_gexplore_cpp_pack_sfc_binary,     5},
-    {"_gexplore_cpp_query_spatial_index", (DL_FUNC) &_gexplore_cpp_query_spatial_index, 6},
+    {"_glmap_cpp_build_spatial_index", (DL_FUNC) &_glmap_cpp_build_spatial_index, 5},
+    {"_glmap_cpp_hexbin_aggregate",    (DL_FUNC) &_glmap_cpp_hexbin_aggregate,    4},
+    {"_glmap_cpp_pack_points_xy",      (DL_FUNC) &_glmap_cpp_pack_points_xy,      5},
+    {"_glmap_cpp_pack_raster_float32", (DL_FUNC) &_glmap_cpp_pack_raster_float32, 6},
+    {"_glmap_cpp_pack_sfc_binary",     (DL_FUNC) &_glmap_cpp_pack_sfc_binary,     5},
+    {"_glmap_cpp_query_spatial_index", (DL_FUNC) &_glmap_cpp_query_spatial_index, 6},
     {NULL, NULL, 0}
 };
 }

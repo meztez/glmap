@@ -17,7 +17,19 @@ knitr::opts_chunk$set(
 
 ## 1. Real-Life Head-to-Head Benchmark: `glmap` vs. `leaflet` and R Alternatives
 
-All benchmarks below were executed on **R 4.6.1 (Windows x86_64, GCC 14.3.0 C++17)** comparing `glmap` against `leaflet` across realistic spatial workloads:
+<div class="glmap-eli5-box">
+<span class="glmap-box-badge">🌱 ELI5 (What These Benchmark Numbers Mean)</span><br/>
+<ul>
+<li><b>Polygons (36x faster):</b> Drawing 10,000 shapes in <code>leaflet</code> takes almost 3 seconds of waiting. In <code>glmap</code>, it takes <b>0.08 seconds</b> (faster than the blink of an eye).</li>
+<li><b>Rasters (58x faster + 0ms recoloring):</b> Plotting a 500×500 elevation grid in <code>glmap</code> takes <b>0.01 seconds</b>, and once it's on screen, changing its colors or turning on 3D shadows is <b>instant (0 ms)</b>.</li>
+<li><b>1,000,000 Points:</b> <code>leaflet</code> crashes the browser tab. <code>glmap</code> packs 1,000,000 points in <b>0.05 seconds</b> and lets you pan and zoom smoothly at 60 FPS.</li>
+</ul>
+</div>
+
+<div class="glmap-tech-box">
+<span class="glmap-box-badge">⚙️ Technical Mode (Benchmark Methodology &amp; Hardware)</span><br/>
+All benchmarks below were executed end-to-end (including R aesthetic evaluation, C++17 binary packing / earcut triangulation, and full <code>htmlwidgets</code> payload serialization) on <b>R 4.6.1 (Windows x86_64, GCC 14.3.0 -O2 C++17)</b> comparing <code>glmap</code> against <code>package:leaflet</code>.
+</div>
 
 ### Measured Results (`glmap` vs `leaflet`)
 

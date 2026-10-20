@@ -29,7 +29,7 @@ glmap_proxy <- function(
   }
 
   x_holder <- list(transport = "inline")
-  attr(x_holder, "gexplore_data") <- data
+  attr(x_holder, "glmap_data") <- data
 
   structure(
     list(
@@ -39,13 +39,10 @@ glmap_proxy <- function(
       x = x_holder,
       calls = list()
     ),
-    class = c("glmap_proxy", "gexplore_proxy")
+    class = c("glmap_proxy", "glmap_proxy")
   )
 }
 
-#' @rdname glmap_proxy
-#' @export
-gexplore_proxy <- glmap_proxy
 
 invoke_proxy_method <- function(proxy, method, args = list()) {
   msg <- list(
@@ -74,11 +71,11 @@ invoke_proxy_method <- function(proxy, method, args = list()) {
 
 #' Clear a Single Layer by ID
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param id Layer ID to remove.
 #' @export
 clear_layer <- function(map, id) {
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "clearLayer", list(id = as.character(id))))
   }
   map$x$layers <- Filter(function(l) !identical(l$id, id), map$x$layers)
@@ -88,10 +85,10 @@ clear_layer <- function(map, id) {
 
 #' Clear All Data Layers from a Map
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @export
 clear_layers <- function(map) {
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "clearLayers", list()))
   }
   map$x$layers <- list()
@@ -101,12 +98,12 @@ clear_layers <- function(map) {
 
 #' Toggle Layer Visibility
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param id Layer ID.
 #' @param visible Logical (`TRUE` or `FALSE`).
 #' @export
 set_layer_visibility <- function(map, id, visible = TRUE) {
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setLayerVisibility", list(id = as.character(id), visible = isTRUE(visible))))
   }
   for (i in seq_along(map$x$layers)) {
@@ -119,13 +116,13 @@ set_layer_visibility <- function(map, id, visible = TRUE) {
 
 #' Update Layer Opacity Dynamically
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param id Layer ID.
 #' @param opacity Numeric opacity (`0` to `1`).
 #' @export
 set_layer_opacity <- function(map, id, opacity = 0.85) {
   opacity <- max(0, min(1, as.numeric(opacity[1])))
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setLayerOpacity", list(id = as.character(id), opacity = opacity)))
   }
   for (i in seq_along(map$x$layers)) {
@@ -141,7 +138,7 @@ set_layer_opacity <- function(map, id, opacity = 0.85) {
 #' Updates uniforms and the 1D LUT texture in the WebGL2 raster fragment shader
 #' without re-transferring the underlying Float32 raster values.
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param id Raster layer ID.
 #' @param palette New palette name (`"viridis"`, `"magma"`, `"turbo"`, `"terrain"`, `"RdYlBu"`).
 #' @param domain Optional numeric `c(vmin, vmax)` contrast stretch limits.
@@ -164,7 +161,7 @@ set_raster_style <- function(map, id, palette = NULL, domain = NULL, hillshade =
     hillshade = if (!is.null(hillshade)) isTRUE(hillshade) else NULL
   )
 
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setRasterStyle", style_patch))
   }
 
@@ -184,13 +181,13 @@ set_raster_style <- function(map, id, palette = NULL, domain = NULL, hillshade =
 
 #' Filter Visible Features by Index on the GPU
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param id Layer ID.
 #' @param indices Integer vector of 1-based feature indices to keep visible (or `NULL` to reset).
 #' @export
 set_filter <- function(map, id, indices = NULL) {
   idx0 <- if (!is.null(indices)) as.integer(indices) - 1L else NULL
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setFilter", list(id = as.character(id), indices = idx0)))
   }
   for (i in seq_along(map$x$layers)) {
@@ -211,7 +208,7 @@ set_filter <- function(map, id, indices = NULL) {
 #' @export
 show_group <- function(map, group) {
   group <- as.character(group)
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setGroupVisibility", list(group = group, visible = TRUE)))
   }
   for (i in seq_along(map$x$layers)) {
@@ -226,7 +223,7 @@ show_group <- function(map, group) {
 #' @export
 hide_group <- function(map, group) {
   group <- as.character(group)
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setGroupVisibility", list(group = group, visible = FALSE)))
   }
   for (i in seq_along(map$x$layers)) {
@@ -241,7 +238,7 @@ hide_group <- function(map, group) {
 #' @export
 clear_group <- function(map, group) {
   group <- as.character(group)
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "clearGroup", list(group = group)))
   }
   removed_ids <- vapply(
@@ -264,9 +261,6 @@ glmapOutput <- function(outputId, width = "100%", height = "600px") {
   htmlwidgets::shinyWidgetOutput(outputId, "glmap", width, height, package = "glmap")
 }
 
-#' @rdname glmapOutput
-#' @export
-gexploreOutput <- glmapOutput
 
 #' Shiny Server Render Function for `glmap`
 #'
@@ -280,7 +274,3 @@ renderGlmap <- function(expr, env = parent.frame(), quoted = FALSE) {
   }
   htmlwidgets::shinyRenderWidget(expr, glmapOutput, env, quoted = TRUE)
 }
-
-#' @rdname renderGlmap
-#' @export
-renderGexplore <- renderGlmap

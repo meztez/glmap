@@ -14,8 +14,6 @@ reference:
     desc: "Initialize a GPU map and control camera position, bounds, basemap providers, API keys, terrain, and projection."
     contents:
       - glmap
-      - gexplore
-      - gx_map
       - set_view
       - fit_bounds
       - fly_to
@@ -32,7 +30,6 @@ reference:
       - add_control
       - add_legend
       - gl_save_html
-      - gx_save_html
 
   - title: "GPU Vector, Raster & Out-of-Core Layers"
     desc: "Add high-density point clouds, geodesic circles, rectangles, lines, earcut-triangulated polygons, Float32 rasters, hexbins, heatmaps, WMS, PMTiles, and DuckDB layers."
@@ -60,9 +57,6 @@ reference:
       - glmapOutput
       - renderGlmap
       - glmap_proxy
-      - gexploreOutput
-      - renderGexplore
-      - gexplore_proxy
       - show_group
       - hide_group
       - clear_group
@@ -90,15 +84,6 @@ reference:
       - gl_serve_stop
       - gl_server_status
       - gl_benchmark_data
-      - gx_pack_sf_binary
-      - gx_pack_raster_binary
-      - gx_spatial_index
-      - gx_query_index
-      - gx_duckdb_index
-      - gx_serve_start
-      - gx_serve_stop
-      - gx_server_status
-      - gx_benchmark_data
 
 articles:
   - title: "Guides, Benchmarks & Migration"

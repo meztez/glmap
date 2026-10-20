@@ -12,7 +12,18 @@
 
 `glmap` is a compact, next-generation WebGL2 + **MapLibre GL** interactive mapping package for R built to replace `leaflet` for modern geospatial workflows (`sf`, `terra`, `wk`, `nanoarrow`, `shiny`, and `crosstalk`).
 
-Where `leaflet` serializes R objects into huge GeoJSON text strings inside HTML and renders them on the CPU/DOM (choking at 50k–100k features), `glmap` packs coordinates, C++17 `mapbox/earcut`-triangulated polygon meshes (with full interior hole support), and raw `Float32` raster bands into compact binary packets (`GEXP` and `GEXR`) that map directly into WebGL2 GPU vertex buffers and floating-point textures.
+<div class="glmap-eli5-box">
+<span class="glmap-box-badge">🌱 ELI5 Mode (Plain English)</span><br/>
+<b>Why does <code>leaflet</code> freeze when you plot a big dataset, and how does <code>glmap</code> fix it?</b><br/>
+Think of <code>leaflet</code> like writing down 1,000,000 phone numbers by hand on a giant paper scroll (GeoJSON text) and mailing it to your web browser, which then has to tape 1,000,000 paper stickers onto the screen one by one. Around 50,000 stickers, your browser runs out of breath and freezes.<br/><br/>
+<b><code>glmap</code> skips the paper scroll completely:</b> C++ packs your numbers into a tiny zip-like binary block in a fraction of a second and hands it straight to your computer's <b>graphics card (GPU)</b>—the same chip used for 3D video games. Your graphics card draws all 1,000,000 points or raster cells at once at <b>60 frames per second</b>!
+</div>
+
+<div class="glmap-tech-box">
+<span class="glmap-box-badge">⚙️ Technical Mode (Architecture Deep Dive)</span><br/>
+<b>Zero-JSON Binary Transport & WebGL2 Shader Pipeline:</b><br/>
+Where <code>leaflet</code> serializes R objects into verbose GeoJSON strings inside HTML via <code>jsonlite</code> and renders via DOM/SVG/2D Canvas, <code>glmap</code> extracts coordinates in <b>C++17</b> (<code>cpp11</code>), runs <code>mapbox/earcut.h</code> polygon hole triangulation in native code, and emits packed 48-byte aligned <code>GEXP</code> (vector) and <code>GEXR</code> (<code>Float32</code> raster) binary packets. Buffers are either compressed via RFC 1950 <code>zlib</code> (decoded in ~5 ms in-browser via native <code>DecompressionStream("deflate")</code>) or streamed via <code>httpuv</code> HTTP Range / viewport slices directly into WebGL2 Vertex Buffer Objects (VBOs) and <code>RGBA32F</code> floating-point textures.
+</div>
 
 ---
 
@@ -84,13 +95,13 @@ glmap(basemap = "dark") |>
 
 ---
 
-## 3. Transitioning from `leaflet` to `gexplore` (Human & Agent Cheat Sheet)
+## 3. Transitioning from `leaflet` to `glmap` (Human & Agent Cheat Sheet)
 
 ### Side-by-Side Translation Table
 
-| Task | `leaflet` Code | `gexplore` Equivalent |
+| Task | `leaflet` Code | `glmap` Equivalent |
 | :--- | :--- | :--- |
-| **Initialize Map** | `leaflet(data) |> addProviderTiles("CartoDB.DarkMatter")` | `gexplore(data, basemap = "dark")` |
+| **Initialize Map** | `leaflet(data) |> addProviderTiles("CartoDB.DarkMatter")` | `glmap(data, basemap = "dark")` |
 | **Basemap Switch** | `addProviderTiles("CartoDB.Positron")` | `set_basemap("positron")` (`"dark"`, `"voyager"`, `"osm"`, `"satellite"`) |
 | **Add Points** | `addCircleMarkers(lng = ~lon, lat = ~lat, color = ~pal(val), radius = 5)` | `add_points(lon = ~lon, lat = ~lat, color = ~val, palette = "viridis", radius = 5)` |
 | **Add Lines** | `addPolylines(color = "#38bdf8", weight = 2)` | `add_lines(color = "#38bdf8", width = 2)` |
@@ -99,10 +110,10 @@ glmap(basemap = "dark") |>
 | **Add Legend** | `addLegend(pal = pal, values = ~val, title = "Val")` | **Automatic!** (Or customize via `add_legend()`) |
 | **Set Camera View** | `setView(lng = -73.56, lat = 45.50, zoom = 10)` | `set_view(lng = -73.56, lat = 45.50, zoom = 10, pitch = 0)` |
 | **Fit Bounding Box** | `fitBounds(xmin, ymin, xmax, ymax)` | `fit_bounds(c(xmin, ymin, xmax, ymax))` (or pass `sf` / `SpatRaster` directly) |
-| **Shiny UI / Server** | `leafletOutput("map")` / `renderLeaflet({...})` | `gexploreOutput("map")` / `renderGexplore({...})` |
-| **Shiny Live Proxy** | `leafletProxy("map") |> clearGroup("pts")` | `gexplore_proxy("map") |> clear_layer("pts")` |
+| **Shiny UI / Server** | `leafletOutput("map")` / `renderLeaflet({...})` | `glmapOutput("map")` / `renderGlmap({...})` |
+| **Shiny Live Proxy** | `leafletProxy("map") |> clearGroup("pts")` | `glmap_proxy("map") |> clear_layer("pts")` |
 | **Out-of-Core DuckDB / Parquet** | *(Not available)* | `add_duckdb(con, "sensors.parquet", color = ~val, where = "val > 50")` |
-| **Save Standalone HTML** | `htmlwidgets::saveWidget(m, "map.html")` | `gx_save_html(m, "map.html")` |
+| **Save Standalone HTML** | `htmlwidgets::saveWidget(m, "map.html")` | `gl_save_html(m, "map.html")` |
 
 ### Before & After Code Comparison
 
@@ -125,11 +136,11 @@ leaflet(df) |>
   addLegend("bottomright", pal = pal, values = ~intensity, title = "Intensity")
 ```
 
-**After (`gexplore` — concise, automatic legend, 100x faster C++ binary -> WebGL2):**
+**After (`glmap` — concise, automatic legend, 100x faster C++ binary -> WebGL2):**
 ```r
-library(gexplore)
+library(glmap)
 
-gexplore(df, basemap = "dark") |>
+glmap(df, basemap = "dark") |>
   add_points(color = ~intensity, palette = "viridis", radius = 4, opacity = 0.8, stroke = FALSE)
 ```
 
@@ -137,30 +148,30 @@ gexplore(df, basemap = "dark") |>
 
 ## 4. Shiny Integration & Zero-Copy Proxy Updates
 
-In Shiny applications, `gexplore_proxy()` updates existing GPU layers in-place without re-creating the basemap or re-uploading unchanged buffers:
+In Shiny applications, `glmap_proxy()` updates existing GPU layers in-place without re-creating the basemap or re-uploading unchanged buffers:
 
 ```r
 library(shiny)
-library(gexplore)
+library(glmap)
 
-bench <- gx_benchmark_data(n_points = 100000L)
+bench <- gl_benchmark_data(n_points = 100000L)
 
 ui <- fluidPage(
   selectInput("pal", "Raster GPU Palette:", choices = c("terrain", "viridis", "magma", "turbo", "rdylbu")),
   checkboxInput("hill", "GPU Hillshade", value = TRUE),
-  gexploreOutput("map", height = "650px")
+  glmapOutput("map", height = "650px")
 )
 
 server <- function(input, output, session) {
-  output$map <- renderGexplore({
-    gexplore(basemap = "dark") |>
+  output$map <- renderGlmap({
+    glmap(basemap = "dark") |>
       add_raster(bench$raster_mat, id = "dem", palette = "terrain", hillshade = TRUE) |>
       add_points(bench$points_df, id = "pts", color = ~intensity, palette = "plasma")
   })
 
   # 0ms GPU uniform update — does NOT re-send raster data!
   observeEvent(list(input$pal, input$hill), {
-    gexplore_proxy("map") |>
+    glmap_proxy("map") |>
       set_raster_style("dem", palette = input$pal, hillshade = input$hill)
   }, ignoreInit = TRUE)
 
@@ -176,8 +187,8 @@ server <- function(input, output, session) {
 }
 ```
 
-### Shiny Input Events Emitted Automatically by `gexplore`
-For a widget with `outputId = "map"`, `gexplore` automatically provides:
+### Shiny Input Events Emitted Automatically by `glmap`
+For a widget with `outputId = "map"`, `glmap` automatically provides:
 - `input$map_click`: `list(lng, lat, raster_value)` on map click.
 - `input$map_bounds`: `list(west, south, east, north)` after every pan/zoom (`moveend`).
 - `input$map_selected`: `list(bbox, count, indices)` when the user drags a selection with the **Box Brush** tool.
@@ -186,7 +197,7 @@ For a widget with `outputId = "map"`, `gexplore` automatically provides:
 
 ## 5. Extension & Plugin Ecosystem (`register_plugin()`, Custom Shaders, Deck.gl)
 
-`gexplore` is designed to be extended by third-party packages (`gexplore.extras`, internal organizational packages, etc.) via three levels:
+`glmap` is designed to be extended by third-party packages (`glmap.extras`, internal organizational packages, etc.) via three levels:
 
 1. **Level 1 — JS/CSS Plugin Registry (`register_plugin()` & `use_plugin()`)**:
    ```r
@@ -202,11 +213,11 @@ For a widget with `outputId = "map"`, `gexplore` automatically provides:
      default_config = list(text = "Beneva Geospatial")
    )
 
-   gexplore(bench$points_df) |> use_plugin("watermark", config = list(text = "Live Sensor Feed"))
+   glmap(bench$points_df) |> use_plugin("watermark", config = list(text = "Live Sensor Feed"))
    ```
    Built-in plugins ready out of the box: `"measure"`, `"lasso_select"`, `"minimap"`, `"export_png"`.
 2. **Level 2 — Custom WebGL2 GLSL Shaders (`add_webgl_shader_layer()`)**:
-   Pass custom vertex and fragment shader GLSL strings directly from R while leveraging `gexplore`'s C++17 `GEXP` binary vertex/attribute buffers.
+   Pass custom vertex and fragment shader GLSL strings directly from R while leveraging `glmap`'s C++17 `GEXP` binary vertex/attribute buffers.
 3. **Level 3 — Custom Deck.gl Layer Bridge (`add_deck_layer()`)**:
    Dispatch arbitrary `deck.gl` layer specifications backed by binary buffers.
 

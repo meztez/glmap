@@ -1,9 +1,9 @@
-#' Register a Reusable `gexplore` Extension Plugin
+#' Register a Reusable `glmap` Extension Plugin
 #'
-#' Allows external R packages (such as `gexplore.extras`, `gexplore.deck`, or custom
+#' Allows external R packages (such as `glmap.extras`, `glmap.deck`, or custom
 #' internal packages) to register JavaScript/CSS dependencies and initialization
 #' hooks that have full access to the `MapLibre GL` instance, WebGL2 context,
-#' and `gexplore` binary buffer store.
+#' and `glmap` binary buffer store.
 #'
 #' @param name Unique plugin identifier string (e.g., `"minimap"`, `"turf"`, `"pulse_markers"`).
 #' @param js_init JavaScript function body or expression `(function(instance, config) { ... })`
@@ -30,13 +30,13 @@ register_plugin <- function(
     dependencies = dependencies,
     default_config = default_config
   )
-  assign(name, spec, envir = .gx_env$plugins)
+  assign(name, spec, envir = .gl_env$plugins)
   invisible(spec)
 }
 
-#' Attach a Registered or Inline Plugin to a `gexplore` Map
+#' Attach a Registered or Inline Plugin to a `glmap` Map
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param name Name of a registered plugin (see [register_plugin()] and [list_plugins()]).
 #' @param config Named list of options merged into the plugin's `default_config`.
 #' @param js_init Optional ad-hoc JavaScript initialization function string if `name` is not pre-registered.
@@ -53,8 +53,8 @@ use_plugin <- function(
 ) {
   init_built_in_plugins()
 
-  if (exists(name, envir = .gx_env$plugins, inherits = FALSE)) {
-    reg <- get(name, envir = .gx_env$plugins, inherits = FALSE)
+  if (exists(name, envir = .gl_env$plugins, inherits = FALSE)) {
+    reg <- get(name, envir = .gl_env$plugins, inherits = FALSE)
     js_init <- js_init %||% reg$js_init
     css <- css %||% reg$css
     dependencies <- dependencies %||% reg$dependencies
@@ -72,7 +72,7 @@ use_plugin <- function(
     config = merged_cfg
   )
 
-  if (inherits(map, "gexplore_proxy")) {
+  if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "usePlugin", plugin_entry))
   }
 
@@ -86,21 +86,21 @@ use_plugin <- function(
   map
 }
 
-#' List Available `gexplore` Plugins
+#' List Available `glmap` Plugins
 #'
 #' @return Character vector of registered plugin names.
 #' @export
 list_plugins <- function() {
   init_built_in_plugins()
-  ls(.gx_env$plugins)
+  ls(.gl_env$plugins)
 }
 
-#' Add a Custom WebGL2 Shader Layer to a `gexplore` Map
+#' Add a Custom WebGL2 Shader Layer to a `glmap` Map
 #'
 #' Enables R developers and extension packages to write custom GLSL vertex and
 #' fragment shaders driven by `GEXP` binary coordinate/attribute buffers.
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param data Optional `sf`, `sfc`, or `data.frame` packed into a `GEXP` binary buffer for the shader.
 #' @param vertex_shader Custom GLSL vertex shader source string.
 #' @param fragment_shader Custom GLSL fragment shader source string.
@@ -129,8 +129,8 @@ add_webgl_shader_layer <- function(
   n_vertices <- 0L
 
   if (!is.null(data)) {
-    raw_buf <- gx_pack_sf_binary(data)
-    transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+    raw_buf <- gl_pack_sf_binary(data)
+    transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
     buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
     bbox <- attr(raw_buf, "bbox")
     n_features <- attr(raw_buf, "n_features")
@@ -161,7 +161,7 @@ add_webgl_shader_layer <- function(
 #' Allows R extension packages to dispatch arbitrary `deck.gl` or `MapLibre`
 #' custom layer specifications fed by `GEXP` binary buffers or JSON props.
 #'
-#' @param map A `gexplore` widget or `gexplore_proxy`.
+#' @param map A `glmap` widget or `glmap_proxy`.
 #' @param deck_type Deck.gl layer class name (e.g., `"ArcLayer"`, `"ScatterplotLayer"`, `"TripsLayer"`, `"PathLayer"`).
 #' @param data Optional `sf` or `data.frame` packed into a binary buffer.
 #' @param props Named list of layer properties.
@@ -182,8 +182,8 @@ add_deck_layer <- function(
   buf_spec <- NULL
   bbox <- NULL
   if (!is.null(data)) {
-    raw_buf <- gx_pack_sf_binary(data)
-    transport_mode <- if (inherits(map, "gexplore_proxy")) "inline" else (map$x$transport %||% "auto")
+    raw_buf <- gl_pack_sf_binary(data)
+    transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
     buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
     bbox <- attr(raw_buf, "bbox")
   }
@@ -204,7 +204,7 @@ add_deck_layer <- function(
 }
 
 init_built_in_plugins <- function() {
-  if (exists("measure", envir = .gx_env$plugins, inherits = FALSE)) return(invisible())
+  if (exists("measure", envir = .gl_env$plugins, inherits = FALSE)) return(invisible())
 
   # 1. Interactive geodesic distance measurement tool
   register_plugin(
@@ -242,7 +242,7 @@ init_built_in_plugins <- function() {
   # 4. Screenshot / high-DPI PNG export button plugin
   register_plugin(
     name = "export_png",
-    default_config = list(filename = "gexplore-map.png"),
+    default_config = list(filename = "glmap-map.png"),
     js_init = "function(instance, config) {
       if (instance && typeof instance.enableExportButton === 'function') {
         instance.enableExportButton(config);
