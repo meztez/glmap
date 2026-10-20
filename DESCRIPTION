@@ -1,8 +1,9 @@
 Package: glmap
 Title: High-Performance GPU Geospatial Mapping for 'sf' and 'terra'
 Version: 0.1.0
-Authors@R: 
-    person("Beneva", "Geospatial Team", , "geospatial@example.com", role = c("aut", "cre"))
+Authors@R: c(
+    person("Beneva", "Geospatial Team", , "geospatial@example.com", role = c("aut", "cre")),
+    person("Mapbox", role = "cph", comment = "mapbox/earcut.hpp in src/earcut.h"))
 Description: A compact, high-performance WebGL2 and 'MapLibre GL' interactive
     mapping engine for R designed as a next-generation GPU alternative to 'leaflet'.
     Bypasses 'htmlwidgets' JSON bottlenecks by streaming zero-copy 'GLMP' and
