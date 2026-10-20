@@ -1,6 +1,7 @@
 # Add Standalone HTML Popups (`add_popups`)
 
-Drop-in equivalent of `leaflet::addPopups()`.
+Drop-in equivalent of
+[`leaflet::addPopups()`](https://rstudio.github.io/leaflet/reference/map-layers.html).
 
 ## Usage
 

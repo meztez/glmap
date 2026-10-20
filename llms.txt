@@ -49,7 +49,7 @@ Range / viewport slices directly into WebGL2 Vertex Buffer Objects
 | **[`terra::SpatRaster`](https://rspatial.github.io/terra/reference/SpatRaster-class.html) Rendering** | Re-projects & encodes static PNG in R on every change | **Raw `Float32` GPU Texture (`RGBA32F`)**: **0 ms** live colormap, hillshade, & band math |
 | **Hover Pixel Inspection** | Not natively supported on rasters without server roundtrip | **O(1) in-memory `Float32Array` readout** at cursor (`Lon/Lat` + exact cell value) |
 | **Out-of-Core / 10M+ Features** | Not supported | **Native `DuckDB` / Parquet SQL Pushdown ([`add_duckdb()`](https://meztez.github.io/glmap/reference/add_duckdb.md))** + **C++17 R-Tree Index** |
-| **Color Mapping** | Manual `colorNumeric()` / `colorFactor()` boilerplate | **Direct `~column` formula or string** with 256-entry C/R LUT & automatic legend |
+| **Color Mapping** | Manual [`colorNumeric()`](https://rstudio.github.io/leaflet/reference/colorNumeric.html) / [`colorFactor()`](https://rstudio.github.io/leaflet/reference/colorNumeric.html) boilerplate | **Direct `~column` formula or string** with 256-entry C/R LUT & automatic legend |
 
 ------------------------------------------------------------------------
 

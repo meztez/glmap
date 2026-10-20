@@ -1,6 +1,8 @@
 # Add a Geodesic Circle Layer (`add_circles`)
 
-Drop-in equivalent of `leaflet::addCircles()`. Unlike
+Drop-in equivalent of
+[`leaflet::addCircles()`](https://rstudio.github.io/leaflet/reference/map-layers.html).
+Unlike
 [`add_points()`](https://meztez.github.io/glmap/reference/add_points.md)
 (where `radius` is in screen pixels), `add_circles()` takes `radius` in
 **meters** on the ground and builds geodesic polygon rings triangulated

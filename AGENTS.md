@@ -14,7 +14,8 @@ new geospatial visualizations, migrating `leaflet` / `mapview` code to
     ([`glmap()`](https://meztez.github.io/glmap/reference/glmap.md) and
     [`glmap()`](https://meztez.github.io/glmap/reference/glmap.md) are
     also supported as aliases).
-2.  **Never construct manual palette functions (`leaflet::colorNumeric`,
+2.  **Never construct manual palette functions
+    ([`leaflet::colorNumeric`](https://rstudio.github.io/leaflet/reference/colorNumeric.html),
     `colorFactor`, `colorBin`)**:
     - In `glmap`, pass the column formula (`~col_name`) or column name
       string (`"col_name"`) directly to `color =` or `fill_color =`,
