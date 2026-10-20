@@ -84,11 +84,14 @@ reference:
       - gl_serve_stop
       - gl_server_status
       - gl_benchmark_data
+      - gl_popup_table
+      - gl_bbox_to_wkt
 
 articles:
-  - title: "Guides, Benchmarks & Migration"
+  - title: "Guides, Benchmarks & Case Studies"
     navbar: ~
     contents:
       - getting-started
       - leaflet-migration
       - benchmarks-and-leaflet-parity
+      - enterprise-case-studies

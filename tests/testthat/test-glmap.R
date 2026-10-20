@@ -342,6 +342,15 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_equal(prx$calls[[1]]$method, "setGroupVisibility")
   expect_equal(prx$calls[[3]]$method, "clearGroup")
   expect_equal(prx$calls[[4]]$method, "flyToBounds")
+
+  # Test gl_popup_table and gl_bbox_to_wkt enterprise helpers
+  tbl_html <- gl_popup_table(df, zcol = c("name", "rad_m"))
+  expect_length(tbl_html, 2L)
+  expect_match(tbl_html[1], "<table")
+  expect_match(tbl_html[1], "Montreal")
+
+  wkt_str <- gl_bbox_to_wkt(c(-74, 45, -71, 47))
+  expect_match(wkt_str, "^POLYGON \\(\\(-74\\.000000 45\\.000000")
 })
 
 

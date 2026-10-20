@@ -20,7 +20,6 @@ extern "C" SEXP _glmap_cpp_pack_sfc_binary(SEXP sfc, SEXP geom_type_int, SEXP rg
 }
 // glmap_cpp.cpp
 cpp11::raws cpp_pack_raster_float32(cpp11::doubles values, int width, int height, int n_bands, cpp11::doubles bbox, double nodata);
-extern "C" SEXP _glmap_cpp_pack_raster_float32(SEXP values, SEXP width, SEXP height, SEXP n_bands, cpp11::doubles bbox, double nodata);
 extern "C" SEXP _glmap_cpp_pack_raster_float32(SEXP values, SEXP width, SEXP height, SEXP n_bands, SEXP bbox, SEXP nodata) {
   BEGIN_CPP11
     return cpp11::as_sexp(cpp_pack_raster_float32(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(values), cpp11::as_cpp<cpp11::decay_t<int>>(width), cpp11::as_cpp<cpp11::decay_t<int>>(height), cpp11::as_cpp<cpp11::decay_t<int>>(n_bands), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(bbox), cpp11::as_cpp<cpp11::decay_t<double>>(nodata)));

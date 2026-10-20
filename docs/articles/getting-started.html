@@ -42,8 +42,10 @@
 <li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="../articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
+    <li><a class="dropdown-item" href="../articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -78,7 +80,7 @@
 <span class="glmap-box-badge">🌱 ELI5 (Plain-English Mental
 Model)</span><br><ul>
 <li>
-<b>One-Line Magic:</b> Give <code><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap()</a></code> almost any spatial
+<b>One-Line Magic:</b> Give <code><a href="../reference/glmap.html">glmap()</a></code> almost any spatial
 object in R (points, polygons, or a <code>terra</code> raster grid) and
 it figures out how to draw it automatically.
 </li>
@@ -115,7 +117,7 @@ shaders.</p>
 <div class="section level2">
 <h2 id="instant-one-line-exploration">1. Instant One-Line Exploration<a class="anchor" aria-label="anchor" href="#instant-one-line-exploration"></a>
 </h2>
-<p><code><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap()</a></code> inspects your input (<code>sf</code>,
+<p><code><a href="../reference/glmap.html">glmap()</a></code> inspects your input (<code>sf</code>,
 <code>sfc</code>, <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code>,
 <code><a href="https://rspatial.github.io/terra/reference/SpatVector-class.html" class="external-link">terra::SpatVector</a></code>, <code><a href="https://paleolimbot.github.io/wk/reference/xy.html" class="external-link">wk::xy</a></code>,
 <code>nanoarrow</code>, <code>data.frame</code>, or
@@ -125,47 +127,47 @@ GPU layer:</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://meztez.github.io/glmap/">glmap</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Generate synthetic benchmark data</span></span>
-<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://meztez.github.io/glmap/reference/gl_benchmark_data.html">gl_benchmark_data</a></span><span class="op">(</span>n_points <span class="op">=</span> <span class="fl">100000L</span>, n_polygons <span class="op">=</span> <span class="fl">2000L</span><span class="op">)</span></span>
+<span><span class="va">bench</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gl_benchmark_data.html">gl_benchmark_data</a></span><span class="op">(</span>n_points <span class="op">=</span> <span class="fl">100000L</span>, n_polygons <span class="op">=</span> <span class="fl">2000L</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Instant GPU map of 100,000 points</span></span>
-<span><span class="fu"><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>, color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, palette <span class="op">=</span> <span class="st">"turbo"</span>, radius <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/glmap.html">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>, color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, palette <span class="op">=</span> <span class="st">"turbo"</span>, radius <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Instant GPU map of a Float32 DEM raster with real-time hillshading</span></span>
-<span><span class="fu"><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">raster_mat</span>, palette <span class="op">=</span> <span class="st">"terrain"</span>, hillshade <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/glmap.html">glmap</a></span><span class="op">(</span><span class="va">bench</span><span class="op">$</span><span class="va">raster_mat</span>, palette <span class="op">=</span> <span class="st">"terrain"</span>, hillshade <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="building-multi-layer-gpu-maps-with-pipes">2. Building Multi-Layer GPU Maps with Pipes
 (<code>|&gt;</code>)<a class="anchor" aria-label="anchor" href="#building-multi-layer-gpu-maps-with-pipes"></a>
 </h2>
-<p>Use <code><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap()</a></code> with <code><a href="https://meztez.github.io/glmap/reference/add_raster.html">add_raster()</a></code>,
-<code><a href="https://meztez.github.io/glmap/reference/add_polygons.html">add_polygons()</a></code>, <code><a href="https://meztez.github.io/glmap/reference/add_lines.html">add_lines()</a></code>,
-<code><a href="https://meztez.github.io/glmap/reference/add_points.html">add_points()</a></code>, <code><a href="https://meztez.github.io/glmap/reference/add_hexbin.html">add_hexbin()</a></code>,
-<code><a href="https://meztez.github.io/glmap/reference/add_heatmap.html">add_heatmap()</a></code>, and <code><a href="https://meztez.github.io/glmap/reference/add_labels.html">add_labels()</a></code>:</p>
+<p>Use <code><a href="../reference/glmap.html">glmap()</a></code> with <code><a href="../reference/add_raster.html">add_raster()</a></code>,
+<code><a href="../reference/add_polygons.html">add_polygons()</a></code>, <code><a href="../reference/add_lines.html">add_lines()</a></code>,
+<code><a href="../reference/add_points.html">add_points()</a></code>, <code><a href="../reference/add_hexbin.html">add_hexbin()</a></code>,
+<code><a href="../reference/add_heatmap.html">add_heatmap()</a></code>, and <code><a href="../reference/add_labels.html">add_labels()</a></code>:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://meztez.github.io/glmap/reference/add_raster.html">add_raster</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/glmap.html">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/add_raster.html">add_raster</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">raster_mat</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"terrain"</span>,</span>
 <span>    hillshade <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    opacity <span class="op">=</span> <span class="fl">0.65</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"Terrain DEM (Float32)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://meztez.github.io/glmap/reference/add_polygons.html">add_polygons</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/add_polygons.html">add_polygons</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">polygons_sf</span>,</span>
 <span>    fill_color <span class="op">=</span> <span class="op">~</span><span class="va">elevation</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"viridis"</span>,</span>
 <span>    fill_opacity <span class="op">=</span> <span class="fl">0.65</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"Polygons (C++ Earcut)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://meztez.github.io/glmap/reference/add_hexbin.html">add_hexbin</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/add_hexbin.html">add_hexbin</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>,</span>
 <span>    hex_radius <span class="op">=</span> <span class="fl">0.035</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"plasma"</span>,</span>
 <span>    opacity <span class="op">=</span> <span class="fl">0.75</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"Hexbins (C++ 64-bit Hash)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://meztez.github.io/glmap/reference/add_points.html">add_points</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/add_points.html">add_points</a></span><span class="op">(</span></span>
 <span>    <span class="va">bench</span><span class="op">$</span><span class="va">points_df</span>,</span>
 <span>    color <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"turbo"</span>,</span>
@@ -173,7 +175,7 @@ GPU layer:</p>
 <span>    opacity <span class="op">=</span> <span class="fl">0.85</span>,</span>
 <span>    group <span class="op">=</span> <span class="st">"Points (WebGL2 SDF)"</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://meztez.github.io/glmap/reference/use_plugin.html">use_plugin</a></span><span class="op">(</span><span class="st">"export_png"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="../reference/use_plugin.html">use_plugin</a></span><span class="op">(</span><span class="st">"export_png"</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -182,8 +184,8 @@ DuckDB<a class="anchor" aria-label="anchor" href="#handling-1m10m-features-with-
 </h2>
 <p>For massive datasets in interactive R or Shiny sessions, enable
 <code>dynamic_viewport = TRUE</code>, <code>transport = "server"</code>,
-or <code><a href="https://meztez.github.io/glmap/reference/add_duckdb.html">add_duckdb()</a></code>. <code>glmap</code> builds an in-memory C++
-spatial index (<code><a href="https://meztez.github.io/glmap/reference/gl_spatial_index.html">gl_spatial_index()</a></code>) or queries DuckDB to
+or <code><a href="../reference/add_duckdb.html">add_duckdb()</a></code>. <code>glmap</code> builds an in-memory C++
+spatial index (<code><a href="../reference/gl_spatial_index.html">gl_spatial_index()</a></code>) or queries DuckDB to
 stream only the features inside the current viewport with automatic
 Level-of-Detail (LOD) stride sampling:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -193,8 +195,8 @@ Level-of-Detail (LOD) stride sampling:</p>
 <span>  val <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1e6</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://meztez.github.io/glmap/reference/glmap.html">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span>, transport <span class="op">=</span> <span class="st">"server"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://meztez.github.io/glmap/reference/add_points.html">add_points</a></span><span class="op">(</span></span>
+<span><span class="fu"><a href="../reference/glmap.html">glmap</a></span><span class="op">(</span>basemap <span class="op">=</span> <span class="st">"dark"</span>, transport <span class="op">=</span> <span class="st">"server"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/add_points.html">add_points</a></span><span class="op">(</span></span>
 <span>    <span class="va">big_df</span>,</span>
 <span>    color <span class="op">=</span> <span class="op">~</span><span class="va">val</span>,</span>
 <span>    palette <span class="op">=</span> <span class="st">"viridis"</span>,</span>

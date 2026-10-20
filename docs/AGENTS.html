@@ -21,7 +21,9 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
+    <li><a class="dropdown-item" href="articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/meztez/glmap/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -43,7 +45,7 @@
 <h2 id="id_1-golden-rules-when-generating-r-mapping-code-with-glmap">1. Golden Rules When Generating R Mapping Code with <code>glmap</code>
 <a class="anchor" aria-label="anchor" href="#id_1-golden-rules-when-generating-r-mapping-code-with-glmap"></a></h2>
 <ol style="list-style-type: decimal"><li>
-<strong>Use <code>glmap()</code> as the primary entry point</strong> (<code>glmap()</code> and <code>glmap()</code> are also supported as aliases).</li>
+<strong>Use <code><a href="reference/glmap.html">glmap()</a></code> as the primary entry point</strong> (<code><a href="reference/glmap.html">glmap()</a></code> and <code><a href="reference/glmap.html">glmap()</a></code> are also supported as aliases).</li>
 <li>
 <strong>Never construct manual palette functions (<code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">leaflet::colorNumeric</a></code>, <code>colorFactor</code>, <code>colorBin</code>)</strong>:
 <ul><li>In <code>glmap</code>, pass the column formula (<code>~col_name</code>) or column name string (<code>"col_name"</code>) directly to <code>color =</code> or <code>fill_color =</code>, along with <code>palette = "viridis"</code> (or <code>"plasma"</code>, <code>"magma"</code>, <code>"turbo"</code>, <code>"terrain"</code>, <code>"rdylbu"</code>, <code>"Spectral"</code>).</li>
@@ -52,7 +54,7 @@
 </ul></li>
 <li>
 <strong>Never convert <code>sf</code> to GeoJSON or <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code> to PNG before calling <code>glmap</code></strong>:
-<ul><li>Pass <code>sf</code>, <code>sfc</code>, <code><a href="https://paleolimbot.github.io/wk/reference/xy.html" class="external-link">wk::xy</a></code>, <code><a href="https://paleolimbot.github.io/wk/reference/wkb.html" class="external-link">wk::wkb</a></code>, <code>nanoarrow_array</code>, <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code>, <code><a href="https://rspatial.github.io/terra/reference/SpatVector-class.html" class="external-link">terra::SpatVector</a></code>, <code>stars</code>, or <code>data.frame</code> objects <strong>directly</strong> to <code>glmap()</code>, <code>add_sf()</code>, <code>add_points()</code>, <code>add_lines()</code>, <code>add_polygons()</code>, or <code>add_raster()</code>.</li>
+<ul><li>Pass <code>sf</code>, <code>sfc</code>, <code><a href="https://paleolimbot.github.io/wk/reference/xy.html" class="external-link">wk::xy</a></code>, <code><a href="https://paleolimbot.github.io/wk/reference/wkb.html" class="external-link">wk::wkb</a></code>, <code>nanoarrow_array</code>, <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code>, <code><a href="https://rspatial.github.io/terra/reference/SpatVector-class.html" class="external-link">terra::SpatVector</a></code>, <code>stars</code>, or <code>data.frame</code> objects <strong>directly</strong> to <code><a href="reference/glmap.html">glmap()</a></code>, <code><a href="reference/add_sf.html">add_sf()</a></code>, <code><a href="reference/add_points.html">add_points()</a></code>, <code><a href="reference/add_lines.html">add_lines()</a></code>, <code><a href="reference/add_polygons.html">add_polygons()</a></code>, or <code><a href="reference/add_raster.html">add_raster()</a></code>.</li>
 <li>C++17 functions (<code>cpp_pack_points_xy</code>, <code>cpp_pack_sfc_binary</code>, <code>cpp_pack_raster_float32</code>) extract coordinates and triangulate polygons (including interior holes via <code>mapbox/earcut.hpp</code>) directly from R memory pointers.</li>
 </ul></li>
 <li>
@@ -60,13 +62,13 @@
 <ul><li>
 <strong>Up to ~500k features / standalone HTML / Quarto / RMarkdown</strong>: Keep the default <code>transport = "auto"</code> (uses <code>zlib</code>-compressed binary inline buffers decoded via browser <code>DecompressionStream</code>).</li>
 <li>
-<strong>500k to 10M+ features in interactive R / Shiny sessions</strong>: Use <code>transport = "server"</code> or <code>add_points(..., dynamic_viewport = TRUE)</code> so the C++17 spatial index (<code>gl_spatial_index()</code>) streams only the visible bounding box over <code>httpuv</code> (<code>127.0.0.1</code>).</li>
+<strong>500k to 10M+ features in interactive R / Shiny sessions</strong>: Use <code>transport = "server"</code> or <code>add_points(..., dynamic_viewport = TRUE)</code> so the C++17 spatial index (<code><a href="reference/gl_spatial_index.html">gl_spatial_index()</a></code>) streams only the visible bounding box over <code>httpuv</code> (<code>127.0.0.1</code>).</li>
 <li>
 <strong>10M to 100M+ rows in DuckDB or <code>.parquet</code> files</strong>: Use <code>add_duckdb(con, source = "file.parquet", lon = "lon", lat = "lat", color = ~val, where = "...")</code> to push bounding-box and SQL <code>WHERE</code> filters directly into DuckDB’s vectorized engine without loading the full table into R memory.</li>
 </ul></li>
 <li>
-<strong>In Shiny apps, always use <code>glmap_proxy()</code> for incremental updates</strong>:
-<ul><li>Never re-run <code>renderGlmap()</code> just to change a raster palette, toggle hillshading, hide a layer, or move the camera.</li>
+<strong>In Shiny apps, always use <code><a href="reference/glmap_proxy.html">glmap_proxy()</a></code> for incremental updates</strong>:
+<ul><li>Never re-run <code><a href="reference/renderGlmap.html">renderGlmap()</a></code> just to change a raster palette, toggle hillshading, hide a layer, or move the camera.</li>
 <li>Use <code>glmap_proxy("map_id") |&gt; set_raster_style("layer_id", palette = ..., hillshade = ...)</code> for 0 ms GPU uniform updates.</li>
 </ul></li>
 </ol><hr></div>
@@ -85,7 +87,7 @@
 <td align="left">Or <code>basemap = "positron"</code> for light mode</td>
 </tr><tr><td align="left"><code>|&gt; addTiles()</code></td>
 <td align="left"><code>|&gt; set_basemap("osm")</code></td>
-<td align="left">Or pass <code>basemap = "osm"</code> to <code>glmap()</code>
+<td align="left">Or pass <code>basemap = "osm"</code> to <code><a href="reference/glmap.html">glmap()</a></code>
 </td>
 </tr><tr><td align="left"><code>|&gt; addProviderTiles(providers$CartoDB.Positron)</code></td>
 <td align="left"><code>|&gt; set_basemap("positron")</code></td>
@@ -113,7 +115,7 @@
 <td align="left">Uploads raw <code>Float32</code> texture to GPU</td>
 </tr><tr><td align="left"><code>|&gt; addLegend(...)</code></td>
 <td align="left"><em>(Remove unless custom legend needed)</em></td>
-<td align="left">Legends are auto-generated when <code>color</code> / <code>fill_color</code> is mapped; use <code>add_legend()</code> only for custom overrides</td>
+<td align="left">Legends are auto-generated when <code>color</code> / <code>fill_color</code> is mapped; use <code><a href="reference/add_legend.html">add_legend()</a></code> only for custom overrides</td>
 </tr><tr><td align="left"><code>|&gt; addLayersControl(...)</code></td>
 <td align="left"><em>(Remove)</em></td>
 <td align="left">Interactive GPU Layer Switcher is enabled by default</td>
@@ -153,15 +155,15 @@
 <li>
 <strong><code>R/transport.R</code></strong>:
 <ul><li>
-<code>gl_pack_sf_binary()</code> (supports <code>sf</code>, <code>sfc</code>, <code>wk_xy</code>, <code>wk_wkb</code>, <code>wk_wkt</code>, <code>nanoarrow_array</code>, <code>data.frame</code>), <code>gl_pack_raster_binary()</code> (supports <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code> and <code>matrix</code>), <code>gl_spatial_index()</code>, and <code>httpuv</code> daemon server (<code>gl_serve_start()</code>, <code>gl_serve_stop()</code>).</li>
+<code><a href="reference/gl_pack_sf_binary.html">gl_pack_sf_binary()</a></code> (supports <code>sf</code>, <code>sfc</code>, <code>wk_xy</code>, <code>wk_wkb</code>, <code>wk_wkt</code>, <code>nanoarrow_array</code>, <code>data.frame</code>), <code><a href="reference/gl_pack_raster_binary.html">gl_pack_raster_binary()</a></code> (supports <code><a href="https://rspatial.github.io/terra/reference/SpatRaster-class.html" class="external-link">terra::SpatRaster</a></code> and <code>matrix</code>), <code><a href="reference/gl_spatial_index.html">gl_spatial_index()</a></code>, and <code>httpuv</code> daemon server (<code><a href="reference/gl_serve_start.html">gl_serve_start()</a></code>, <code><a href="reference/gl_serve_stop.html">gl_serve_stop()</a></code>).</li>
 </ul></li>
 <li>
 <strong><code>R/map.R</code>, <code>R/scales.R</code>, <code>R/controls.R</code></strong>:
-<ul><li>User-facing pipeable API (<code>glmap()</code>, <code>add_sf()</code>, <code>add_points()</code>, <code>add_lines()</code>, <code>add_polygons()</code>, <code>add_raster()</code>, <code>add_hexbin()</code>, <code>add_heatmap()</code>, <code>add_pmtiles()</code>, <code>add_mvt()</code>).</li>
+<ul><li>User-facing pipeable API (<code><a href="reference/glmap.html">glmap()</a></code>, <code><a href="reference/add_sf.html">add_sf()</a></code>, <code><a href="reference/add_points.html">add_points()</a></code>, <code><a href="reference/add_lines.html">add_lines()</a></code>, <code><a href="reference/add_polygons.html">add_polygons()</a></code>, <code><a href="reference/add_raster.html">add_raster()</a></code>, <code><a href="reference/add_hexbin.html">add_hexbin()</a></code>, <code><a href="reference/add_heatmap.html">add_heatmap()</a></code>, <code><a href="reference/add_pmtiles.html">add_pmtiles()</a></code>, <code><a href="reference/add_pmtiles.html">add_mvt()</a></code>).</li>
 </ul></li>
 <li>
 <strong><code>R/plugins.R</code> &amp; <code>R/shiny.R</code></strong>:
-<ul><li>Extension registry (<code>register_plugin()</code>, <code>use_plugin()</code>, <code>add_webgl_shader_layer()</code>, <code>add_deck_layer()</code>) and Shiny proxy (<code>glmap_proxy()</code>).</li>
+<ul><li>Extension registry (<code><a href="reference/register_plugin.html">register_plugin()</a></code>, <code><a href="reference/use_plugin.html">use_plugin()</a></code>, <code><a href="reference/add_webgl_shader_layer.html">add_webgl_shader_layer()</a></code>, <code><a href="reference/add_deck_layer.html">add_deck_layer()</a></code>) and Shiny proxy (<code><a href="reference/glmap_proxy.html">glmap_proxy()</a></code>).</li>
 </ul></li>
 <li>
 <strong><code>inst/htmlwidgets/glmap.js</code></strong>:

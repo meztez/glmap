@@ -194,3 +194,85 @@ build_popup_labels <- function(popup, label, data, max_items = 25000L) {
   vals <- eval_aesthetic(src, data)
   as.character(vals)
 }
+
+#' Generate Compact HTML Table Popups (`gl_popup_table`)
+#'
+#' Drop-in GPU-friendly replacement for `leafpop::popupTable()`. Formats selected
+#' columns of an `sf`, `SpatVector`, or `data.frame` into compact, styled HTML
+#' tables suitable for `popup = gl_popup_table(df)` in [add_points()],
+#' [add_polygons()], or [add_lines()].
+#'
+#' @param data An `sf`, `SpatVector`, or `data.frame` object.
+#' @param zcol Optional integer or character vector of columns to include (defaults to up to 8 non-geometry columns).
+#' @param row_numbers Logical; kept for compatibility with `leafpop::popupTable()` (default `FALSE`).
+#' @param feature_id Logical; kept for compatibility with `leafpop::popupTable()` (default `FALSE`).
+#' @return A character vector of HTML table strings (one per row in `data`).
+#' @export
+gl_popup_table <- function(data, zcol = NULL, row_numbers = FALSE, feature_id = FALSE) {
+  if (inherits(data, c("SpatVector", "Spatial")) && requireNamespace("sf", quietly = TRUE)) {
+    data <- sf::st_as_sf(data)
+  }
+  df <- as.data.frame(data)
+  geom_col <- attr(data, "sf_column") %||% "geometry"
+  df[[geom_col]] <- NULL
+
+  if (!is.null(zcol)) {
+    if (is.numeric(zcol)) {
+      zcol <- intersect(seq_len(ncol(df)), as.integer(zcol))
+    } else {
+      zcol <- intersect(names(df), as.character(zcol))
+    }
+    df <- df[, zcol, drop = FALSE]
+  } else if (ncol(df) > 8L) {
+    df <- df[, seq_len(8L), drop = FALSE]
+  }
+
+  if (ncol(df) == 0L || nrow(df) == 0L) return(character(0))
+
+  rows_list <- lapply(names(df), function(col_nm) {
+    vals <- as.character(df[[col_nm]])
+    vals[is.na(vals)] <- ""
+    sprintf(
+      "<tr><td style='color:#94a3b8;padding:1px 8px 1px 0;font-weight:600;'>%s</td><td style='color:#f8fafc;padding:1px 0;text-align:right;'>%s</td></tr>",
+      col_nm, vals
+    )
+  })
+
+  body_rows <- do.call(paste0, rows_list)
+  paste0("<table style='font-size:11px;border-collapse:collapse;width:100%;'>", body_rows, "</table>")
+}
+
+#' Convert a `glmap` Selection or Bounds Event into a WKT Polygon (`gl_bbox_to_wkt`)
+#'
+#' Converts either a numeric vector `c(xmin, ymin, xmax, ymax)` or a Shiny
+#' `input$map_selected` / `input$map_bounds` list directly into an `EPSG:4326`
+#' `POLYGON ((...))` WKT string ready for Snowflake `ST_WITHIN(GEOGRAPHY, TO_GEOGRAPHY(?))`
+#' or DuckDB Spatial `ST_Intersects(geom, ST_GeomFromText(?))`.
+#'
+#' @param x A numeric vector `c(xmin, ymin, xmax, ymax)`, or a list from `input$map_selected` / `input$map_bounds`.
+#' @return A single WKT `POLYGON ((...))` character string.
+#' @export
+gl_bbox_to_wkt <- function(x) {
+  if (is.null(x)) return(NULL)
+  if (is.list(x)) {
+    if (!is.null(x$wkt) && nzchar(x$wkt)) return(as.character(x$wkt))
+    if (!is.null(x$bbox)) {
+      bb <- as.numeric(x$bbox)
+    } else if (!is.null(x$west)) {
+      bb <- c(as.numeric(x$west), as.numeric(x$south), as.numeric(x$east), as.numeric(x$north))
+    } else {
+      return(NULL)
+    }
+  } else {
+    bb <- as.numeric(x)
+  }
+  if (length(bb) < 4L || any(!is.finite(bb[1:4]))) return(NULL)
+  sprintf(
+    "POLYGON ((%.6f %.6f, %.6f %.6f, %.6f %.6f, %.6f %.6f, %.6f %.6f))",
+    bb[1], bb[2],
+    bb[3], bb[2],
+    bb[3], bb[4],
+    bb[1], bb[4],
+    bb[1], bb[2]
+  )
+}
