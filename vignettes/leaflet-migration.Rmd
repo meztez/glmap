@@ -60,7 +60,7 @@ Switching an existing R script or Shiny app from <code>leaflet</code> to <code>g
 ### Example 1: Polygons Colored by a Continuous Attribute
 
 #### `leaflet`
-```{r}
+```r
 library(leaflet)
 
 pal <- colorNumeric("viridis", domain = nc$BIR74)
@@ -97,7 +97,7 @@ glmap(nc, basemap = "positron") |>
 ### Example 2: `terra::SpatRaster` with Live Interactive Shader Controls
 
 #### `leaflet`
-```{r}
+```r
 # Projects and renders a static PNG in R on the CPU; changing colors requires re-running R
 pal <- colorNumeric("terrain", values(dem), na.color = "transparent")
 leaflet() |>

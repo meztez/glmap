@@ -207,8 +207,9 @@ test_that("terra::SpatVector, raster::RasterLayer, and sp::Spatial* objects are 
   }
 
   if (requireNamespace("raster", quietly = TRUE)) {
-    rl <- raster::raster(nrows = 20, ncols = 20, xmn = -74, xmx = -72, ymn = 45, ymx = 46)
-    raster::values(rl) <- runif(400, 10, 100)
+    raster_fn <- getExportedValue("raster", "raster")
+    values_fn <- getExportedValue("raster", "setValues")
+    rl <- values_fn(raster_fn(nrows = 20, ncols = 20, xmn = -74, xmx = -72, ymn = 45, ymx = 46), runif(400, 10, 100))
     buf_rl <- gl_pack_raster_binary(rl)
     expect_equal(attr(buf_rl, "width"), 20L)
   }

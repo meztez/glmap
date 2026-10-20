@@ -127,7 +127,7 @@ While `glmap` covers >95% of real-world `leaflet` and `Shiny` workflows at 10xâ€
 
 You can run this benchmark yourself in any R session:
 
-```{r}
+```r
 library(glmap)
 library(leaflet)
 
