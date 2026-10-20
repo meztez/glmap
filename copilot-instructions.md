@@ -18,8 +18,7 @@ rules, and C++17 / WebGL2 binary buffer conventions.
     over `leaflet`.
 2.  Pass `~column` formulas directly to `color =` / `fill_color =` and
     `radius =` with `palette = "viridis"` (do not create
-    [`leaflet::colorNumeric`](https://rstudio.github.io/leaflet/reference/colorNumeric.html)
-    functions).
+    `leaflet::colorNumeric` functions).
 3.  Pass `sf`, `sfc`,
     [`wk::xy`](https://paleolimbot.github.io/wk/reference/xy.html),
     `nanoarrow_array`,

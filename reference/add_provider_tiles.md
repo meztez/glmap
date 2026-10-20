@@ -1,9 +1,8 @@
 # Add or Switch Basemap Provider Tiles (`add_provider_tiles`)
 
-Drop-in equivalent of
-[`leaflet::addProviderTiles()`](https://rstudio.github.io/leaflet/reference/addProviderTiles.html).
-Accepts short aliases (`"dark"`, `"positron"`, `"voyager"`, `"osm"`,
-`"satellite"`, `"topo"`), any provider from
+Drop-in equivalent of `leaflet::addProviderTiles()`. Accepts short
+aliases (`"dark"`, `"positron"`, `"voyager"`, `"osm"`, `"satellite"`,
+`"topo"`), any provider from
 [gl_providers](https://meztez.github.io/glmap/reference/gl_providers.md)
 (e.g., `gl_providers$CartoDB.DarkMatter`,
 `gl_providers$MapTiler.DatavizDark`,

@@ -1,9 +1,8 @@
 # Basemap Tile Providers Catalog (`gl_providers`)
 
-The `glmap` equivalent of
-[`leaflet::providers`](https://rstudio.github.io/leaflet/reference/providers.html).
-Provides autocomplete-friendly access to open-source Vector GL styles
-(MapLibre GL JSON), global XYZ Raster tile providers, and
+The `glmap` equivalent of `leaflet::providers`. Provides
+autocomplete-friendly access to open-source Vector GL styles (MapLibre
+GL JSON), global XYZ Raster tile providers, and
 commercial/optional-API-key providers (CARTO, OpenFreeMap,
 OpenStreetMap, Esri, OpenTopoMap, USGS, MapTiler, Stadia/Stamen,
 Thunderforest, Jawg, and Mapbox).

@@ -106,7 +106,7 @@ deployments (<code>Geonesis</code> catastrophe exposure and
 <code>Terrascope</code> S3 asset lifecycle management),
 <code>Leaflet.js</code> forces developers to either cap Snowflake
 queries (<code>LIMIT max_markers</code> +
-<code><a href="https://rstudio.github.io/leaflet/reference/map-options.html" class="external-link">markerClusterOptions()</a></code>) or write custom
+<code>markerClusterOptions()</code>) or write custom
 <code>session$registerDataObj()</code> + <code>geojson-vt</code>
 workarounds. Replacing the rendering tier with <code>glmap</code>
 eliminates 4 package dependencies (<code>leaflet</code>,
@@ -130,7 +130,7 @@ to: 1. Import 4 separate mapping packages and manually concatenate
 <code>?key=...</code> onto CARTO tile URLs. 2. Cap policy
 (<code>ALL_RISKS_GEO</code>) and claim (<code>ALL_CLAIMS_GEO</code>)
 queries with <code>max_markers</code> and group them into DOM marker
-clusters (<code><a href="https://rstudio.github.io/leaflet/reference/map-options.html" class="external-link">markerClusterOptions()</a></code>), hiding true spatial TIV
+clusters (<code>markerClusterOptions()</code>), hiding true spatial TIV
 concentration until max zoom. 3. Convert <code>terra</code> rainfall
 rasters to custom RGB hex vectors (<code><a href="https://rdrr.io/r/grDevices/col2rgb.html" class="external-link">grDevices::col2rgb</a></code>) on
 the R CPU. 4. Serialize entire <code>flood_zones.geojson</code> and

@@ -1,7 +1,6 @@
 # Add a Bounding-Box Rectangle Layer (`add_rectangles`)
 
-Drop-in equivalent of
-[`leaflet::addRectangles()`](https://rstudio.github.io/leaflet/reference/map-layers.html).
+Drop-in equivalent of `leaflet::addRectangles()`.
 
 ## Usage
 

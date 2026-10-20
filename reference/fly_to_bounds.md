@@ -1,7 +1,6 @@
 # Smoothly Animate Camera to Bounding Box (`fly_to_bounds`)
 
-Drop-in equivalent of
-[`leaflet::flyToBounds()`](https://rstudio.github.io/leaflet/reference/map-methods.html).
+Drop-in equivalent of `leaflet::flyToBounds()`.
 
 ## Usage
 

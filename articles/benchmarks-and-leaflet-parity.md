@@ -67,13 +67,13 @@ mapped every capability into the `glmap` GPU paradigm:
 
 | `leaflet` Function | `glmap` Equivalent | Parity & Notes |
 |:---|:---|:---|
-| [`addCircleMarkers()`](https://rstudio.github.io/leaflet/reference/map-layers.html) / [`addMarkers()`](https://rstudio.github.io/leaflet/reference/map-layers.html) | `add_points(radius = 5, stroke = TRUE)` | **100x Faster GPU SDF Shader**: Renders 1M+ anti-aliased circles with crisp outlines in 1 draw call; `radius` is in screen pixels. |
+| `addCircleMarkers()` / `addMarkers()` | `add_points(radius = 5, stroke = TRUE)` | **100x Faster GPU SDF Shader**: Renders 1M+ anti-aliased circles with crisp outlines in 1 draw call; `radius` is in screen pixels. |
 | `addCircles(radius = 500)` | `add_circles(radius = 500)` | **Full Parity**: `radius` is in **meters** on the ground (geodesic polygon rings triangulated in C++17). |
-| [`addPolylines()`](https://rstudio.github.io/leaflet/reference/map-layers.html) | `add_lines(width = 2)` | **Full Parity**: Multi-ring aware `Uint32Array` segment index buffer. |
-| [`addPolygons()`](https://rstudio.github.io/leaflet/reference/map-layers.html) | `add_polygons(fill_color = ~col, extrude = ~h)` | **Full Parity + 3D**: Pre-triangulates exterior rings + interior holes in C++17 (`mapbox/earcut.h`). |
+| `addPolylines()` | `add_lines(width = 2)` | **Full Parity**: Multi-ring aware `Uint32Array` segment index buffer. |
+| `addPolygons()` | `add_polygons(fill_color = ~col, extrude = ~h)` | **Full Parity + 3D**: Pre-triangulates exterior rings + interior holes in C++17 (`mapbox/earcut.h`). |
 | `addRectangles(lng1, lat1, lng2, lat2)` | `add_rectangles(lng1, lat1, lng2, lat2)` | **Full Parity**: C++17 triangulated bounding boxes. |
-| [`addLabelOnlyMarkers()`](https://rstudio.github.io/leaflet/reference/map-layers.html) / [`addPopups()`](https://rstudio.github.io/leaflet/reference/map-layers.html) | `add_labels(text = ~lbl)` / [`add_popups()`](https://meztez.github.io/glmap/reference/add_popups.md) | **Full Parity**: High-DPI halo-outlined canvas text labels + HTML click/hover tooltips. |
-| [`addGeoJSON()`](https://rstudio.github.io/leaflet/reference/map-layers.html) | [`add_geojson()`](https://meztez.github.io/glmap/reference/add_geojson.md) | **Full Parity**: Native GeoJSON layer support. |
+| `addLabelOnlyMarkers()` / `addPopups()` | `add_labels(text = ~lbl)` / [`add_popups()`](https://meztez.github.io/glmap/reference/add_popups.md) | **Full Parity**: High-DPI halo-outlined canvas text labels + HTML click/hover tooltips. |
+| `addGeoJSON()` | [`add_geojson()`](https://meztez.github.io/glmap/reference/add_geojson.md) | **Full Parity**: Native GeoJSON layer support. |
 | `addRasterImage(x, colors, opacity)` | `add_raster(raster, palette, hillshade, bands)` | **Superuser GPU Upgrade**: Uploads raw `Float32` bands (`GLMR`) to GPU texture (`RGBA32F`). Live 0ms palette switching, hillshading, and NDVI band math! |
 | *(Requires `leaflet.extras`)* | [`add_heatmap()`](https://meztez.github.io/glmap/reference/add_heatmap.md) / [`add_hexbin()`](https://meztez.github.io/glmap/reference/add_hexbin.md) | **Built-in GPU & C++17**: Native Gaussian kernel density heatmap and 64-bit C++ hexagonal spatial binning. |
 | *(Not possible in `leaflet`)* | [`add_duckdb()`](https://meztez.github.io/glmap/reference/add_duckdb.md) | **Out-of-Core Superpower**: Streams 10M–100M+ rows from DuckDB / `.parquet` files with viewport bounding-box pushdown. |
@@ -82,20 +82,20 @@ mapped every capability into the `glmap` GPU paradigm:
 
 | `leaflet` Function | `glmap` Equivalent | Parity & Notes |
 |:---|:---|:---|
-| [`colorNumeric()`](https://rstudio.github.io/leaflet/reference/colorNumeric.html) / [`colorFactor()`](https://rstudio.github.io/leaflet/reference/colorNumeric.html) / [`colorBin()`](https://rstudio.github.io/leaflet/reference/colorNumeric.html) | **Built into `color = ~col, palette = "viridis"`** | **Zero Boilerplate**: Automatically maps numeric, factor, or character columns to a 256-entry RGB LUT and generates the legend automatically. |
-| [`addLegend()`](https://rstudio.github.io/leaflet/reference/addLegend.html) / [`addRasterLegend()`](https://rstudio.github.io/leaflet/reference/addRasterLegend.html) | Automatic (or [`add_legend()`](https://meztez.github.io/glmap/reference/add_legend.md) for custom) | **Full Parity + Interactive GPU Controls**: Raster legends include live browser dropdowns for GPU shader palette & hillshade toggling. |
-| [`addLayersControl()`](https://rstudio.github.io/leaflet/reference/addLayersControl.html) | Built-in GPU Layer Switcher (`add_control("layer_switcher")`) | **Automatic**: Displays live feature/cell counts and visibility checkboxes for every layer. |
-| [`addScaleBar()`](https://rstudio.github.io/leaflet/reference/addScaleBar.html) / [`addMeasure()`](https://rstudio.github.io/leaflet/reference/addMeasure.html) / [`addMiniMap()`](https://rstudio.github.io/leaflet/reference/addMiniMap.html) | `add_control("scale")` / `use_plugin("measure")` / `use_plugin("minimap")` | **Full Parity**: Built-in toolbar and plugin system. |
+| `colorNumeric()` / `colorFactor()` / `colorBin()` | **Built into `color = ~col, palette = "viridis"`** | **Zero Boilerplate**: Automatically maps numeric, factor, or character columns to a 256-entry RGB LUT and generates the legend automatically. |
+| `addLegend()` / `addRasterLegend()` | Automatic (or [`add_legend()`](https://meztez.github.io/glmap/reference/add_legend.md) for custom) | **Full Parity + Interactive GPU Controls**: Raster legends include live browser dropdowns for GPU shader palette & hillshade toggling. |
+| `addLayersControl()` | Built-in GPU Layer Switcher (`add_control("layer_switcher")`) | **Automatic**: Displays live feature/cell counts and visibility checkboxes for every layer. |
+| `addScaleBar()` / `addMeasure()` / `addMiniMap()` | `add_control("scale")` / `use_plugin("measure")` / `use_plugin("minimap")` | **Full Parity**: Built-in toolbar and plugin system. |
 
 ### D. Shiny Reactivity, Proxy Methods & Input Events
 
 | `leaflet` Shiny Feature | `glmap` Equivalent | Parity & Notes |
 |:---|:---|:---|
-| `leafletOutput("map")` / [`renderLeaflet()`](https://rstudio.github.io/leaflet/reference/map-shiny.html) | `glmapOutput("map")` / [`renderGlmap()`](https://meztez.github.io/glmap/reference/renderGlmap.md) | **100% Drop-In**. |
+| `leafletOutput("map")` / `renderLeaflet()` | `glmapOutput("map")` / [`renderGlmap()`](https://meztez.github.io/glmap/reference/renderGlmap.md) | **100% Drop-In**. |
 | `leafletProxy("map")` | `glmap_proxy("map")` | **100% Drop-In**: Works with all `add_*()`, camera, filter, and group functions. |
 | `showGroup(g)` / `hideGroup(g)` / `clearGroup(g)` | `show_group(g)` / `hide_group(g)` / `clear_group(g)` | **Full Parity**: Toggles or removes all layers belonging to `group` in 0 ms. |
-| [`clearShapes()`](https://rstudio.github.io/leaflet/reference/remove.html) / [`clearMarkers()`](https://rstudio.github.io/leaflet/reference/remove.html) / `removeShape(id)` | [`clear_layers()`](https://meztez.github.io/glmap/reference/clear_layers.md) / `clear_layer(id)` | **Full Parity**. |
-| [`setView()`](https://rstudio.github.io/leaflet/reference/map-methods.html) / [`flyTo()`](https://rstudio.github.io/leaflet/reference/map-methods.html) / [`fitBounds()`](https://rstudio.github.io/leaflet/reference/map-methods.html) / [`flyToBounds()`](https://rstudio.github.io/leaflet/reference/map-methods.html) / [`setMaxBounds()`](https://rstudio.github.io/leaflet/reference/map-methods.html) | [`set_view()`](https://meztez.github.io/glmap/reference/set_view.md) / [`fly_to()`](https://meztez.github.io/glmap/reference/fly_to.md) / [`fit_bounds()`](https://meztez.github.io/glmap/reference/fit_bounds.md) / [`fly_to_bounds()`](https://meztez.github.io/glmap/reference/fly_to_bounds.md) / [`set_max_bounds()`](https://meztez.github.io/glmap/reference/set_max_bounds.md) | **Full Parity** (plus 3D `pitch` and `bearing`). |
+| `clearShapes()` / `clearMarkers()` / `removeShape(id)` | [`clear_layers()`](https://meztez.github.io/glmap/reference/clear_layers.md) / `clear_layer(id)` | **Full Parity**. |
+| `setView()` / `flyTo()` / `fitBounds()` / `flyToBounds()` / `setMaxBounds()` | [`set_view()`](https://meztez.github.io/glmap/reference/set_view.md) / [`fly_to()`](https://meztez.github.io/glmap/reference/fly_to.md) / [`fit_bounds()`](https://meztez.github.io/glmap/reference/fit_bounds.md) / [`fly_to_bounds()`](https://meztez.github.io/glmap/reference/fly_to_bounds.md) / [`set_max_bounds()`](https://meztez.github.io/glmap/reference/set_max_bounds.md) | **Full Parity** (plus 3D `pitch` and `bearing`). |
 | `input$map_click` | `input$map_click` (`list(lng, lat, raster_value, nonce)`) | **Enhanced**: Also includes the exact `Float32` `raster_value` under the cursor! |
 | `input$map_marker_click` / `input$map_shape_click` | `input$map_marker_click` / `input$map_shape_click` | **Full Parity**: Returns `list(id, layerId, group, type, lng, lat, nonce)`. |
 | `input$map_marker_mouseover` / `input$map_shape_mouseover` | `input$map_marker_mouseover` / `input$map_shape_mouseover` | **Full Parity**: Emits hovered feature metadata. |

@@ -47,7 +47,7 @@
 <ol style="list-style-type: decimal"><li>
 <strong>Use <code><a href="reference/glmap.html">glmap()</a></code> as the primary entry point</strong> (<code><a href="reference/glmap.html">glmap()</a></code> and <code><a href="reference/glmap.html">glmap()</a></code> are also supported as aliases).</li>
 <li>
-<strong>Never construct manual palette functions (<code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">leaflet::colorNumeric</a></code>, <code>colorFactor</code>, <code>colorBin</code>)</strong>:
+<strong>Never construct manual palette functions (<code>leaflet::colorNumeric</code>, <code>colorFactor</code>, <code>colorBin</code>)</strong>:
 <ul><li>In <code>glmap</code>, pass the column formula (<code>~col_name</code>) or column name string (<code>"col_name"</code>) directly to <code>color =</code> or <code>fill_color =</code>, along with <code>palette = "viridis"</code> (or <code>"plasma"</code>, <code>"magma"</code>, <code>"turbo"</code>, <code>"terrain"</code>, <code>"rdylbu"</code>, <code>"Spectral"</code>).</li>
 <li>
 <code>glmap</code> automatically computes a 256-entry RGB lookup table in R/C++ and attaches a matching continuous or categorical legend automatically.</li>

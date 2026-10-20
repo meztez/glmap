@@ -22,12 +22,11 @@ neighborhood, and get instant Total Insured Value (TIV) exposure!
 In production R + Shiny deployments (`Geonesis` catastrophe exposure and
 `Terrascope` S3 asset lifecycle management), `Leaflet.js` forces
 developers to either cap Snowflake queries (`LIMIT max_markers` +
-[`markerClusterOptions()`](https://rstudio.github.io/leaflet/reference/map-options.html))
-or write custom `session$registerDataObj()` + `geojson-vt` workarounds.
-Replacing the rendering tier with `glmap` eliminates 4 package
-dependencies (`leaflet`, `leafem`, `leaflet.extras`, `leafpop`), cuts R
-worker CPU blocking by **15x–40x**, and connects directly to Snowflake /
-DuckDB Spatial via
+`markerClusterOptions()`) or write custom `session$registerDataObj()` +
+`geojson-vt` workarounds. Replacing the rendering tier with `glmap`
+eliminates 4 package dependencies (`leaflet`, `leafem`,
+`leaflet.extras`, `leafpop`), cuts R worker CPU blocking by **15x–40x**,
+and connects directly to Snowflake / DuckDB Spatial via
 [`gl_bbox_to_wkt()`](https://meztez.github.io/glmap/reference/gl_bbox_to_wkt.md)
 and
 [`gl_popup_table()`](https://meztez.github.io/glmap/reference/gl_popup_table.md).
@@ -42,10 +41,9 @@ In the legacy `leaflet` architecture, the application had to: 1. Import
 4 separate mapping packages and manually concatenate `?key=...` onto
 CARTO tile URLs. 2. Cap policy (`ALL_RISKS_GEO`) and claim
 (`ALL_CLAIMS_GEO`) queries with `max_markers` and group them into DOM
-marker clusters
-([`markerClusterOptions()`](https://rstudio.github.io/leaflet/reference/map-options.html)),
-hiding true spatial TIV concentration until max zoom. 3. Convert `terra`
-rainfall rasters to custom RGB hex vectors
+marker clusters (`markerClusterOptions()`), hiding true spatial TIV
+concentration until max zoom. 3. Convert `terra` rainfall rasters to
+custom RGB hex vectors
 ([`grDevices::col2rgb`](https://rdrr.io/r/grDevices/col2rgb.html)) on
 the R CPU. 4. Serialize entire `flood_zones.geojson` and
 `perimeters.geojson` layers over the Shiny WebSocket on toggle.
