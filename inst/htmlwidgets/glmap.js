@@ -309,6 +309,12 @@
       this.measureActive = false;
       this.measurePoints = [];
       this.boxSelectActive = false;
+      this.drawMode = null; // "polygon", "rectangle", "circle", "polyline", "marker"
+      this.drawnFeatures = [];
+      this._drawSeq = 0;
+      this._activeDrawVertices = [];
+      this._dragStartLonLat = null;
+      this._dragCurLonLat = null;
       this.fps = 60;
       this._frameCount = 0;
       this._lastFpsTime = performance.now();
@@ -351,6 +357,12 @@
       this.toolbarEl = document.createElement("div");
       this.toolbarEl.className = "glmap-toolbar";
       this.el.appendChild(this.toolbarEl);
+
+      // Draw Toolbar (leaflet.extras::addDrawToolbar equivalent)
+      this.drawToolbarEl = document.createElement("div");
+      this.drawToolbarEl.className = "glmap-draw-toolbar";
+      this.drawToolbarEl.style.display = "none";
+      this.el.appendChild(this.drawToolbarEl);
 
       // Bottom-left HUD (FPS, feature count, cursor lon/lat/raster value)
       this.hudEl = document.createElement("div");
@@ -589,6 +601,9 @@
       this._rebuildLegends();
       this._updateHUD();
       this._initCrosstalk(x.crosstalk);
+      if (x.draw_toolbar && x.draw_toolbar.enabled) {
+        this.addDrawToolbar(x.draw_toolbar);
+      }
       this._runPlugins(x.plugins);
       this.requestRender();
     }
@@ -1021,6 +1036,10 @@
         } else if (layer.type === "labels" && layer.parsed && ctx2d) {
           this._drawLabelsLayer(ctx2d, layer, centerMercX, centerMercY, scale, w, h);
         }
+      }
+
+      if (ctx2d) {
+        this._renderDrawnFeatures2D(ctx2d, centerMercX, centerMercY, scale, w, h);
       }
 
       // Track frame time & effective FPS
@@ -1721,6 +1740,411 @@
       this._updateHUD();
     }
 
+    lonLatToScreen(lon, lat, cx, cy, scale, w, h) {
+      if (this.map && typeof this.map.project === "function") {
+        try {
+          const p = this.map.project([lon, lat]);
+          return [p.x, p.y];
+        } catch (e) {}
+      }
+      const mx = lonToMercX(lon);
+      const my = latToMercY(lat);
+      return [w * 0.5 + (mx - cx) * scale, h * 0.5 + (my - cy) * scale];
+    }
+
+    addDrawToolbar(spec) {
+      if (!spec || !spec.enabled) return;
+      this.drawSpec = spec;
+      this.drawToolbarEl.style.display = "flex";
+      const pos = spec.position || "top-left";
+      this.drawToolbarEl.setAttribute("data-pos", pos);
+
+      const tools = spec.tools || { polygon: true, rectangle: true, circle: true, polyline: true, marker: true, edit: true };
+      const btns = (spec.toolbar && spec.toolbar.buttons) || {};
+
+      const items = [];
+      if (tools.polygon) items.push({ mode: "polygon", icon: "⬠", label: "Poly", title: btns.polygon || "Draw a polygon" });
+      if (tools.rectangle) items.push({ mode: "rectangle", icon: "▭", label: "Rect", title: btns.rectangle || "Draw a rectangle" });
+      if (tools.circle) items.push({ mode: "circle", icon: "◯", label: "Circle", title: btns.circle || "Draw a circle" });
+      if (tools.polyline) items.push({ mode: "polyline", icon: "╱", label: "Line", title: btns.polyline || "Draw a polyline" });
+      if (tools.marker) items.push({ mode: "marker", icon: "📍", label: "Pin", title: btns.marker || "Draw a marker" });
+
+      let html = items.map((it) => `
+        <button type="button" class="glmap-draw-btn" data-draw-mode="${it.mode}" title="${it.title}">
+          <span class="glmap-draw-icon">${it.icon}</span>
+          <span>${it.label}</span>
+        </button>
+      `).join("");
+
+      if (tools.edit) {
+        html += `
+          <button type="button" class="glmap-draw-btn glmap-draw-clear" data-draw-action="clear" title="Clear / delete drawn shapes">
+            <span class="glmap-draw-icon">🗑</span>
+            <span>Clear</span>
+          </button>
+        `;
+      }
+
+      this.drawToolbarEl.innerHTML = html;
+
+      this.drawToolbarEl.querySelectorAll(".glmap-draw-btn[data-draw-mode]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const m = btn.getAttribute("data-draw-mode");
+          if (this.drawMode === m) {
+            this._stopDrawMode();
+          } else {
+            this._startDrawMode(m);
+          }
+        });
+      });
+
+      const clrBtn = this.drawToolbarEl.querySelector(".glmap-draw-clear");
+      if (clrBtn) {
+        clrBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this._clearDrawnFeatures();
+        });
+      }
+
+      this._bindDrawHandlersOnce();
+    }
+
+    removeDrawToolbar(opts) {
+      this._stopDrawMode();
+      this.drawToolbarEl.style.display = "none";
+      if (opts && opts.clearFeatures) {
+        this._clearDrawnFeatures();
+      }
+    }
+
+    _startDrawMode(mode) {
+      this.drawMode = mode;
+      this._activeDrawVertices = [];
+      this._dragStartLonLat = null;
+      this._dragCurLonLat = null;
+
+      this.drawToolbarEl.querySelectorAll(".glmap-draw-btn[data-draw-mode]").forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-draw-mode") === mode);
+      });
+
+      if (this.map) {
+        if ((mode === "rectangle" || mode === "circle") && this.map.dragPan) {
+          this.map.dragPan.disable();
+        } else if (this.map.dragPan) {
+          this.map.dragPan.enable();
+        }
+        if ((mode === "polygon" || mode === "polyline") && this.map.doubleClickZoom) {
+          this.map.doubleClickZoom.disable();
+        }
+      }
+
+      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        window.Shiny.setInputValue(this.el.id + "_draw_start", {
+          feature_type: mode,
+          nonce: Math.random()
+        });
+      }
+      this.requestRender();
+    }
+
+    _stopDrawMode() {
+      const prevMode = this.drawMode;
+      this.drawMode = null;
+      this._activeDrawVertices = [];
+      this._dragStartLonLat = null;
+      this._dragCurLonLat = null;
+
+      this.drawToolbarEl.querySelectorAll(".glmap-draw-btn[data-draw-mode]").forEach((b) => {
+        b.classList.remove("active");
+      });
+
+      if (this.map) {
+        if (this.map.dragPan) this.map.dragPan.enable();
+        if (this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
+      }
+
+      if (prevMode && typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        window.Shiny.setInputValue(this.el.id + "_draw_stop", {
+          feature_type: prevMode,
+          nonce: Math.random()
+        });
+      }
+      this.requestRender();
+    }
+
+    _clearDrawnFeatures() {
+      const deleted = this.drawnFeatures.slice();
+      this.drawnFeatures = [];
+      this._stopDrawMode();
+
+      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        window.Shiny.setInputValue(this.el.id + "_draw_deleted_features", {
+          type: "FeatureCollection",
+          features: deleted,
+          nonce: Math.random()
+        });
+        window.Shiny.setInputValue(this.el.id + "_draw_all_features", {
+          type: "FeatureCollection",
+          features: [],
+          nonce: Math.random()
+        });
+        window.Shiny.setInputValue(this.el.id + "_selected", null);
+      }
+      this.requestRender();
+    }
+
+    _bindDrawHandlersOnce() {
+      if (this._drawHandlersBound) return;
+      this._drawHandlersBound = true;
+
+      this.el.addEventListener("mousedown", (e) => {
+        if (!this.drawMode || e.target.closest(".glmap-panel") || e.target.closest(".glmap-toolbar") || e.target.closest(".glmap-draw-toolbar")) return;
+        const rect = this.el.getBoundingClientRect();
+        const [lon, lat] = this.screenToLonLat(e.clientX - rect.left, e.clientY - rect.top);
+
+        if (this.drawMode === "rectangle" || this.drawMode === "circle") {
+          this._dragStartLonLat = [lon, lat];
+          this._dragCurLonLat = [lon, lat];
+        }
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!this.drawMode) return;
+        const rect = this.el.getBoundingClientRect();
+        const [lon, lat] = this.screenToLonLat(e.clientX - rect.left, e.clientY - rect.top);
+        this._dragCurLonLat = [lon, lat];
+        if (this._dragStartLonLat || this._activeDrawVertices.length > 0) {
+          this.requestRender();
+        }
+      });
+
+      window.addEventListener("mouseup", (e) => {
+        if (!this.drawMode || !this._dragStartLonLat) return;
+        const rect = this.el.getBoundingClientRect();
+        const [lon2, lat2] = this.screenToLonLat(e.clientX - rect.left, e.clientY - rect.top);
+        const [lon1, lat1] = this._dragStartLonLat;
+        this._dragStartLonLat = null;
+
+        if (Math.abs(lon2 - lon1) < 1e-5 && Math.abs(lat2 - lat1) < 1e-5) return;
+
+        if (this.drawMode === "rectangle") {
+          const xmin = Math.min(lon1, lon2), xmax = Math.max(lon1, lon2);
+          const ymin = Math.min(lat1, lat2), ymax = Math.max(lat1, lat2);
+          const ring = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax], [xmin, ymin]];
+          this._commitDrawnFeature("rectangle", {
+            type: "Polygon",
+            coordinates: [ring]
+          }, { feature_type: "rectangle" }, [xmin, ymin, xmax, ymax]);
+          this._stopDrawMode();
+        } else if (this.drawMode === "circle") {
+          const radKm = computePathDistanceKm([[lon1, lat1], [lon2, lat2]]);
+          const radM = Math.max(10, radKm * 1000.0);
+          // Build 32-segment polygon approximation for bbox/WKT while emitting exact leaflet.extras Point + radius GeoJSON!
+          const ring = [];
+          for (let i = 0; i <= 32; i++) {
+            const ang = (i / 32) * Math.PI * 2.0;
+            const dy = (radM / 111320.0) * Math.sin(ang);
+            const dx = (radM / (111320.0 * Math.max(0.1, Math.cos(lat1 * DEG2RAD)))) * Math.cos(ang);
+            ring.push([lon1 + dx, lat1 + dy]);
+          }
+          const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]);
+          const bbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+          this._commitDrawnFeature("circle", {
+            type: "Point",
+            coordinates: [lon1, lat1]
+          }, { feature_type: "circle", radius: radM, _poly_ring: ring }, bbox);
+          this._stopDrawMode();
+        }
+      });
+
+      this.el.addEventListener("click", (e) => {
+        if (!this.drawMode || e.target.closest(".glmap-panel") || e.target.closest(".glmap-toolbar") || e.target.closest(".glmap-draw-toolbar")) return;
+        const rect = this.el.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const [lon, lat] = this.screenToLonLat(px, py);
+
+        if (this.drawMode === "marker") {
+          this._commitDrawnFeature("marker", {
+            type: "Point",
+            coordinates: [lon, lat]
+          }, { feature_type: "marker" }, [lon - 0.001, lat - 0.001, lon + 0.001, lat + 0.001]);
+          this._stopDrawMode();
+        } else if (this.drawMode === "polygon" || this.drawMode === "polyline") {
+          // If clicking near the first vertex of a polygon with >= 3 vertices, close and finish!
+          if (this.drawMode === "polygon" && this._activeDrawVertices.length >= 3) {
+            const [fx, fy] = this.lonLatToScreen(
+              this._activeDrawVertices[0][0], this._activeDrawVertices[0][1],
+              lonToMercX(this.camera.centerLon), latToMercY(this.camera.centerLat),
+              this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom)),
+              this.el.clientWidth || 800, this.el.clientHeight || 600
+            );
+            if (Math.hypot(px - fx, py - fy) < 14) {
+              this._finishActiveVertexShape();
+              return;
+            }
+          }
+          this._activeDrawVertices.push([lon, lat]);
+          this.requestRender();
+        }
+      });
+
+      this.el.addEventListener("dblclick", (e) => {
+        if (this.drawMode === "polygon" || this.drawMode === "polyline") {
+          e.preventDefault();
+          e.stopPropagation();
+          this._finishActiveVertexShape();
+        }
+      });
+    }
+
+    _finishActiveVertexShape() {
+      const pts = this._activeDrawVertices.slice();
+      if (this.drawMode === "polygon" && pts.length >= 3) {
+        const ring = pts.concat([[pts[0][0], pts[0][1]]]);
+        const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]);
+        this._commitDrawnFeature("polygon", {
+          type: "Polygon",
+          coordinates: [ring]
+        }, { feature_type: "polygon" }, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]);
+      } else if (this.drawMode === "polyline" && pts.length >= 2) {
+        const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+        this._commitDrawnFeature("polyline", {
+          type: "LineString",
+          coordinates: pts
+        }, { feature_type: "polyline" }, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]);
+      }
+      this._stopDrawMode();
+    }
+
+    _commitDrawnFeature(mode, geometry, props, bbox) {
+      const id = ++this._drawSeq;
+      if (this.drawSpec && this.drawSpec.singleFeature) {
+        this.drawnFeatures = [];
+      }
+
+      // Compute WKT string for Snowflake / DuckDB Spatial
+      let wkt = "";
+      const ringForWkt = (geometry.type === "Polygon") ? geometry.coordinates[0] : (props._poly_ring || null);
+      if (ringForWkt) {
+        wkt = "POLYGON ((" + ringForWkt.map(p => `${p[0].toFixed(6)} ${p[1].toFixed(6)}`).join(", ") + "))";
+      } else if (geometry.type === "Point") {
+        wkt = `POINT (${geometry.coordinates[0].toFixed(6)} ${geometry.coordinates[1].toFixed(6)})`;
+      }
+
+      const feature = {
+        type: "Feature",
+        properties: Object.assign({ _leaflet_id: id, feature_type: mode }, props),
+        geometry: geometry,
+        bbox: bbox,
+        wkt: wkt
+      };
+      this.drawnFeatures.push(feature);
+
+      // Also update _selected input so apps listening to either _draw_new_feature or _selected work seamlessly!
+      this._selectInBbox(bbox, wkt);
+
+      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        window.Shiny.setInputValue(this.el.id + "_draw_new_feature", feature);
+        window.Shiny.setInputValue(this.el.id + "_draw_all_features", {
+          type: "FeatureCollection",
+          features: this.drawnFeatures,
+          nonce: Math.random()
+        });
+      }
+      this.requestRender();
+    }
+
+    _renderDrawnFeatures2D(ctx, cx, cy, scale, w, h) {
+      ctx.save();
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "#38bdf8";
+      ctx.fillStyle = "rgba(56, 189, 248, 0.20)";
+
+      // 1. Render committed drawn features
+      for (const f of this.drawnFeatures) {
+        const g = f.geometry;
+        const ring = (g.type === "Polygon") ? g.coordinates[0] : (f.properties && f.properties._poly_ring);
+        if (ring && ring.length >= 2) {
+          ctx.beginPath();
+          for (let i = 0; i < ring.length; i++) {
+            const [sx, sy] = this.lonLatToScreen(ring[i][0], ring[i][1], cx, cy, scale, w, h);
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        } else if (g.type === "LineString" && g.coordinates.length >= 2) {
+          ctx.beginPath();
+          for (let i = 0; i < g.coordinates.length; i++) {
+            const [sx, sy] = this.lonLatToScreen(g.coordinates[i][0], g.coordinates[i][1], cx, cy, scale, w, h);
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+          }
+          ctx.stroke();
+        } else if (g.type === "Point") {
+          const [sx, sy] = this.lonLatToScreen(g.coordinates[0], g.coordinates[1], cx, cy, scale, w, h);
+          ctx.beginPath();
+          ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+
+      // 2. Render in-progress shape while user is actively drawing
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "#facc15";
+      ctx.fillStyle = "rgba(250, 204, 21, 0.18)";
+
+      if (this._dragStartLonLat && this._dragCurLonLat) {
+        const [lon1, lat1] = this._dragStartLonLat;
+        const [lon2, lat2] = this._dragCurLonLat;
+        if (this.drawMode === "rectangle") {
+          const [x1, y1] = this.lonLatToScreen(lon1, lat1, cx, cy, scale, w, h);
+          const [x2, y2] = this.lonLatToScreen(lon2, lat2, cx, cy, scale, w, h);
+          ctx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+          ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+        } else if (this.drawMode === "circle") {
+          const [x1, y1] = this.lonLatToScreen(lon1, lat1, cx, cy, scale, w, h);
+          const [x2, y2] = this.lonLatToScreen(lon2, lat2, cx, cy, scale, w, h);
+          const rPx = Math.hypot(x2 - x1, y2 - y1);
+          ctx.beginPath();
+          ctx.arc(x1, y1, rPx, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (this._activeDrawVertices.length > 0) {
+        ctx.beginPath();
+        for (let i = 0; i < this._activeDrawVertices.length; i++) {
+          const [sx, sy] = this.lonLatToScreen(this._activeDrawVertices[i][0], this._activeDrawVertices[i][1], cx, cy, scale, w, h);
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        if (this._dragCurLonLat) {
+          const [cxPx, cyPx] = this.lonLatToScreen(this._dragCurLonLat[0], this._dragCurLonLat[1], cx, cy, scale, w, h);
+          ctx.lineTo(cxPx, cyPx);
+        }
+        if (this.drawMode === "polygon" && this._activeDrawVertices.length >= 2) {
+          ctx.fill();
+        }
+        ctx.stroke();
+
+        // Draw vertex handles
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#facc15";
+        for (let i = 0; i < this._activeDrawVertices.length; i++) {
+          const [sx, sy] = this.lonLatToScreen(this._activeDrawVertices[i][0], this._activeDrawVertices[i][1], cx, cy, scale, w, h);
+          ctx.beginPath();
+          ctx.arc(sx, sy, i === 0 ? 5.5 : 4.0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+    }
+
     enableBoxSelect(cfg) {
       this.boxSelectActive = !this.boxSelectActive;
       if (this.map && this.map.dragPan) {
@@ -1769,7 +2193,7 @@
       }
     }
 
-    _selectInBbox(bbox) {
+    _selectInBbox(bbox, customWkt = null) {
       const [xmin, ymin, xmax, ymax] = bbox;
       const mx0 = lonToMercX(xmin), mx1 = lonToMercX(xmax);
       const my0 = latToMercY(ymax), my1 = latToMercY(ymin);
@@ -1792,11 +2216,14 @@
       this._brushedCount = selectedIds.length;
       this._updateHUD();
 
+      const wkt = customWkt || `POLYGON ((${xmin.toFixed(6)} ${ymin.toFixed(6)}, ${xmax.toFixed(6)} ${ymin.toFixed(6)}, ${xmax.toFixed(6)} ${ymax.toFixed(6)}, ${xmin.toFixed(6)} ${ymax.toFixed(6)}, ${xmin.toFixed(6)} ${ymin.toFixed(6)}))`;
       if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
         window.Shiny.setInputValue(this.el.id + "_selected", {
           bbox: bbox,
+          wkt: wkt,
           count: selectedIds.length,
-          indices: selectedIds.slice(0, 50000)
+          indices: selectedIds.slice(0, 50000),
+          nonce: Math.random()
         });
       }
       if (this._ctSelHandle && this.spec && this.spec.crosstalk && Array.isArray(this.spec.crosstalk.keys)) {
@@ -1919,6 +2346,8 @@
         else if (m === "flyToBounds") inst.flyToBounds(args);
         else if (m === "setMaxBounds") inst.setMaxBounds(args);
         else if (m === "fitBounds") inst.fitBounds(args.bounds);
+        else if (m === "addDrawToolbar") inst.addDrawToolbar(args);
+        else if (m === "removeDrawToolbar") inst.removeDrawToolbar(args);
         else if (m === "usePlugin") inst._runPlugins([args]);
       });
     }

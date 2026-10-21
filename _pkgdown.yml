@@ -28,6 +28,9 @@ reference:
       - set_terrain
       - set_projection
       - add_control
+      - add_draw_toolbar
+      - remove_draw_toolbar
+      - draw_toolbar_options
       - add_legend
       - gl_save_html
 

@@ -201,6 +201,127 @@ add_legend <- function(map, title, colors, labels = NULL, domain = NULL, layer_i
   map
 }
 
+#' Add an Interactive Vector Drawing Toolbar (`add_draw_toolbar`)
+#'
+#' Drop-in GPU equivalent of `leaflet.extras::addDrawToolbar()` with matching
+#' formals and Shiny reactive events!
+#'
+#' Supports interactive drawing of **Polygons** (click vertices, double-click or
+#' click first vertex to close), **Rectangles** (click-drag), **Circles**
+#' (click center, drag radius in meters), **Polylines** (click vertices,
+#' double-click to finish), and **Markers** (click), plus clearing/deleting drawn
+#' shapes.
+#'
+#' ### Shiny Events Emitted (100% compatible with `leaflet.extras::addDrawToolbar`):
+#' For a map with `outputId = "geonesis"`:
+#' - `input$geonesis_draw_start`: `list(feature_type = ...)` when a drawing tool is activated.
+#' - `input$geonesis_draw_stop`: `list(feature_type = ...)` when drawing finishes or is cancelled.
+#' - `input$geonesis_draw_new_feature`: GeoJSON Feature `list(type = "Feature", properties = list(`_leaflet_id` = id, feature_type = "polygon"|"rectangle"|"circle"|"polyline"|"marker", radius = r_meters), geometry = list(type = ..., coordinates = ...), wkt = "POLYGON ((...))", bbox = c(xmin, ymin, xmax, ymax))`.
+#' - `input$geonesis_draw_deleted_features`: GeoJSON FeatureCollection of deleted features.
+#' - `input$geonesis_draw_all_features`: GeoJSON FeatureCollection of all currently drawn features.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param targetGroup Optional group name for drawn features (default `"drawn_features"`).
+#' @param position Toolbar position: `"topleft"`, `"topright"`, `"bottomleft"`, `"bottomright"` (or `"top-left"`, etc.).
+#' @param polylineOptions List of options or `TRUE`/`FALSE` to enable/disable the polyline tool (default `TRUE`).
+#' @param polygonOptions List of options or `TRUE`/`FALSE` to enable/disable the polygon tool (default `TRUE`).
+#' @param circleOptions List of options or `TRUE`/`FALSE` to enable/disable the geodesic circle tool (default `TRUE`).
+#' @param rectangleOptions List of options or `TRUE`/`FALSE` to enable/disable the rectangle tool (default `TRUE`).
+#' @param markerOptions List of options or `TRUE`/`FALSE` to enable/disable the point marker tool (default `TRUE`).
+#' @param circleMarkerOptions List of options or `TRUE`/`FALSE` to enable/disable the circle marker tool (default `FALSE`).
+#' @param editOptions List of options or `TRUE`/`FALSE` to enable/disable feature deletion/clearing (default `TRUE`).
+#' @param singleFeature Logical; if `TRUE`, drawing a new feature replaces previous drawn features (default `FALSE`).
+#' @param toolbar Optional custom button titles created via [draw_toolbar_options()].
+#' @return Updated `glmap` widget or `glmap_proxy`.
+#' @export
+add_draw_toolbar <- function(
+    map,
+    targetGroup = NULL,
+    position = c("topleft", "topright", "bottomleft", "bottomright", "top-left", "top-right", "bottom-left", "bottom-right"),
+    polylineOptions = TRUE,
+    polygonOptions = TRUE,
+    circleOptions = TRUE,
+    rectangleOptions = TRUE,
+    markerOptions = TRUE,
+    circleMarkerOptions = FALSE,
+    editOptions = TRUE,
+    singleFeature = FALSE,
+    toolbar = NULL
+) {
+  pos <- as.character(position[1])
+  pos_norm <- switch(
+    pos,
+    "topleft" = "top-left",
+    "topright" = "top-right",
+    "bottomleft" = "bottom-left",
+    "bottomright" = "bottom-right",
+    pos
+  )
+
+  is_enabled <- function(opt) {
+    !identical(opt, FALSE) && !is.null(opt)
+  }
+
+  spec <- list(
+    enabled = TRUE,
+    targetGroup = targetGroup %||% "drawn_features",
+    position = pos_norm,
+    tools = list(
+      polygon = is_enabled(polygonOptions),
+      rectangle = is_enabled(rectangleOptions),
+      circle = is_enabled(circleOptions),
+      polyline = is_enabled(polylineOptions),
+      marker = is_enabled(markerOptions) || is_enabled(circleMarkerOptions),
+      edit = is_enabled(editOptions)
+    ),
+    singleFeature = isTRUE(singleFeature),
+    toolbar = toolbar %||% draw_toolbar_options()
+  )
+
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "addDrawToolbar", spec))
+  }
+  map$x$draw_toolbar <- spec
+  map
+}
+
+#' Remove the Interactive Drawing Toolbar (`remove_draw_toolbar`)
+#'
+#' Drop-in equivalent of `leaflet.extras::removeDrawToolbar()`.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param clearFeatures Logical; whether to also clear all drawn shapes from the map (default `FALSE`).
+#' @export
+remove_draw_toolbar <- function(map, clearFeatures = FALSE) {
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "removeDrawToolbar", list(clearFeatures = isTRUE(clearFeatures))))
+  }
+  map$x$draw_toolbar <- NULL
+  map
+}
+
+#' Configure Custom Tooltip Titles for `add_draw_toolbar()` (`draw_toolbar_options`)
+#'
+#' Drop-in equivalent of `leaflet.extras::toolbarOptions()`.
+#'
+#' @param actions Named list of action button tooltips.
+#' @param finish Named list of finish button tooltips.
+#' @param buttons Named list of tool button tooltips (`polygon`, `rectangle`, `circle`, `polyline`, `marker`).
+#' @export
+draw_toolbar_options <- function(
+    actions = list(title = "Cancel drawing", text = "Cancel"),
+    finish = list(title = "Finish drawing", text = "Finish"),
+    buttons = list(
+      polygon = "Draw a polygon",
+      rectangle = "Draw a rectangle",
+      circle = "Draw a circle",
+      polyline = "Draw a polyline",
+      marker = "Draw a marker"
+    )
+) {
+  list(actions = actions, finish = finish, buttons = buttons)
+}
+
 #' Save a `glmap` Map to a Standalone HTML File (`gl_save_html`)
 #'
 #' @param map A `glmap` widget.

@@ -348,6 +348,32 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
 
   wkt_str <- gl_bbox_to_wkt(c(-74, 45, -71, 47))
   expect_match(wkt_str, "^POLYGON \\(\\(-74\\.000000 45\\.000000")
+
+  # Test add_draw_toolbar and remove_draw_toolbar (leaflet.extras parity)
+  m_draw <- glmap() |>
+    add_draw_toolbar(
+      position = "bottomleft",
+      polylineOptions = FALSE,
+      circleMarkerOptions = FALSE,
+      markerOptions = FALSE,
+      toolbar = draw_toolbar_options(
+        buttons = list(
+          polygon = "Draw polygon AOI",
+          rectangle = "Draw rectangle AOI",
+          circle = "Draw circle AOI"
+        )
+      )
+    )
+  expect_true(m_draw$x$draw_toolbar$enabled)
+  expect_equal(m_draw$x$draw_toolbar$position, "bottom-left")
+  expect_true(m_draw$x$draw_toolbar$tools$polygon)
+  expect_true(m_draw$x$draw_toolbar$tools$rectangle)
+  expect_true(m_draw$x$draw_toolbar$tools$circle)
+  expect_false(m_draw$x$draw_toolbar$tools$polyline)
+  expect_false(m_draw$x$draw_toolbar$tools$marker)
+
+  m_nodraw <- remove_draw_toolbar(m_draw, clearFeatures = TRUE)
+  expect_null(m_nodraw$x$draw_toolbar)
 })
 
 

@@ -221,3 +221,54 @@
   border-color: #38bdf8;
   color: #ffffff;
 }
+
+.glmap-draw-toolbar {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.90);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.glmap-draw-toolbar[data-pos="top-left"] { top: 245px; left: 12px; }
+.glmap-draw-toolbar[data-pos="bottom-left"] { bottom: 52px; left: 12px; }
+.glmap-draw-toolbar[data-pos="top-right"] { top: 110px; right: 12px; }
+.glmap-draw-toolbar[data-pos="bottom-right"] { bottom: 52px; right: 12px; }
+
+.glmap-draw-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.glmap-draw-btn:hover,
+.glmap-draw-btn.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.glmap-draw-btn.glmap-draw-clear:hover {
+  background: #dc2626;
+  border-color: #f87171;
+}
+
+.glmap-draw-icon {
+  font-size: 13px;
+  line-height: 1;
+}
