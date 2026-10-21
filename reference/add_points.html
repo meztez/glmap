@@ -65,10 +65,13 @@ outlines, variable radius, and interactive picking).</p>
 <span>  stroke_width <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  popup <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  label <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  icon <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  clusterOptions <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dynamic_viewport <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  legend <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  legend <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  lng <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -128,6 +131,15 @@ outlines, variable radius, and interactive picking).</p>
 <dd><p>Alias for <code>popup</code>.</p></dd>
 
 
+<dt id="arg-icon">icon<a class="anchor" aria-label="anchor" href="#arg-icon"></a></dt>
+<dd><p>Optional marker icon specification created by <code><a href="add_markers.html">make_icon()</a></code>, <code><a href="add_markers.html">make_awesome_icon()</a></code>,
+<code>leaflet::makeIcon()</code>, or a character vector / formula (<code>~icon_url</code>) of SVG/PNG URLs.</p></dd>
+
+
+<dt id="arg-clusteroptions">clusterOptions<a class="anchor" aria-label="anchor" href="#arg-clusteroptions"></a></dt>
+<dd><p>Optional clustering specification (<code>leaflet::markerClusterOptions()</code> compatibility).</p></dd>
+
+
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
 <dd><p>Layer ID string.</p></dd>
 
@@ -143,6 +155,10 @@ only the visible viewport slice via the local <code>httpuv</code> server.</p></d
 
 <dt id="arg-legend">legend<a class="anchor" aria-label="anchor" href="#arg-legend"></a></dt>
 <dd><p>Logical; whether to automatically add a legend when <code>color</code> is mapped to data.</p></dd>
+
+
+<dt id="arg-lng">lng<a class="anchor" aria-label="anchor" href="#arg-lng"></a></dt>
+<dd><p>Optional alias for <code>lon</code> (<code>leaflet</code> compatibility).</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -21,10 +21,13 @@ add_points(
   stroke_width = 1,
   popup = NULL,
   label = NULL,
+  icon = NULL,
+  clusterOptions = NULL,
   id = NULL,
   group = NULL,
   dynamic_viewport = FALSE,
-  legend = TRUE
+  legend = TRUE,
+  lng = NULL
 )
 ```
 
@@ -86,6 +89,19 @@ add_points(
 
   Alias for `popup`.
 
+- icon:
+
+  Optional marker icon specification created by
+  [`make_icon()`](https://meztez.github.io/glmap/reference/add_markers.md),
+  [`make_awesome_icon()`](https://meztez.github.io/glmap/reference/add_markers.md),
+  `leaflet::makeIcon()`, or a character vector / formula (`~icon_url`)
+  of SVG/PNG URLs.
+
+- clusterOptions:
+
+  Optional clustering specification (`leaflet::markerClusterOptions()`
+  compatibility).
+
 - id:
 
   Layer ID string.
@@ -103,6 +119,10 @@ add_points(
 
   Logical; whether to automatically add a legend when `color` is mapped
   to data.
+
+- lng:
+
+  Optional alias for `lon` (`leaflet` compatibility).
 
 ## Value
 

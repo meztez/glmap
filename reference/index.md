@@ -68,7 +68,21 @@ providers, API keys, terrain, and projection.
   Set Map Projection (`"mercator"` or `"globe"`)
 
 - [`add_control()`](https://meztez.github.io/glmap/reference/add_control.md)
-  : Configure Map UI Controls
+  :
+
+  Configure Map UI Controls & 9-Zone Layout Anchoring (`add_control`)
+
+- [`add_layers_control()`](https://meztez.github.io/glmap/reference/add_layers_control.md)
+  :
+
+  Add a Collapsible Layers & Basemap Control (`add_layers_control`)
+
+- [`layers_control_options()`](https://meztez.github.io/glmap/reference/layers_control_options.md)
+  :
+
+  Options for
+  [`add_layers_control()`](https://meztez.github.io/glmap/reference/add_layers_control.md)
+  (`layers_control_options`)
 
 - [`add_draw_toolbar()`](https://meztez.github.io/glmap/reference/add_draw_toolbar.md)
   :
@@ -88,7 +102,9 @@ providers, API keys, terrain, and projection.
   (`draw_toolbar_options`)
 
 - [`add_legend()`](https://meztez.github.io/glmap/reference/add_legend.md)
-  : Add a Custom Map Legend
+  :
+
+  Add a Custom Map Legend (`add_legend`)
 
 - [`gl_save_html()`](https://meztez.github.io/glmap/reference/gl_save_html.md)
   :
@@ -108,6 +124,14 @@ PMTiles, and DuckDB layers.
 
 - [`add_points()`](https://meztez.github.io/glmap/reference/add_points.md)
   : Add a GPU Instanced Point Layer (Handles 1M+ Points at 60 FPS)
+
+- [`add_markers()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`make_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`make_awesome_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  :
+
+  Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`,
+  `make_awesome_icon`)
 
 - [`add_circles()`](https://meztez.github.io/glmap/reference/add_circles.md)
   :

@@ -10,7 +10,8 @@ add_draw_toolbar(
   map,
   targetGroup = NULL,
   position = c("topleft", "topright", "bottomleft", "bottomright", "top-left",
-    "top-right", "bottom-left", "bottom-right"),
+    "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center",
+    "center-left", "center-right"),
   polylineOptions = TRUE,
   polygonOptions = TRUE,
   circleOptions = TRUE,
@@ -19,6 +20,8 @@ add_draw_toolbar(
   circleMarkerOptions = FALSE,
   editOptions = TRUE,
   singleFeature = FALSE,
+  direction = c("vertical", "horizontal"),
+  order = 15,
   toolbar = NULL
 )
 ```
@@ -77,6 +80,15 @@ add_draw_toolbar(
 
   Logical; if `TRUE`, drawing a new feature replaces previous drawn
   features (default `FALSE`).
+
+- direction:
+
+  Layout flow direction for the draw toolbar buttons: `"vertical"`
+  (default) or `"horizontal"`.
+
+- order:
+
+  Numeric draw order within the anchor zone (default `15`).
 
 - toolbar:
 
