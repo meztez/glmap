@@ -387,6 +387,23 @@ providers, API keys, terrain, and projection.
 - [`add_control()`](https://meztez.github.io/glmap/reference/add_control.md)
   : Configure Map UI Controls
 
+- [`add_draw_toolbar()`](https://meztez.github.io/glmap/reference/add_draw_toolbar.md)
+  :
+
+  Add an Interactive Vector Drawing Toolbar (`add_draw_toolbar`)
+
+- [`remove_draw_toolbar()`](https://meztez.github.io/glmap/reference/remove_draw_toolbar.md)
+  :
+
+  Remove the Interactive Drawing Toolbar (`remove_draw_toolbar`)
+
+- [`draw_toolbar_options()`](https://meztez.github.io/glmap/reference/draw_toolbar_options.md)
+  :
+
+  Configure Custom Tooltip Titles for
+  [`add_draw_toolbar()`](https://meztez.github.io/glmap/reference/add_draw_toolbar.md)
+  (`draw_toolbar_options`)
+
 - [`add_legend()`](https://meztez.github.io/glmap/reference/add_legend.md)
   : Add a Custom Map Legend
 

@@ -14,6 +14,7 @@
 <url><loc>https://meztez.github.io/glmap/reference/add_circles.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_control.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_deck_layer.html</loc></url>
+<url><loc>https://meztez.github.io/glmap/reference/add_draw_toolbar.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_duckdb.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_geojson.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_heatmap.html</loc></url>
@@ -33,6 +34,7 @@
 <url><loc>https://meztez.github.io/glmap/reference/add_wms_tiles.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/clear_layer.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/clear_layers.html</loc></url>
+<url><loc>https://meztez.github.io/glmap/reference/draw_toolbar_options.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/fit_bounds.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/fly_to.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/fly_to_bounds.html</loc></url>
@@ -57,6 +59,7 @@
 <url><loc>https://meztez.github.io/glmap/reference/index.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/list_plugins.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/register_plugin.html</loc></url>
+<url><loc>https://meztez.github.io/glmap/reference/remove_draw_toolbar.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/renderGlmap.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_basemap.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_filter.html</loc></url>
