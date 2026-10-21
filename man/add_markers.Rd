@@ -32,7 +32,7 @@ marker_cluster_options(
   showCoverageOnHover = TRUE,
   zoomToBoundsOnClick = TRUE,
   spiderfyOnMaxZoom = TRUE,
-  disableClusteringAtZoom = 15,
+  disableClusteringAtZoom = 21,
   maxClusterRadius = 65,
   freezeAtZoom = FALSE
 )

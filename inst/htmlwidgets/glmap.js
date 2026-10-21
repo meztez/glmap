@@ -1255,7 +1255,11 @@
           const c = this.map.getCenter();
           this.camera.centerLon = c.lng;
           this.camera.centerLat = c.lat;
-          this.camera.zoom = this.map.getZoom();
+          const newZoom = this.map.getZoom();
+          if (this._activeSpiderfy && Math.abs(newZoom - this._activeSpiderfy.zoom) > 0.25) {
+            this._activeSpiderfy = null;
+          }
+          this.camera.zoom = newZoom;
           if (this.map.transform && this.map.transform.worldSize) {
             this.camera.worldSize = this.map.transform.worldSize;
           }
@@ -1267,6 +1271,7 @@
       const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
 
       this._activeClusterBadges = [];
+      this._activeSpiderfiedLegs = [];
 
       for (const id of this.layerOrder) {
         const layer = this.layers.get(id);
@@ -1324,9 +1329,9 @@
         }
       }
 
-      // Option 2: Screen-Space Grid Clustering + GPU Singleton Sprites (with LOD inside singletons)
+      // Option 2: Screen-Space Grid Clustering + GPU Singleton Sprites (with Spiderfy web expansion for overlapping coordinates)
       if (mode === "cluster" && ctx2d && n > 1) {
-        const disableZoom = clCfg.disableClusteringAtZoom !== undefined ? Number(clCfg.disableClusteringAtZoom) : 15;
+        const disableZoom = clCfg.disableClusteringAtZoom !== undefined ? Number(clCfg.disableClusteringAtZoom) : 21;
         if (zoom < disableZoom) {
           this._drawClusteredLayer(ctx2d, layer, cx, cy, scale, w, h, dpr);
           return;
@@ -1463,7 +1468,11 @@
 
       // Fast O(N) screen-space spatial hash using pure arithmetic on precomputed mercCoords
       const buckets = new Map();
+      const sp = (this._activeSpiderfy && this._activeSpiderfy.layerId === layer.id) ? this._activeSpiderfy : null;
+      const spSet = sp ? sp.memberSet : null;
+
       for (let i = 0; i < n; i++) {
+        if (spSet && spSet.has(i)) continue; // Spiderfied points are rendered on their expanded web legs!
         const mx = mc[2 * i];
         const my = mc[2 * i + 1];
         const sx = halfW + (mx - cx) * scale;
@@ -1481,6 +1490,7 @@
             sumSx: sx,
             sumSy: sy,
             firstIdx: i,
+            indices: [i],
             minLon: lon,
             minLat: lat,
             maxLon: lon,
@@ -1491,6 +1501,7 @@
           b.count++;
           b.sumSx += sx;
           b.sumSy += sy;
+          if (b.indices.length < 64) b.indices.push(i);
           const lon = coords[2 * i];
           const lat = coords[2 * i + 1];
           if (lon < b.minLon) b.minLon = lon;
@@ -1511,14 +1522,74 @@
         }
       }
 
-      // 1. Render all unclustered singletons in 1 GPU draw call
-      if (singles.length > 0 && gl) {
-        const sCount = singles.length;
+      // Compute spiderfied leg positions (circle or spiral web) if a cluster in this layer is currently spiderfied
+      let spScreenLegs = null;
+      const spStartOffset = singles.length;
+      if (sp && sp.indices && sp.indices.length > 0) {
+        const [hubSx, hubSy] = this.lonLatToScreen(sp.centerLon, sp.centerLat, cx, cy, scale, w, h);
+        const mCount = sp.indices.length;
+        spScreenLegs = [];
+        for (let k = 0; k < mCount; k++) {
+          let legR, ang;
+          if (mCount <= 8) {
+            // Circular spiderfy fan (exact Leaflet.markercluster circle layout)
+            legR = Math.max(30, 24 + mCount * 2.5);
+            ang = (k / mCount) * Math.PI * 2.0 - Math.PI * 0.5;
+          } else {
+            // Spiral spiderfy web for 9+ overlapping markers
+            legR = 28 + k * 4.5;
+            ang = k * 0.65;
+          }
+          const lx = hubSx + legR * Math.cos(ang);
+          const ly = hubSy + legR * Math.sin(ang);
+          const lmx = cx + (lx - halfW) / scale;
+          const lmy = cy + (ly - halfH) / scale;
+          spScreenLegs.push({
+            idx: sp.indices[k],
+            sx: lx,
+            sy: ly,
+            hubSx: hubSx,
+            hubSy: hubSy,
+            mx: lmx,
+            my: lmy
+          });
+        }
+
+        // Draw spiderfy web lines & center hub pin on the 2D overlay BEFORE GPU icons so icons sit cleanly on top of legs
+        ctx.save();
+        ctx.strokeStyle = "rgba(30, 41, 59, 0.75)";
+        ctx.lineWidth = 1.6;
+        for (let k = 0; k < spScreenLegs.length; k++) {
+          const leg = spScreenLegs[k];
+          ctx.beginPath();
+          ctx.moveTo(hubSx, hubSy);
+          ctx.lineTo(leg.sx, leg.sy);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(30, 41, 59, 0.85)";
+        ctx.beginPath();
+        ctx.arc(hubSx, hubSy, 4.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call
+      const extraCount = spScreenLegs ? spScreenLegs.length : 0;
+      const totalGpuSingletons = singles.length + extraCount;
+      if (totalGpuSingletons > 0 && gl) {
+        const sCount = totalGpuSingletons;
         const posArr = new Float32Array(sCount * 2);
-        for (let k = 0; k < sCount; k++) {
+        for (let k = 0; k < singles.length; k++) {
           const idx = singles[k];
           posArr[2 * k] = mc[2 * idx];
           posArr[2 * k + 1] = mc[2 * idx + 1];
+        }
+        if (spScreenLegs) {
+          for (let k = 0; k < spScreenLegs.length; k++) {
+            const off = spStartOffset + k;
+            posArr[2 * off] = spScreenLegs[k].mx;
+            posArr[2 * off + 1] = spScreenLegs[k].my;
+          }
         }
         if (!layer.vboSinglePos) layer.vboSinglePos = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
@@ -1526,8 +1597,13 @@
 
         if (layer.style && layer.style.icons && layer.atlasTex && layer.iconIdxArr) {
           const idxArr = new Float32Array(sCount);
-          for (let k = 0; k < sCount; k++) {
+          for (let k = 0; k < singles.length; k++) {
             idxArr[k] = layer.iconIdxArr[singles[k]];
+          }
+          if (spScreenLegs) {
+            for (let k = 0; k < spScreenLegs.length; k++) {
+              idxArr[spStartOffset + k] = layer.iconIdxArr[spScreenLegs[k].idx];
+            }
           }
           if (!layer.vboSingleIcon) layer.vboSingleIcon = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleIcon);
@@ -1539,7 +1615,7 @@
           const vRgba = layer.parsed.vertexRgba;
           const vRad = layer.parsed.vertexRadius;
           for (let k = 0; k < sCount; k++) {
-            const idx = singles[k];
+            const idx = k < singles.length ? singles[k] : spScreenLegs[k - spStartOffset].idx;
             colArr[4 * k] = vRgba[4 * idx];
             colArr[4 * k + 1] = vRgba[4 * idx + 1];
             colArr[4 * k + 2] = vRgba[4 * idx + 2];
@@ -1619,12 +1695,26 @@
         ctx.fillText(String(cnt), sx, sy + 0.5);
 
         this._activeClusterBadges.push({
+          layerId: layer.id,
           sx,
           sy,
           r: rOut,
           count: cnt,
+          indices: cl.indices,
           bbox: [cl.minLon, cl.minLat, cl.maxLon, cl.maxLat]
         });
+      }
+
+      if (spScreenLegs) {
+        this._activeSpiderfiedLegs = spScreenLegs.map((leg) => ({
+          layerId: layer.id,
+          group: layer.group || layer.id,
+          idx: leg.idx,
+          sx: leg.sx,
+          sy: leg.sy,
+          lon: coords[2 * leg.idx],
+          lat: coords[2 * leg.idx + 1]
+        }));
       }
     }
 
@@ -1859,39 +1949,64 @@
         this.requestRender();
       }
 
-      // Nearest feature picking for tooltips & Shiny events
+      // Nearest feature picking for tooltips & Shiny events (check spiderfied legs first!)
       let hitText = null;
       let hitFeature = null;
-      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
-      const mx = lonToMercX(lon);
-      const my = latToMercY(lat);
-      const tolMerc = 8.0 / scale;
 
-      for (const layer of this.layers.values()) {
-        if (!layer.visible || !layer.parsed) continue;
-        const mc = layer.parsed.mercCoords;
-        const nV = layer.parsed.nVertices;
-        const stride = nV > 100000 ? Math.ceil(nV / 100000) : 1;
-        for (let v = 0; v < nV; v += stride) {
-          const dx = mc[2 * v] - mx;
-          const dy = mc[2 * v + 1] - my;
-          if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
-            const fid = layer.parsed.vertexFeatureIds[v];
+      if (Array.isArray(this._activeSpiderfiedLegs) && this._activeSpiderfiedLegs.length > 0) {
+        for (let k = this._activeSpiderfiedLegs.length - 1; k >= 0; k--) {
+          const leg = this._activeSpiderfiedLegs[k];
+          if (Math.hypot(px - leg.sx, py - leg.sy) <= 15) {
+            const layer = this.layers.get(leg.layerId);
+            const fid = layer && layer.parsed ? layer.parsed.vertexFeatureIds[leg.idx] : leg.idx;
             hitFeature = {
               id: fid + 1,
-              layerId: layer.id,
-              group: layer.group || layer.id,
-              type: layer.type,
-              lng: lon,
-              lat: lat
+              layerId: leg.layerId,
+              group: leg.group,
+              type: "points",
+              lng: leg.lon,
+              lat: leg.lat
             };
-            if (layer.tooltips && layer.tooltips[fid]) {
+            if (layer && layer.tooltips && layer.tooltips[fid]) {
               hitText = layer.tooltips[fid];
             }
             break;
           }
         }
-        if (hitFeature) break;
+      }
+
+      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
+      const mx = lonToMercX(lon);
+      const my = latToMercY(lat);
+      const tolMerc = 8.0 / scale;
+
+      if (!hitFeature) {
+        for (const layer of this.layers.values()) {
+          if (!layer.visible || !layer.parsed) continue;
+          const mc = layer.parsed.mercCoords;
+          const nV = layer.parsed.nVertices;
+          const stride = nV > 100000 ? Math.ceil(nV / 100000) : 1;
+          for (let v = 0; v < nV; v += stride) {
+            const dx = mc[2 * v] - mx;
+            const dy = mc[2 * v + 1] - my;
+            if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
+              const fid = layer.parsed.vertexFeatureIds[v];
+              hitFeature = {
+                id: fid + 1,
+                layerId: layer.id,
+                group: layer.group || layer.id,
+                type: layer.type,
+                lng: lon,
+                lat: lat
+              };
+              if (layer.tooltips && layer.tooltips[fid]) {
+                hitText = layer.tooltips[fid];
+              }
+              break;
+            }
+          }
+          if (hitFeature) break;
+        }
       }
 
       this._hoveredFeature = hitFeature;
@@ -1920,7 +2035,7 @@
       }
       if (this.drawMode) return;
 
-      // 0. Check if user clicked a marker cluster badge -> zoom into cluster bounds (exact Leaflet.markercluster UX!)
+      // 0. Check if user clicked a marker cluster badge -> zoom into cluster bounds OR spiderfy into a web!
       if (Array.isArray(this._activeClusterBadges) && this._activeClusterBadges.length > 0) {
         for (let i = this._activeClusterBadges.length - 1; i >= 0; i--) {
           const cl = this._activeClusterBadges[i];
@@ -1928,7 +2043,23 @@
           const dy = py - cl.sy;
           if (dx * dx + dy * dy <= cl.r * cl.r) {
             const [b0, b1, b2, b3] = cl.bbox;
-            if (Math.abs(b2 - b0) < 1e-4 && Math.abs(b3 - b1) < 1e-4) {
+            const tightSpan = Math.abs(b2 - b0) < 2e-4 && Math.abs(b3 - b1) < 2e-4;
+            const atHighZoom = this.camera.zoom >= 15.5;
+            if ((tightSpan || atHighZoom) && Array.isArray(cl.indices) && cl.indices.length > 1) {
+              // Spiderfy into a radial/spiral web so every overlapping marker can be inspected & clicked!
+              this._activeSpiderfy = {
+                layerId: cl.layerId,
+                centerLon: (b0 + b2) * 0.5,
+                centerLat: (b1 + b3) * 0.5,
+                zoom: this.camera.zoom,
+                indices: cl.indices,
+                memberSet: new Set(cl.indices)
+              };
+              this.requestRender();
+              return;
+            }
+            this._activeSpiderfy = null;
+            if (tightSpan) {
               this.flyTo({ center: [(b0 + b2) * 0.5, (b1 + b3) * 0.5], zoom: Math.min(18, this.camera.zoom + 3), duration: 600 });
             } else {
               this.flyToBounds({ bounds: [b0, b1, b2, b3], padding: 60, duration: 600 });
@@ -1936,6 +2067,12 @@
             return;
           }
         }
+      }
+
+      // If user clicked outside any spiderfied leg or cluster, collapse active spiderfy web
+      if (this._activeSpiderfy && (!this._hoveredFeature || !this._activeSpiderfy.memberSet.has(this._hoveredFeature.id - 1))) {
+        this._activeSpiderfy = null;
+        this.requestRender();
       }
 
       // 1. Check if user clicked inside an existing drawn shape -> show Remove popup

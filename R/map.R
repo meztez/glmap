@@ -821,7 +821,7 @@ marker_cluster_options <- function(
     showCoverageOnHover = TRUE,
     zoomToBoundsOnClick = TRUE,
     spiderfyOnMaxZoom = TRUE,
-    disableClusteringAtZoom = 15,
+    disableClusteringAtZoom = 21,
     maxClusterRadius = 65,
     freezeAtZoom = FALSE
 ) {
@@ -831,7 +831,7 @@ marker_cluster_options <- function(
       showCoverageOnHover = isTRUE(showCoverageOnHover),
       zoomToBoundsOnClick = isTRUE(zoomToBoundsOnClick),
       spiderfyOnMaxZoom = isTRUE(spiderfyOnMaxZoom),
-      disableClusteringAtZoom = if (is.numeric(disableClusteringAtZoom)) as.numeric(disableClusteringAtZoom[1]) else 15,
+      disableClusteringAtZoom = if (is.numeric(disableClusteringAtZoom)) as.numeric(disableClusteringAtZoom[1]) else 21,
       maxClusterRadius = as.numeric(maxClusterRadius[1] %||% 65),
       freezeAtZoom = freezeAtZoom
     ),
@@ -855,7 +855,8 @@ resolve_cluster_spec <- function(clusterOptions, n = 0L, render_mode = "auto") {
     return(list(
       enabled = TRUE,
       zoomToBoundsOnClick = isTRUE(clusterOptions$zoomToBoundsOnClick %||% TRUE),
-      disableClusteringAtZoom = as.numeric(clusterOptions$disableClusteringAtZoom %||% 15),
+      spiderfyOnMaxZoom = isTRUE(clusterOptions$spiderfyOnMaxZoom %||% TRUE),
+      disableClusteringAtZoom = as.numeric(clusterOptions$disableClusteringAtZoom %||% 21),
       maxClusterRadius = as.numeric(clusterOptions$maxClusterRadius %||% 65)
     ))
   }
