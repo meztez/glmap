@@ -370,16 +370,16 @@ gl_pack_raster_binary <- function(
       cli::cli_abort("Package {.pkg terra} is required to pack {.cls SpatRaster} objects.")
     }
     r <- raster[[bands]]
-    crs <- terra::crs(r)
-    if (nzchar(crs) && !terra::is.lonlat(r)) {
-      r <- terra::project(r, "EPSG:4326")
-    }
     ncell_total <- terra::ncell(r)
     if (ncell_total > max_cells) {
       fact <- ceiling(sqrt(ncell_total / max_cells))
       if (fact > 1L) {
         r <- terra::aggregate(r, fact = fact, fun = "mean", na.rm = TRUE)
       }
+    }
+    crs <- terra::crs(r)
+    if (nzchar(crs) && !terra::is.lonlat(r)) {
+      r <- terra::project(r, "EPSG:4326")
     }
     width <- terra::ncol(r)
     height <- terra::nrow(r)
