@@ -391,10 +391,6 @@
       this.switcherEl.className = "glmap-panel glmap-layer-switcher collapsed";
       this.switcherEl.style.display = "none";
 
-      // Toolbar (Measure, Reset View, PNG Export)
-      this.toolbarEl = document.createElement("div");
-      this.toolbarEl.className = "glmap-toolbar";
-
       // Draw Toolbar (leaflet.extras::addDrawToolbar equivalent)
       this.drawToolbarEl = document.createElement("div");
       this.drawToolbarEl.className = "glmap-draw-toolbar";
@@ -454,7 +450,6 @@
     _applyControlLayout(x) {
       const ctrls = (x && x.controls) || {};
       const lsCfg = ctrls.layer_switcher || { enabled: true, position: "top-left", order: 10, collapsed: true };
-      const tbCfg = ctrls.toolbar || { enabled: false, position: "top-center", order: 10, direction: "horizontal" };
       const scCfg = ctrls.scale || { enabled: true, position: "bottom-left", order: 90 };
       const hdCfg = ctrls.hud || { enabled: true, position: "bottom-center", order: 20 };
       const lgCfg = ctrls.legends || { enabled: true, position: "bottom-right", order: 20 };
@@ -462,7 +457,6 @@
 
       this.switcherEl.classList.toggle("collapsed", lsCfg.collapsed !== false);
       this._mountInSlot(this.switcherEl, lsCfg.position || "top-left", lsCfg.order || 10);
-      this._mountInSlot(this.toolbarEl, tbCfg.position || "top-center", tbCfg.order || 10, tbCfg.direction || "horizontal");
       this._mountInSlot(this.scaleEl, scCfg.position || "bottom-left", scCfg.order || 90);
       this._mountInSlot(this.hudEl, hdCfg.position || "bottom-center", hdCfg.order || 20);
       this._mountInSlot(this.legendsEl, lgCfg.position || "bottom-right", lgCfg.order || 20);
@@ -473,7 +467,6 @@
       if (ctrls.measure && ctrls.measure.enabled) {
         this.addMeasureControl(ctrls.measure);
       }
-      this.toolbarEl.style.display = (tbCfg && tbCfg.enabled) ? "flex" : "none";
       this.scaleEl.style.display = (scCfg && scCfg.enabled === false) ? "none" : "block";
       this.hudEl.style.display = (hdCfg && hdCfg.enabled === false) ? "none" : "flex";
     }
@@ -733,7 +726,6 @@
 
       this._initMapLibre(x);
       this._applyControlLayout(x);
-      this._buildToolbar(x);
 
       // Load all binary buffers & upload to GPU VBOs/Textures
       if (Array.isArray(x.layers)) {
@@ -2033,46 +2025,6 @@
       this.requestRender();
     }
 
-    _buildToolbar(x) {
-      const tbCfg = x && x.controls && x.controls.toolbar;
-      if (!tbCfg || !tbCfg.enabled) {
-        this.toolbarEl.style.display = "none";
-        return;
-      }
-      this.toolbarEl.style.display = "flex";
-      this.toolbarEl.innerHTML = "";
-
-      const resetBtn = document.createElement("button");
-      resetBtn.className = "glmap-btn";
-      resetBtn.textContent = "Fit Data";
-      resetBtn.onclick = () => {
-        if (this.spec && this.spec.view && this.spec.view.bounds) {
-          this.fitBounds(this.spec.view.bounds);
-        }
-      };
-      this.toolbarEl.appendChild(resetBtn);
-
-      const measureBtn = document.createElement("button");
-      measureBtn.className = "glmap-btn";
-      measureBtn.textContent = "Measure";
-      measureBtn.onclick = () => {
-        this.measureActive = !this.measureActive;
-        this.measurePoints = [];
-        measureBtn.classList.toggle("active", this.measureActive);
-        this._updateHUD();
-      };
-      this.toolbarEl.appendChild(measureBtn);
-
-      const brushBtn = document.createElement("button");
-      brushBtn.className = "glmap-btn";
-      brushBtn.textContent = "Box Brush";
-      brushBtn.onclick = () => {
-        this.enableBoxSelect();
-        brushBtn.classList.toggle("active", this.boxSelectActive);
-      };
-      this.toolbarEl.appendChild(brushBtn);
-    }
-
     _rebuildLayerSwitcher() {
       const lsCfg = (this.spec && this.spec.controls && this.spec.controls.layer_switcher) || {};
       const baseGroups = Array.isArray(lsCfg.baseGroups) && lsCfg.baseGroups.length > 0
@@ -3369,7 +3321,7 @@
         a.href = this.glCanvas.toDataURL("image/png");
         a.click();
       };
-      this.toolbarEl.appendChild(btn);
+      this._mountInSlot(btn, (cfg && cfg.position) || "top-right", (cfg && cfg.order) || 30);
     }
 
     _initCrosstalk(ct) {

@@ -404,7 +404,7 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_equal(m_meas$x$controls$measure$position, "bottom-right")
   expect_true(m_meas$x$controls$search$enabled)
   expect_equal(m_meas$x$controls$search$position, "top-left")
-  expect_false(m_meas$x$controls$toolbar$enabled)
+  expect_null(m_meas$x$controls$toolbar)
 })
 
 
