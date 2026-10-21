@@ -7,7 +7,7 @@
 add_control(
   map,
   type = c("navigation", "scale", "attribution", "fullscreen", "layer_switcher", "hud",
-    "toolbar", "legends", "draw", "measure"),
+    "toolbar", "legends", "draw", "measure", "search"),
   enabled = TRUE,
   position = "top-right",
   direction = c("vertical", "horizontal"),
@@ -18,7 +18,7 @@ add_control(
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
 
-\item{type}{Control type (\code{"navigation"}, \code{"scale"}, \code{"attribution"}, \code{"fullscreen"}, \code{"layer_switcher"}, \code{"hud"}, \code{"toolbar"}, \code{"legends"}, \code{"draw"}, \code{"measure"}).}
+\item{type}{Control type (\code{"navigation"}, \code{"scale"}, \code{"attribution"}, \code{"fullscreen"}, \code{"layer_switcher"}, \code{"hud"}, \code{"toolbar"}, \code{"legends"}, \code{"draw"}, \code{"measure"}, \code{"search"}).}
 
 \item{enabled}{Logical; whether the control is enabled.}
 

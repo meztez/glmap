@@ -400,6 +400,16 @@
       this.drawToolbarEl.className = "glmap-draw-toolbar";
       this.drawToolbarEl.style.display = "none";
 
+      // Address / OSM Search Control (leaflet.extras::addSearchOSM equivalent)
+      this.searchEl = document.createElement("div");
+      this.searchEl.className = "glmap-panel glmap-search-control";
+      this.searchEl.style.display = "none";
+
+      // Distance & Area Measure Control (leaflet::addMeasure equivalent)
+      this.measureControlEl = document.createElement("div");
+      this.measureControlEl.className = "glmap-panel glmap-measure-control";
+      this.measureControlEl.style.display = "none";
+
       // Bottom-center HUD (FPS, feature count, cursor lon/lat/raster value)
       this.hudEl = document.createElement("div");
       this.hudEl.className = "glmap-panel glmap-hud";
@@ -444,7 +454,7 @@
     _applyControlLayout(x) {
       const ctrls = (x && x.controls) || {};
       const lsCfg = ctrls.layer_switcher || { enabled: true, position: "top-left", order: 10, collapsed: true };
-      const tbCfg = ctrls.toolbar || { enabled: true, position: "top-center", order: 10, direction: "horizontal" };
+      const tbCfg = ctrls.toolbar || { enabled: false, position: "top-center", order: 10, direction: "horizontal" };
       const scCfg = ctrls.scale || { enabled: true, position: "bottom-left", order: 90 };
       const hdCfg = ctrls.hud || { enabled: true, position: "bottom-center", order: 20 };
       const lgCfg = ctrls.legends || { enabled: true, position: "bottom-right", order: 20 };
@@ -457,6 +467,16 @@
       this._mountInSlot(this.hudEl, hdCfg.position || "bottom-center", hdCfg.order || 20);
       this._mountInSlot(this.legendsEl, lgCfg.position || "bottom-right", lgCfg.order || 20);
       this._mountInSlot(this.attributionEl, atCfg.position || "bottom-right", atCfg.order || 100);
+      if (ctrls.search && ctrls.search.enabled) {
+        this.addSearchControl(ctrls.search);
+      }
+      if (ctrls.measure && ctrls.measure.enabled) {
+        this.addMeasureControl(ctrls.measure);
+      }
+      this.toolbarEl.style.display = (tbCfg && tbCfg.enabled) ? "flex" : "none";
+      this.scaleEl.style.display = (scCfg && scCfg.enabled === false) ? "none" : "block";
+      this.hudEl.style.display = (hdCfg && hdCfg.enabled === false) ? "none" : "flex";
+    }
 
       const bm = (x && x.basemap) || {};
       this.attributionEl.innerHTML = bm.attribution || "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>";
@@ -1843,6 +1863,10 @@
       }
 
       this._updateHUD();
+      if (this.measureActive) {
+        this._updateMeasureControlUI();
+        this.requestRender();
+      }
 
       // Nearest feature picking for tooltips & Shiny events
       let hitText = null;
@@ -1898,7 +1922,9 @@
     _handleClick(px, py, lon, lat) {
       if (this.measureActive) {
         this.measurePoints.push([lon, lat]);
+        this._updateMeasureControlUI();
         this._updateHUD();
+        this.requestRender();
         return;
       }
       if (this.drawMode) return;
@@ -1922,27 +1948,31 @@
       }
 
       // 1. Check if user clicked inside an existing drawn shape -> show Remove popup (exact Geonesis pattern!)
-      for (let i = this.drawnFeatures.length - 1; i >= 0; i--) {
-        const f = this.drawnFeatures[i];
-        if (f.bbox && lon >= f.bbox[0] && lon <= f.bbox[2] && lat >= f.bbox[1] && lat <= f.bbox[3]) {
-          const fid = f.properties && f.properties._leaflet_id;
-          this._showPopupAt(px, py, `
-            <div style="padding-right:16px">
-              <div style="font-weight:600;margin-bottom:6px;color:#38bdf8;">Drawn Area #${fid}</div>
-              <button type="button" class="btn btn-sm btn-danger glmap-remove-drawn-btn" data-drawn-id="${fid}" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;">
-                Remove
-              </button>
-            </div>
-          `);
-          const rmBtn = this.popupEl.querySelector(".glmap-remove-drawn-btn");
-          if (rmBtn) {
-            rmBtn.onclick = (ev) => {
-              ev.stopPropagation();
-              this._removeDrawnFeatureById(fid);
-              this.popupEl.style.display = "none";
-            };
+      // Skip if R server already manages drawn shapes via `sg_shape` layer (e.g. Geonesis geometry.R)
+      const hasServerSgLayer = Array.from(this.layers.values()).some((l) => l.group === "sg_shape" || l.id === "sg_shape");
+      if (!hasServerSgLayer) {
+        for (let i = this.drawnFeatures.length - 1; i >= 0; i--) {
+          const f = this.drawnFeatures[i];
+          if (f.bbox && lon >= f.bbox[0] && lon <= f.bbox[2] && lat >= f.bbox[1] && lat <= f.bbox[3]) {
+            const fid = f.properties && f.properties._leaflet_id;
+            this._showPopupAt(px, py, `
+              <div style="padding-right:16px">
+                <div style="font-weight:600;margin-bottom:6px;color:#38bdf8;">Drawn Area #${fid}</div>
+                <button type="button" class="btn btn-sm btn-danger glmap-remove-drawn-btn" data-drawn-id="${fid}" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;">
+                  Remove
+                </button>
+              </div>
+            `);
+            const rmBtn = this.popupEl.querySelector(".glmap-remove-drawn-btn");
+            if (rmBtn) {
+              rmBtn.onclick = (ev) => {
+                ev.stopPropagation();
+                this._removeDrawnFeatureById(fid);
+                this.popupEl.style.display = "none";
+              };
+            }
+            return;
           }
-          return;
         }
       }
 
@@ -2004,6 +2034,12 @@
     }
 
     _buildToolbar(x) {
+      const tbCfg = x && x.controls && x.controls.toolbar;
+      if (!tbCfg || !tbCfg.enabled) {
+        this.toolbarEl.style.display = "none";
+        return;
+      }
+      this.toolbarEl.style.display = "flex";
       this.toolbarEl.innerHTML = "";
 
       const resetBtn = document.createElement("button");
@@ -2046,7 +2082,7 @@
 
       // Collect unique overlay groups from both configured overlayGroups and loaded layers
       const groupMap = new Map();
-      let hasSwitchablePointLayer = false;
+      let hasSwitchablePointLayer = configuredOverlays.length > 0;
       for (const g of configuredOverlays) {
         if (g && g !== "sg_shape" && g !== "js_single_call") {
           groupMap.set(g, { name: g, visible: false, count: 0 });
@@ -2727,8 +2763,27 @@
       const deleted = this.drawnFeatures.slice();
       this.drawnFeatures = [];
       this._stopDrawMode();
+      if (this.popupEl) this.popupEl.style.display = "none";
+      if (this.tooltipEl) this.tooltipEl.style.display = "none";
+
+      // Also clear any server-pushed `sg_shape` AOI layer (e.g. Geonesis geometry.R) and notify `sg_remove`
+      const sgIdsToRemove = [];
+      for (const [id, l] of this.layers.entries()) {
+        if (l.group === "sg_shape" || id === "sg_shape") {
+          sgIdsToRemove.push(id);
+        }
+      }
+      for (const id of sgIdsToRemove) {
+        this.layers.delete(id);
+        this.layerOrder = this.layerOrder.filter((x) => x !== id);
+      }
 
       if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        if (sgIdsToRemove.length > 0 || deleted.length > 0) {
+          // Emit sg_remove with 1..20 so Geonesis `sg$rm(input$sg_remove)` clears all stored polygons in `sg`
+          const allIds = Array.from({ length: Math.max(25, this._drawSeq + 5) }, (_, i) => i + 1);
+          window.Shiny.setInputValue("sg_remove", allIds, { priority: "event" });
+        }
         window.Shiny.setInputValue(this.el.id + "_draw_deleted_features", {
           type: "FeatureCollection",
           features: deleted,
@@ -2841,12 +2896,186 @@
       });
 
       this.el.addEventListener("dblclick", (e) => {
+        if (this.measureActive && this.measurePoints.length >= 2) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.measureActive = false;
+          if (this.map && this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
+          this._updateMeasureControlUI();
+          this._updateHUD();
+          this.requestRender();
+          return;
+        }
         if (this.drawMode === "polygon" || this.drawMode === "polyline") {
           e.preventDefault();
           e.stopPropagation();
           this._finishActiveVertexShape();
         }
       });
+    }
+
+    addMeasureControl(spec) {
+      if (!spec || spec.enabled === false) {
+        this.measureControlEl.style.display = "none";
+        return;
+      }
+      this.measureSpec = spec;
+      this.measureControlEl.style.display = "block";
+      const pos = spec.position || "bottom-right";
+      const ord = spec.order || 15;
+      this._mountInSlot(this.measureControlEl, pos, ord);
+      this._updateMeasureControlUI();
+      this._bindDrawHandlersOnce();
+    }
+
+    _updateMeasureControlUI() {
+      if (!this.measureControlEl || this.measureControlEl.style.display === "none") return;
+      const pts = this.measurePoints || [];
+      const allPts = (this.measureActive && this._cursorLon !== undefined && this._cursorLat !== undefined)
+        ? pts.concat([[this._cursorLon, this._cursorLat]])
+        : pts;
+      const distKm = allPts.length >= 2 ? computePathDistanceKm(allPts) : 0;
+      const distM = distKm * 1000.0;
+      const areaSqM = allPts.length >= 3 ? computePolygonAreaSqM(allPts) : 0;
+
+      const lenStr = distM >= 1000
+        ? `${distKm.toFixed(2)} km (${Math.round(distM).toLocaleString()} m)`
+        : `${Math.round(distM).toLocaleString()} m`;
+      const areaStr = areaSqM >= 1e6
+        ? `${(areaSqM / 1e6).toFixed(2)} sq. km (${Math.round(areaSqM).toLocaleString()} sq. m)`
+        : `${Math.round(areaSqM).toLocaleString()} sq. m`;
+
+      let html = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <button type="button" class="glmap-btn gl-meas-toggle ${this.measureActive ? "active" : ""}" style="font-size:11px;padding:4px 8px;cursor:pointer">
+            📐 ${this.measureActive ? "Finish Measure" : "Measure Distance / Area"}
+          </button>
+          ${pts.length > 0 ? `<button type="button" class="glmap-btn gl-meas-clear" style="font-size:11px;padding:4px 7px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer">Clear</button>` : ""}
+        </div>
+      `;
+      if (pts.length > 0 || this.measureActive) {
+        html += `
+          <div style="margin-top:6px;font-size:11px;color:#e2e8f0;line-height:1.45;border-top:1px solid rgba(148,163,184,0.2);padding-top:5px">
+            <div>Length: <b style="color:#38bdf8">${lenStr}</b></div>
+            ${allPts.length >= 3 ? `<div>Area: <b style="color:#c084fc">${areaStr}</b></div>` : `<div style="color:#94a3b8;font-size:10px">Click points on map (3+ for area, double-click to finish)</div>`}
+          </div>
+        `;
+      }
+      this.measureControlEl.innerHTML = html;
+
+      const toggleBtn = this.measureControlEl.querySelector(".gl-meas-toggle");
+      if (toggleBtn) {
+        toggleBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (!this.measureActive) {
+            this._stopDrawMode();
+            this.measureActive = true;
+            this.measurePoints = [];
+            if (this.map && this.map.doubleClickZoom) this.map.doubleClickZoom.disable();
+          } else {
+            this.measureActive = false;
+            if (this.map && this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
+          }
+          this._updateMeasureControlUI();
+          this._updateHUD();
+          this.requestRender();
+        };
+      }
+      const clrBtn = this.measureControlEl.querySelector(".gl-meas-clear");
+      if (clrBtn) {
+        clrBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.measureActive = false;
+          this.measurePoints = [];
+          if (this.map && this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
+          this._updateMeasureControlUI();
+          this._updateHUD();
+          this.requestRender();
+        };
+      }
+    }
+
+    addSearchControl(spec) {
+      if (!spec || spec.enabled === false) {
+        this.searchEl.style.display = "none";
+        return;
+      }
+      this.searchSpec = spec;
+      this.searchEl.style.display = "block";
+      const pos = spec.position || "top-left";
+      const ord = spec.order !== undefined ? spec.order : 5;
+      this._mountInSlot(this.searchEl, pos, ord);
+
+      const placeholder = spec.textPlaceholder || "Search address or place...";
+      this.searchEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="text" class="gl-osm-input" placeholder="${placeholder}" style="width:195px;padding:4px 8px;font-size:11px;border-radius:6px;border:1px solid rgba(148,163,184,0.35);background:rgba(15,23,42,0.92);color:#f8fafc;outline:none"/>
+          <button type="button" class="glmap-btn gl-osm-btn" title="Search OpenStreetMap" style="padding:4px 7px;font-size:11px;cursor:pointer">🔍</button>
+          <button type="button" class="glmap-btn gl-osm-clr" title="Clear search" style="padding:4px 6px;font-size:11px;display:none;cursor:pointer">&times;</button>
+        </div>
+        <div class="gl-osm-results" style="display:none;margin-top:4px;max-height:180px;overflow-y:auto;border-top:1px solid rgba(148,163,184,0.2);padding-top:4px"></div>
+      `;
+
+      const inp = this.searchEl.querySelector(".gl-osm-input");
+      const btn = this.searchEl.querySelector(".gl-osm-btn");
+      const clr = this.searchEl.querySelector(".gl-osm-clr");
+      const resBox = this.searchEl.querySelector(".gl-osm-results");
+
+      const runSearch = async () => {
+        const q = (inp.value || "").trim();
+        if (!q) return;
+        resBox.style.display = "block";
+        resBox.innerHTML = `<div style="font-size:10px;color:#94a3b8;padding:3px">Searching OpenStreetMap...</div>`;
+        try {
+          const urlTmpl = spec.url || "https://nominatim.openstreetmap.org/search?format=json&q={s}";
+          const url = urlTmpl.replace("{s}", encodeURIComponent(q));
+          const resp = await fetch(url, { headers: { "Accept": "application/json" } });
+          const data = await resp.json();
+          if (!Array.isArray(data) || data.length === 0) {
+            resBox.innerHTML = `<div style="font-size:10px;color:#f87171;padding:3px">No results found.</div>`;
+            return;
+          }
+          resBox.innerHTML = data.slice(0, 6).map((item, idx) => `
+            <div class="gl-osm-item" data-idx="${idx}" style="padding:4px 6px;font-size:11px;cursor:pointer;border-radius:4px;color:#e2e8f0;border-bottom:1px solid rgba(148,163,184,0.12)">
+              ${item.display_name}
+            </div>
+          `).join("");
+          resBox.querySelectorAll(".gl-osm-item").forEach((elItem) => {
+            elItem.onclick = (ev) => {
+              ev.stopPropagation();
+              const pick = data[Number(elItem.getAttribute("data-idx"))];
+              if (!pick) return;
+              const lon = Number(pick.lon);
+              const lat = Number(pick.lat);
+              this._searchMarkerLonLat = [lon, lat];
+              clr.style.display = "inline-block";
+              resBox.style.display = "none";
+              inp.value = pick.display_name.split(",")[0];
+              this.flyTo({ center: [lon, lat], zoom: Number(spec.zoom || 15), duration: 900 });
+              this.requestRender();
+            };
+          });
+        } catch (err) {
+          resBox.innerHTML = `<div style="font-size:10px;color:#f87171;padding:3px">Search unavailable.</div>`;
+        }
+      };
+
+      btn.onclick = (e) => { e.stopPropagation(); runSearch(); };
+      inp.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runSearch();
+        }
+      });
+      clr.onclick = (e) => {
+        e.stopPropagation();
+        inp.value = "";
+        resBox.style.display = "none";
+        clr.style.display = "none";
+        this._searchMarkerLonLat = null;
+        this.requestRender();
+      };
     }
 
     _finishActiveVertexShape() {
@@ -2912,34 +3141,82 @@
       ctx.strokeStyle = "#38bdf8";
       ctx.fillStyle = "rgba(56, 189, 248, 0.20)";
 
-      // 1. Render committed drawn features
-      for (const f of this.drawnFeatures) {
-        const g = f.geometry;
-        const ring = (g.type === "Polygon") ? g.coordinates[0] : (f.properties && f.properties._poly_ring);
-        if (ring && ring.length >= 2) {
-          ctx.beginPath();
-          for (let i = 0; i < ring.length; i++) {
-            const [sx, sy] = this.lonLatToScreen(ring[i][0], ring[i][1], cx, cy, scale, w, h);
-            if (i === 0) ctx.moveTo(sx, sy);
-            else ctx.lineTo(sx, sy);
+      // 1. Render committed drawn features (skip if R server already manages drawn shapes via `sg_shape` layer)
+      const hasServerSgLayer = Array.from(this.layers.values()).some((l) => l.group === "sg_shape" || l.id === "sg_shape");
+      if (!hasServerSgLayer) {
+        for (const f of this.drawnFeatures) {
+          const g = f.geometry;
+          const ring = (g.type === "Polygon") ? g.coordinates[0] : (f.properties && f.properties._poly_ring);
+          if (ring && ring.length >= 2) {
+            ctx.beginPath();
+            for (let i = 0; i < ring.length; i++) {
+              const [sx, sy] = this.lonLatToScreen(ring[i][0], ring[i][1], cx, cy, scale, w, h);
+              if (i === 0) ctx.moveTo(sx, sy);
+              else ctx.lineTo(sx, sy);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else if (g.type === "LineString" && g.coordinates.length >= 2) {
+            ctx.beginPath();
+            for (let i = 0; i < g.coordinates.length; i++) {
+              const [sx, sy] = this.lonLatToScreen(g.coordinates[i][0], g.coordinates[i][1], cx, cy, scale, w, h);
+              if (i === 0) ctx.moveTo(sx, sy);
+              else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+          } else if (g.type === "Point") {
+            const [sx, sy] = this.lonLatToScreen(g.coordinates[0], g.coordinates[1], cx, cy, scale, w, h);
+            ctx.beginPath();
+            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
           }
+        }
+      }
+
+      // 1b. RenderOSM Search Marker Pin if present
+      if (this._searchMarkerLonLat) {
+        const [sx, sy] = this.lonLatToScreen(this._searchMarkerLonLat[0], this._searchMarkerLonLat[1], cx, cy, scale, w, h);
+        ctx.fillStyle = "#ef4444";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // 1c. Render Distance & Area Measure Tool Polygon / Path
+      if (this.measurePoints && this.measurePoints.length > 0) {
+        const mCfg = this.measureSpec || {};
+        const col = this.measureActive ? (mCfg.activeColor || "#38bdf8") : (mCfg.completedColor || "#a855f7");
+        ctx.strokeStyle = col;
+        ctx.fillStyle = this.measureActive ? "rgba(56, 189, 248, 0.16)" : "rgba(168, 85, 247, 0.22)";
+        ctx.lineWidth = 2.4;
+        ctx.setLineDash(this.measureActive ? [5, 4] : []);
+        ctx.beginPath();
+        for (let i = 0; i < this.measurePoints.length; i++) {
+          const [sx, sy] = this.lonLatToScreen(this.measurePoints[i][0], this.measurePoints[i][1], cx, cy, scale, w, h);
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        if (this.measureActive && this._cursorLon !== undefined && this._cursorLat !== undefined) {
+          const [cxPx, cyPx] = this.lonLatToScreen(this._cursorLon, this._cursorLat, cx, cy, scale, w, h);
+          ctx.lineTo(cxPx, cyPx);
+        }
+        if (this.measurePoints.length >= 3) {
           ctx.closePath();
           ctx.fill();
-          ctx.stroke();
-        } else if (g.type === "LineString" && g.coordinates.length >= 2) {
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = col;
+        for (let i = 0; i < this.measurePoints.length; i++) {
+          const [sx, sy] = this.lonLatToScreen(this.measurePoints[i][0], this.measurePoints[i][1], cx, cy, scale, w, h);
           ctx.beginPath();
-          for (let i = 0; i < g.coordinates.length; i++) {
-            const [sx, sy] = this.lonLatToScreen(g.coordinates[i][0], g.coordinates[i][1], cx, cy, scale, w, h);
-            if (i === 0) ctx.moveTo(sx, sy);
-            else ctx.lineTo(sx, sy);
-          }
-          ctx.stroke();
-        } else if (g.type === "Point") {
-          const [sx, sy] = this.lonLatToScreen(g.coordinates[0], g.coordinates[1], cx, cy, scale, w, h);
-          ctx.beginPath();
-          ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+          ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
           ctx.fill();
-          ctx.stroke();
         }
       }
 
@@ -3152,6 +3429,18 @@
     return total;
   }
 
+  function computePolygonAreaSqM(pts) {
+    if (!Array.isArray(pts) || pts.length < 3) return 0;
+    const R = 6378137.0;
+    let area = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [lon1, lat1] = pts[i];
+      const [lon2, lat2] = pts[(i + 1) % pts.length];
+      area += (lon2 - lon1) * DEG2RAD * (2.0 + Math.sin(lat1 * DEG2RAD) + Math.sin(lat2 * DEG2RAD));
+    }
+    return Math.abs((area * R * R) / 2.0);
+  }
+
   // Register htmlwidgets binding
   if (typeof HTMLWidgets !== "undefined") {
     HTMLWidgets.widget({
@@ -3190,6 +3479,9 @@
         else if (m === "clearGroup") inst.clearGroup(args.group);
         else if (m === "setLayerOpacity") inst.setLayerOpacity(args.id, args.opacity);
         else if (m === "setRasterStyle") inst.setRasterStyle(args);
+        else if (m === "setMarkerMode") inst.setMarkerMode(args);
+        else if (m === "addMeasureControl") inst.addMeasureControl(args);
+        else if (m === "addSearchControl") inst.addSearchControl(args);
         else if (m === "setBasemap") inst.setBasemap(args);
         else if (m === "setView") inst.setView(args);
         else if (m === "flyTo") inst.flyTo(args);

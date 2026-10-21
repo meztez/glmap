@@ -83,7 +83,7 @@ glmap <- function(
         baseGroups = c("Light", "Dark", "Satellite"),
         overlayGroups = character(0)
       ),
-      toolbar = list(enabled = TRUE, position = "top-center", direction = "horizontal", order = 10),
+      toolbar = list(enabled = FALSE, position = "top-center", direction = "horizontal", order = 10),
       scale = list(enabled = TRUE, position = "bottom-left", direction = "horizontal", order = 90),
       hud = list(enabled = TRUE, position = "bottom-center", direction = "horizontal", order = 20),
       legends = list(enabled = TRUE, position = "bottom-right", direction = "vertical", order = 20),

@@ -395,6 +395,16 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   m_sw <- set_marker_mode(m_clust, "clust_icons", mode = "lod", lod_zoom = c(9, 11))
   expect_equal(m_sw$x$layers[[1]]$style$render$mode, "lod")
   expect_equal(m_sw$x$layers[[1]]$style$render$lod_min_zoom, 9)
+
+  # Test add_measure and add_search_osm (leaflet + leaflet.extras parity)
+  m_meas <- glmap() |>
+    add_measure(position = "bottomright", primaryLengthUnit = "meters", primaryAreaUnit = "sqmeters") |>
+    add_search_osm(options = search_options(autoCollapse = FALSE))
+  expect_true(m_meas$x$controls$measure$enabled)
+  expect_equal(m_meas$x$controls$measure$position, "bottom-right")
+  expect_true(m_meas$x$controls$search$enabled)
+  expect_equal(m_meas$x$controls$search$position, "top-left")
+  expect_false(m_meas$x$controls$toolbar$enabled)
 })
 
 

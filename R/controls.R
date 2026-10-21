@@ -189,7 +189,7 @@ normalize_anchor_position <- function(position = "top-right") {
 #' attribution labels never overlap!
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
-#' @param type Control type (`"navigation"`, `"scale"`, `"attribution"`, `"fullscreen"`, `"layer_switcher"`, `"hud"`, `"toolbar"`, `"legends"`, `"draw"`, `"measure"`).
+#' @param type Control type (`"navigation"`, `"scale"`, `"attribution"`, `"fullscreen"`, `"layer_switcher"`, `"hud"`, `"toolbar"`, `"legends"`, `"draw"`, `"measure"`, `"search"`).
 #' @param enabled Logical; whether the control is enabled.
 #' @param position One of the 9 anchor positions (`"top-left"`, `"top-center"`, `"top-right"`, `"center-left"`, `"center-center"`, `"center-right"`, `"bottom-left"`, `"bottom-center"`, `"bottom-right"`, or `"topleft"`, `"bottomright"`, etc.).
 #' @param direction Layout flow direction for the anchor slot: `"vertical"` (default) or `"horizontal"`.
@@ -198,7 +198,7 @@ normalize_anchor_position <- function(position = "top-right") {
 #' @export
 add_control <- function(
     map,
-    type = c("navigation", "scale", "attribution", "fullscreen", "layer_switcher", "hud", "toolbar", "legends", "draw", "measure"),
+    type = c("navigation", "scale", "attribution", "fullscreen", "layer_switcher", "hud", "toolbar", "legends", "draw", "measure", "search"),
     enabled = TRUE,
     position = "top-right",
     direction = c("vertical", "horizontal"),
@@ -460,6 +460,124 @@ draw_toolbar_options <- function(
     )
 ) {
   list(actions = actions, finish = finish, buttons = buttons)
+}
+
+#' Add an Interactive Distance & Area Measurement Control (`add_measure`)
+#'
+#' Drop-in GPU equivalent of `leaflet::addMeasure()`. Adds an interactive
+#' measurement widget (defaulting to `"bottom-right"`) that lets users click
+#' vertices on the map to measure **geodesic path distance** (`m` / `km` / `mi`)
+#' and **geodesic polygon area** (`sq. m` / `ha` / `sq. km` / `acres`) with live
+#' segment rubber-banding, double-click to finish, and 1-click Clear.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param position Anchor position in the 9-zone layout grid (default `"bottomright"`).
+#' @param primaryLengthUnit Primary length unit (`"meters"`, `"kilometers"`, `"feet"`, `"miles"`).
+#' @param secondaryLengthUnit Optional secondary length unit (`"kilometers"`, `"miles"`).
+#' @param primaryAreaUnit Primary area unit (`"sqmeters"`, `"hectares"`, `"sqkilometers"`, `"acres"`).
+#' @param secondaryAreaUnit Optional secondary area unit.
+#' @param activeColor Stroke/vertex color while actively measuring (default `"#38bdf8"`).
+#' @param completedColor Stroke/fill color when a measurement is completed (default `"#a855f7"`).
+#' @param localization Language code (default `"en"`).
+#' @param order Numeric draw order within the anchor zone (default `15`).
+#' @return Updated `glmap` widget or `glmap_proxy`.
+#' @export
+add_measure <- function(
+    map,
+    position = "bottomright",
+    primaryLengthUnit = "meters",
+    secondaryLengthUnit = "kilometers",
+    primaryAreaUnit = "sqmeters",
+    secondaryAreaUnit = NULL,
+    activeColor = "#38bdf8",
+    completedColor = "#a855f7",
+    localization = "en",
+    order = 15
+) {
+  pos_norm <- normalize_anchor_position(position[1])
+  spec <- list(
+    enabled = TRUE,
+    position = pos_norm,
+    order = as.numeric(order[1]),
+    primaryLengthUnit = as.character(primaryLengthUnit[1]),
+    secondaryLengthUnit = if (!is.null(secondaryLengthUnit)) as.character(secondaryLengthUnit[1]) else "kilometers",
+    primaryAreaUnit = as.character(primaryAreaUnit[1]),
+    secondaryAreaUnit = if (!is.null(secondaryAreaUnit)) as.character(secondaryAreaUnit[1]) else NULL,
+    activeColor = as.character(activeColor[1]),
+    completedColor = as.character(completedColor[1]),
+    localization = as.character(localization[1])
+  )
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "addMeasureControl", spec))
+  }
+  map$x$controls$measure <- spec
+  map
+}
+
+#' Add an OpenStreetMap Address & Place Search Bar (`add_search_osm`, `search_options`)
+#'
+#' Drop-in equivalent of `leaflet.extras::addSearchOSM()` and
+#' `leaflet.extras::searchOptions()`. Adds an interactive address/place geocoder
+#' bar powered by OpenStreetMap Nominatim with autocomplete suggestions, Enter-to-search,
+#' smooth camera fly-to, and an optional location pin.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param options Search configuration list created by [search_options()].
+#' @param position Anchor position in the 9-zone layout grid (default `"top-left"`).
+#' @param order Numeric draw order within the anchor zone (default `5`).
+#' @return Updated `glmap` widget or `glmap_proxy`.
+#' @export
+add_search_osm <- function(
+    map,
+    options = search_options(),
+    position = NULL,
+    order = 5
+) {
+  pos <- position %||% (if (is.list(options) && !is.null(options$position)) options$position else "top-left")
+  pos_norm <- normalize_anchor_position(pos[1])
+  spec <- list(
+    enabled = TRUE,
+    position = pos_norm,
+    order = as.numeric(order[1]),
+    url = (if (is.list(options)) options$url else NULL) %||% "https://nominatim.openstreetmap.org/search?format=json&q={s}",
+    zoom = as.numeric((if (is.list(options)) options$zoom else NULL) %||% 15),
+    autoCollapse = isTRUE(if (is.list(options) && !is.null(options$autoCollapse)) options$autoCollapse else FALSE),
+    textPlaceholder = as.character((if (is.list(options)) options$textPlaceholder else NULL) %||% "Search address or place..."),
+    hideMarkerOnCollapse = isTRUE(if (is.list(options) && !is.null(options$hideMarkerOnCollapse)) options$hideMarkerOnCollapse else TRUE)
+  )
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "addSearchControl", spec))
+  }
+  map$x$controls$search <- spec
+  map
+}
+
+#' @param url Geocoding endpoint URL template containing `{s}` (default Nominatim JSON endpoint).
+#' @param zoom Target zoom level when flying to a matched address (default `15`).
+#' @param autoCollapse Logical; if `TRUE`, collapses the search input until clicked (default `FALSE`).
+#' @param textPlaceholder Placeholder text inside the search input.
+#' @param position Anchor position (default `"topleft"`).
+#' @param hideMarkerOnCollapse Logical; remove the search pin when cleared (default `TRUE`).
+#' @param ... Additional options ignored for `leaflet.extras::searchOptions()` compatibility.
+#' @rdname add_search_osm
+#' @export
+search_options <- function(
+    url = "https://nominatim.openstreetmap.org/search?format=json&q={s}",
+    zoom = 15,
+    autoCollapse = FALSE,
+    textPlaceholder = "Search address or place...",
+    position = "topleft",
+    hideMarkerOnCollapse = TRUE,
+    ...
+) {
+  list(
+    url = url,
+    zoom = zoom,
+    autoCollapse = isTRUE(autoCollapse),
+    textPlaceholder = textPlaceholder,
+    position = position,
+    hideMarkerOnCollapse = isTRUE(hideMarkerOnCollapse)
+  )
 }
 
 #' Save a `glmap` Map to a Standalone HTML File (`gl_save_html`)
