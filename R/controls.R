@@ -158,41 +158,182 @@ set_projection <- function(map, projection = c("mercator", "globe")) {
   map
 }
 
-#' Configure Map UI Controls
+normalize_anchor_position <- function(position = "top-right") {
+  p <- tolower(trimws(as.character(position[1])))
+  switch(
+    p,
+    "topleft" = , "top-left" = "top-left",
+    "topcenter" = , "top-center" = , "top" = "top-center",
+    "topright" = , "top-right" = "top-right",
+    "centerleft" = , "center-left" = , "left" = "center-left",
+    "center" = , "center-center" = "center-center",
+    "centerright" = , "center-right" = , "right" = "center-right",
+    "bottomleft" = , "bottom-left" = "bottom-left",
+    "bottomcenter" = , "bottom-center" = , "bottom" = "bottom-center",
+    "bottomright" = , "bottom-right" = "bottom-right",
+    "top-right"
+  )
+}
+
+#' Configure Map UI Controls & 9-Zone Layout Anchoring (`add_control`)
 #'
-#' @param map A `glmap` widget.
-#' @param type Control type (`"navigation"`, `"scale"`, `"fullscreen"`, `"layer_switcher"`, `"hud"`, `"draw"`, `"measure"`).
+#' Configures built-in map controls and positions them inside `glmap`'s
+#' **9-zone directional layout grid** (`x = left | center | right`,
+#' `y = top | center | bottom`).
+#'
+#' Each of the 9 anchor zones (`"top-left"`, `"top-center"`, `"top-right"`,
+#' `"center-left"`, `"center-center"`, `"center-right"`, `"bottom-left"`,
+#' `"bottom-center"`, `"bottom-right"`) automatically stacks its child controls
+#' in a configurable `direction` (`"vertical"` or `"horizontal"`) sorted by
+#' `order` (lowest first), so controls, draw tools, legends, scale bar, and
+#' attribution labels never overlap!
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param type Control type (`"navigation"`, `"scale"`, `"attribution"`, `"fullscreen"`, `"layer_switcher"`, `"hud"`, `"toolbar"`, `"legends"`, `"draw"`, `"measure"`).
 #' @param enabled Logical; whether the control is enabled.
-#' @param position Control corner (`"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`).
+#' @param position One of the 9 anchor positions (`"top-left"`, `"top-center"`, `"top-right"`, `"center-left"`, `"center-center"`, `"center-right"`, `"bottom-left"`, `"bottom-center"`, `"bottom-right"`, or `"topleft"`, `"bottomright"`, etc.).
+#' @param direction Layout flow direction for the anchor slot: `"vertical"` (default) or `"horizontal"`.
+#' @param order Numeric draw order within the anchor slot (default `10`).
+#' @param collapsed Logical; for `"layer_switcher"`, whether the panel starts collapsed as a compact button (default `TRUE`).
 #' @export
 add_control <- function(
     map,
-    type = c("navigation", "scale", "fullscreen", "layer_switcher", "hud", "draw", "measure"),
+    type = c("navigation", "scale", "attribution", "fullscreen", "layer_switcher", "hud", "toolbar", "legends", "draw", "measure"),
     enabled = TRUE,
-    position = "top-right"
+    position = "top-right",
+    direction = c("vertical", "horizontal"),
+    order = 10,
+    collapsed = NULL
 ) {
   type <- match.arg(type)
-  map$x$controls[[type]] <- list(enabled = isTRUE(enabled), position = position)
+  direction <- match.arg(direction)
+  pos_norm <- normalize_anchor_position(position)
+  cfg <- list(
+    enabled = isTRUE(enabled),
+    position = pos_norm,
+    direction = direction,
+    order = as.numeric(order[1])
+  )
+  if (!is.null(collapsed)) cfg$collapsed <- isTRUE(collapsed)
+
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "configureControl", list(type = type, config = cfg)))
+  }
+  map$x$controls[[type]] <- cfg
   map
 }
 
-#' Add a Custom Map Legend
+#' Add a Collapsible Layers & Basemap Control (`add_layers_control`)
+#'
+#' Drop-in GPU equivalent of `leaflet::addLayersControl()`. Adds a collapsible
+#' control (defaulting to `"top-right"` or `"top-left"`) with radio buttons for
+#' switching `baseGroups` (`"Light"`, `"Dark"`, `"Satellite"`, etc.) and
+#' checkboxes for toggling `overlayGroups` (`"Risks"`, `"Claims"`, `"Precipitation"`, etc.).
+#' Also emits `input$<mapId>_groups` in Shiny so existing `leaflet` observers work
+#' with zero changes!
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param baseGroups Character vector of basemap group names (default `c("Light", "Dark", "Satellite")`).
+#' @param overlayGroups Character vector of overlay group names.
+#' @param position Anchor position in the 9-zone layout grid (default `"top-left"`).
+#' @param options Options list from [layers_control_options()] (e.g., `list(collapsed = TRUE)`).
+#' @param order Numeric draw order within the anchor zone (default `10`).
+#' @export
+add_layers_control <- function(
+    map,
+    baseGroups = c("Light", "Dark", "Satellite"),
+    overlayGroups = character(0),
+    position = "top-left",
+    options = layers_control_options(),
+    order = 10
+) {
+  pos_norm <- normalize_anchor_position(position)
+  collapsed <- if (is.list(options) && !is.null(options$collapsed)) isTRUE(options$collapsed) else TRUE
+
+  spec <- list(
+    enabled = TRUE,
+    position = pos_norm,
+    order = as.numeric(order[1]),
+    collapsed = collapsed,
+    baseGroups = as.character(baseGroups),
+    overlayGroups = as.character(overlayGroups)
+  )
+
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "setLayersControl", spec))
+  }
+  map$x$controls$layer_switcher <- spec
+  map
+}
+
+#' Options for `add_layers_control()` (`layers_control_options`)
+#'
+#' Drop-in equivalent of `leaflet::layersControlOptions()`.
+#'
+#' @param collapsed Logical; if `TRUE` (default), the control is collapsed into an icon button and expands on hover/click.
+#' @param autoZIndex Logical; kept for compatibility with `leaflet`.
+#' @export
+layers_control_options <- function(collapsed = TRUE, autoZIndex = TRUE) {
+  list(collapsed = isTRUE(collapsed), autoZIndex = isTRUE(autoZIndex))
+}
+
+#' Add a Custom Map Legend (`add_legend`)
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
 #' @param title Legend title.
-#' @param colors Character vector of hex/CSS colors.
+#' @param colors Character vector of hex/CSS colors (or a palette function when `pal` is used).
 #' @param labels Character vector of category labels (for categorical legends).
 #' @param domain Numeric vector `c(min, max)` (for continuous legends).
+#' @param position One of the 9 anchor positions (default `"bottom-right"`).
+#' @param direction Layout direction (`"vertical"` or `"horizontal"`).
+#' @param order Numeric draw order within the anchor zone (default `20`).
 #' @param layer_id Optional associated layer ID.
+#' @param group Optional associated layer group name (legend hides automatically when group is hidden).
+#' @param pal Optional `leaflet::colorNumeric` palette function for drop-in `leaflet::addLegend()` compatibility.
+#' @param values Optional numeric values vector when using `pal`.
+#' @param opacity Optional numeric opacity.
+#' @param layerId Optional alias for `layer_id` (`leaflet` compatibility).
+#' @param labFormat Optional label format function (`leaflet` compatibility).
 #' @export
-add_legend <- function(map, title, colors, labels = NULL, domain = NULL, layer_id = NULL) {
+add_legend <- function(
+    map,
+    title = "Legend",
+    colors = NULL,
+    labels = NULL,
+    domain = NULL,
+    position = "bottom-right",
+    direction = "vertical",
+    order = 20,
+    layer_id = NULL,
+    group = NULL,
+    pal = NULL,
+    values = NULL,
+    opacity = 1.0,
+    layerId = NULL,
+    labFormat = NULL
+) {
+  layer_id <- layer_id %||% layerId %||% group %||% next_layer_id("legend")
+  pos_norm <- normalize_anchor_position(position)
+
+  if (!is.null(pal) && is.function(pal) && !is.null(values)) {
+    rng <- range(values, na.rm = TRUE, finite = TRUE)
+    if (!all(is.finite(rng))) rng <- c(0, 1)
+    domain <- domain %||% rng
+    colors <- pal(seq(rng[1], rng[2], length.out = 7L))
+  }
+  colors <- as.character(colors %||% c("#440154", "#21918c", "#fde725"))
+
   leg <- list(
-    layer_id = layer_id %||% next_layer_id("legend"),
+    layer_id = as.character(layer_id),
+    group = if (!is.null(group)) as.character(group) else NULL,
     type = if (!is.null(labels)) "categorical" else "continuous",
-    title = title,
-    colors = as.character(colors),
+    title = as.character(title),
+    colors = colors,
     labels = if (!is.null(labels)) as.character(labels) else NULL,
-    domain = if (!is.null(domain)) as.numeric(domain) else c(0, 1)
+    domain = if (!is.null(domain)) as.numeric(domain) else c(0, 1),
+    position = pos_norm,
+    direction = direction,
+    order = as.numeric(order[1])
   )
   if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "addLegend", leg))
@@ -231,13 +372,15 @@ add_legend <- function(map, title, colors, labels = NULL, domain = NULL, layer_i
 #' @param circleMarkerOptions List of options or `TRUE`/`FALSE` to enable/disable the circle marker tool (default `FALSE`).
 #' @param editOptions List of options or `TRUE`/`FALSE` to enable/disable feature deletion/clearing (default `TRUE`).
 #' @param singleFeature Logical; if `TRUE`, drawing a new feature replaces previous drawn features (default `FALSE`).
+#' @param direction Layout flow direction for the draw toolbar buttons: `"vertical"` (default) or `"horizontal"`.
+#' @param order Numeric draw order within the anchor zone (default `15`).
 #' @param toolbar Optional custom button titles created via [draw_toolbar_options()].
 #' @return Updated `glmap` widget or `glmap_proxy`.
 #' @export
 add_draw_toolbar <- function(
     map,
     targetGroup = NULL,
-    position = c("topleft", "topright", "bottomleft", "bottomright", "top-left", "top-right", "bottom-left", "bottom-right"),
+    position = c("topleft", "topright", "bottomleft", "bottomright", "top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "center-left", "center-right"),
     polylineOptions = TRUE,
     polygonOptions = TRUE,
     circleOptions = TRUE,
@@ -246,17 +389,12 @@ add_draw_toolbar <- function(
     circleMarkerOptions = FALSE,
     editOptions = TRUE,
     singleFeature = FALSE,
+    direction = c("vertical", "horizontal"),
+    order = 15,
     toolbar = NULL
 ) {
-  pos <- as.character(position[1])
-  pos_norm <- switch(
-    pos,
-    "topleft" = "top-left",
-    "topright" = "top-right",
-    "bottomleft" = "bottom-left",
-    "bottomright" = "bottom-right",
-    pos
-  )
+  pos_norm <- normalize_anchor_position(position[1])
+  direction <- match.arg(direction)
 
   is_enabled <- function(opt) {
     !identical(opt, FALSE) && !is.null(opt)
@@ -266,6 +404,8 @@ add_draw_toolbar <- function(
     enabled = TRUE,
     targetGroup = targetGroup %||% "drawn_features",
     position = pos_norm,
+    direction = direction,
+    order = as.numeric(order[1]),
     tools = list(
       polygon = is_enabled(polygonOptions),
       rectangle = is_enabled(rectangleOptions),

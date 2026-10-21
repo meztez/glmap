@@ -73,11 +73,21 @@ glmap <- function(
     transport = transport,
     layers = list(),
     controls = list(
-      navigation = list(enabled = TRUE, position = "top-right"),
-      scale = list(enabled = TRUE, position = "bottom-left"),
-      fullscreen = list(enabled = TRUE, position = "top-right"),
-      layer_switcher = list(enabled = TRUE, position = "top-left"),
-      hud = list(enabled = TRUE, position = "bottom-left")
+      navigation = list(enabled = TRUE, position = "top-right", direction = "vertical", order = 10),
+      layer_switcher = list(
+        enabled = TRUE,
+        position = "top-left",
+        direction = "vertical",
+        order = 10,
+        collapsed = TRUE,
+        baseGroups = c("Light", "Dark", "Satellite"),
+        overlayGroups = character(0)
+      ),
+      toolbar = list(enabled = TRUE, position = "top-center", direction = "horizontal", order = 10),
+      scale = list(enabled = TRUE, position = "bottom-left", direction = "horizontal", order = 90),
+      hud = list(enabled = TRUE, position = "bottom-center", direction = "horizontal", order = 20),
+      legends = list(enabled = TRUE, position = "bottom-right", direction = "vertical", order = 20),
+      attribution = list(enabled = TRUE, position = "bottom-right", direction = "horizontal", order = 100)
     ),
     legends = list(),
     terrain = NULL,
@@ -564,7 +574,7 @@ add_sf <- function(map, data = NULL, ...) {
   if (!inherits(data, c("sf", "sfc")) && is.data.frame(data)) {
     return(add_points(map, data = data, ...))
   }
-  sfc <- if (inherits(data, "sf")) sf::st_geometry(data) else data
+  sfc <- if (inherits(data, "sf")) data[[attr(data, "sf_column") %||% "geometry"]] else data
   cls <- class(sfc)[1]
   if (grepl("POINT", cls, fixed = TRUE)) {
     add_points(map, data = data, ...)
@@ -594,11 +604,15 @@ add_sf <- function(map, data = NULL, ...) {
 #' @param stroke_width Stroke width in pixels (default `1.0`).
 #' @param popup Optional formula (`~name`), column name, or character vector for click/hover tooltips.
 #' @param label Alias for `popup`.
+#' @param icon Optional marker icon specification created by [make_icon()], [make_awesome_icon()],
+#'   `leaflet::makeIcon()`, or a character vector / formula (`~icon_url`) of SVG/PNG URLs.
+#' @param clusterOptions Optional clustering specification (`leaflet::markerClusterOptions()` compatibility).
 #' @param id Layer ID string.
 #' @param group Layer group name shown in the interactive layer switcher.
 #' @param dynamic_viewport Logical; if `TRUE`, builds an in-memory C++ spatial index and streams
 #'   only the visible viewport slice via the local `httpuv` server.
 #' @param legend Logical; whether to automatically add a legend when `color` is mapped to data.
+#' @param lng Optional alias for `lon` (`leaflet` compatibility).
 #' @return Updated `glmap` map object.
 #' @export
 add_points <- function(
@@ -615,20 +629,27 @@ add_points <- function(
     stroke_width = 1.0,
     popup = NULL,
     label = NULL,
+    icon = NULL,
+    clusterOptions = NULL,
     id = NULL,
     group = NULL,
     dynamic_viewport = FALSE,
-    legend = TRUE
+    legend = TRUE,
+    lng = NULL
 ) {
   data <- data %||% attr(map$x, "glmap_data")
   if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_points}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
+  lon <- lon %||% lng
   id <- id %||% next_layer_id("points")
   group <- group %||% id
 
   if (inherits(lon, "formula")) lon <- rlang::as_name(rlang::f_rhs(lon))
   if (inherits(lat, "formula")) lat <- rlang::as_name(rlang::f_rhs(lat))
+  if (inherits(data, c("SpatVector", "Spatial")) && requireNamespace("sf", quietly = TRUE)) {
+    data <- sf::st_as_sf(data)
+  }
 
   n <- if (inherits(data, "sfc")) length(data) else nrow(data)
   col_res <- resolve_rgba(color = color, data = data, n = n, opacity = opacity, palette = palette)
@@ -657,6 +678,7 @@ add_points <- function(
 
   stroke_rgb <- as.integer(grDevices::col2rgb(stroke_color, alpha = FALSE)[, 1])
   tooltips <- build_popup_labels(popup, label, data)
+  icon_spec <- resolve_icon_spec(icon, data, n)
 
   layer_spec <- list(
     id = id,
@@ -673,15 +695,126 @@ add_points <- function(
       radius = if (length(rad_vec) == 1L) rad_vec else 5.0,
       stroke = isTRUE(stroke),
       stroke_color = stroke_rgb,
-      stroke_width = as.numeric(stroke_width)
+      stroke_width = as.numeric(stroke_width),
+      icons = icon_spec
     ),
     tooltips = tooltips
   )
 
   legend_spec <- if (isTRUE(legend)) col_res$legend else NULL
-  if (!is.null(legend_spec)) legend_spec$layer_id <- id
+  if (!is.null(legend_spec)) {
+    legend_spec$layer_id <- id
+    legend_spec$group <- group
+  }
 
   dispatch_layer(map, layer_spec, legend_spec, attr(raw_buf, "bbox"))
+}
+
+#' Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`, `make_awesome_icon`)
+#'
+#' Drop-in GPU/Canvas equivalents of `leaflet::addMarkers()`, `leaflet::makeIcon()`,
+#' and `leaflet::makeAwesomeIcon()`. Supports per-feature SVG/PNG icon URLs (such as
+#' Geonesis product icons `bateau1.svg`, `habitation1.svg`, `auto1.svg`) as well as
+#' colored pin/badge markers.
+#'
+#' @inheritParams add_points
+#' @param ... Additional arguments passed to [add_points()].
+#' @export
+add_markers <- function(
+    map,
+    data = NULL,
+    lng = NULL,
+    lat = NULL,
+    icon = NULL,
+    popup = NULL,
+    label = NULL,
+    group = NULL,
+    clusterOptions = NULL,
+    id = NULL,
+    ...
+) {
+  add_points(
+    map = map,
+    data = data,
+    lon = lng,
+    lat = lat,
+    icon = icon,
+    popup = popup,
+    label = label,
+    group = group,
+    clusterOptions = clusterOptions,
+    id = id %||% next_layer_id("markers"),
+    legend = FALSE,
+    ...
+  )
+}
+
+#' @param iconUrl URL or relative path (e.g. inside Shiny `www/`) to an SVG or PNG icon.
+#' @param iconWidth,iconHeight Icon dimensions in pixels (default `28`).
+#' @rdname add_markers
+#' @export
+make_icon <- function(iconUrl, iconWidth = 28, iconHeight = 28) {
+  structure(
+    list(
+      iconUrl = as.character(iconUrl),
+      iconWidth = as.numeric(iconWidth[1]),
+      iconHeight = as.numeric(iconHeight[1])
+    ),
+    class = c("gl_icon", "leaflet_icon")
+  )
+}
+
+#' @param text Optional short symbol or glyph text inside the awesome marker pin.
+#' @param markerColor Marker pin color (e.g., `"red"`, `"blue"`, `"orange"`, `"green"`, `"purple"`).
+#' @param iconColor Inner glyph color (default `"#ffffff"`).
+#' @rdname add_markers
+#' @export
+make_awesome_icon <- function(text = "●", markerColor = "blue", iconColor = "#ffffff") {
+  structure(
+    list(
+      type = "awesome",
+      text = as.character(text),
+      markerColor = as.character(markerColor),
+      iconColor = as.character(iconColor),
+      iconWidth = 28,
+      iconHeight = 34
+    ),
+    class = c("gl_awesome_icon", "leaflet_awesome_icon")
+  )
+}
+
+resolve_icon_spec <- function(icon, data, n) {
+  if (is.null(icon) || n == 0L) return(NULL)
+  if (inherits(icon, "formula")) {
+    icon <- eval_aesthetic(icon, data)
+  }
+  if (is.character(icon)) {
+    icon <- make_icon(iconUrl = icon, iconWidth = 28, iconHeight = 28)
+  }
+  if (is.list(icon) && !is.null(icon$iconUrl)) {
+    urls <- as.character(icon$iconUrl)
+    f <- as.factor(urls)
+    atlas <- levels(f)
+    idx0 <- as.integer(f) - 1L
+    return(list(
+      type = "url",
+      atlas = as.list(atlas),
+      indices = if (length(idx0) == 1L) idx0 else as.integer(idx0),
+      width = as.numeric(icon$iconWidth[1] %||% 28),
+      height = as.numeric(icon$iconHeight[1] %||% 28)
+    ))
+  }
+  if (inherits(icon, c("gl_awesome_icon", "leaflet_awesome_icon")) || (is.list(icon) && identical(icon$type, "awesome"))) {
+    return(list(
+      type = "awesome",
+      text = as.character(icon$text[1] %||% "●"),
+      markerColor = as.character(icon$markerColor[1] %||% "#0284c7"),
+      iconColor = as.character(icon$iconColor[1] %||% "#ffffff"),
+      width = as.numeric(icon$iconWidth[1] %||% 28),
+      height = as.numeric(icon$iconHeight[1] %||% 34)
+    ))
+  }
+  NULL
 }
 
 #' Add a GPU LineString / MultiLineString Layer
@@ -780,6 +913,9 @@ add_polygons <- function(
   id <- id %||% next_layer_id("polygons")
   group <- group %||% id
 
+  if (inherits(data, c("SpatVector", "Spatial")) && requireNamespace("sf", quietly = TRUE)) {
+    data <- sf::st_as_sf(data)
+  }
   n <- if (inherits(data, "sfc")) length(data) else nrow(data)
   col_res <- resolve_rgba(color = fill_color, data = data, n = n, opacity = fill_opacity, palette = palette)
   elev_vec <- if (!is.null(extrude)) resolve_numeric_aesthetic(extrude, data = data, default = 0) else numeric(0)

@@ -334,6 +334,7 @@
 
     _initDOM() {
       this.el.innerHTML = "";
+      this._iconCache = new Map();
 
       this.mapContainer = document.createElement("div");
       this.mapContainer.className = "glmap-map-canvas";
@@ -347,37 +348,100 @@
       this.labelCanvas.className = "glmap-gl-overlay";
       this.el.appendChild(this.labelCanvas);
 
+      // 9-Zone Directional & Ordered Layout Dock Grid (x = left|center|right, y = top|center|bottom)
+      this.dockGridEl = document.createElement("div");
+      this.dockGridEl.className = "glmap-dock-grid";
+      this.el.appendChild(this.dockGridEl);
+
+      this.slots = new Map();
+      const positions = [
+        "top-left", "top-center", "top-right",
+        "center-left", "center-center", "center-right",
+        "bottom-left", "bottom-center", "bottom-right"
+      ];
+      for (const pos of positions) {
+        const slot = document.createElement("div");
+        slot.className = `glmap-slot glmap-slot-${pos}`;
+        slot.setAttribute("data-pos", pos);
+        slot.setAttribute("data-dir", (pos === "top-center" || pos === "bottom-center") ? "horizontal" : "vertical");
+        this.dockGridEl.appendChild(slot);
+        this.slots.set(pos, slot);
+      }
+
       // Layer switcher panel
       this.switcherEl = document.createElement("div");
-      this.switcherEl.className = "glmap-panel glmap-layer-switcher";
+      this.switcherEl.className = "glmap-panel glmap-layer-switcher collapsed";
       this.switcherEl.style.display = "none";
-      this.el.appendChild(this.switcherEl);
 
       // Toolbar (Measure, Reset View, PNG Export)
       this.toolbarEl = document.createElement("div");
       this.toolbarEl.className = "glmap-toolbar";
-      this.el.appendChild(this.toolbarEl);
 
       // Draw Toolbar (leaflet.extras::addDrawToolbar equivalent)
       this.drawToolbarEl = document.createElement("div");
       this.drawToolbarEl.className = "glmap-draw-toolbar";
       this.drawToolbarEl.style.display = "none";
-      this.el.appendChild(this.drawToolbarEl);
 
-      // Bottom-left HUD (FPS, feature count, cursor lon/lat/raster value)
+      // Bottom-center HUD (FPS, feature count, cursor lon/lat/raster value)
       this.hudEl = document.createElement("div");
       this.hudEl.className = "glmap-panel glmap-hud";
-      this.el.appendChild(this.hudEl);
 
-      // Bottom-right Legends & GPU Raster Shader controls
+      // Scale bar indicator (bottom-left)
+      this.scaleEl = document.createElement("div");
+      this.scaleEl.className = "glmap-scale-box";
+      this.scaleEl.textContent = "50 km";
+
+      // Legends & GPU Raster Shader controls (bottom-right, above attribution)
       this.legendsEl = document.createElement("div");
       this.legendsEl.className = "glmap-legends-wrap";
-      this.el.appendChild(this.legendsEl);
 
-      // Hover/click tooltip
+      // Attribution & Copyright label (fixed bottom-right, order 100)
+      this.attributionEl = document.createElement("div");
+      this.attributionEl.className = "glmap-attribution-box";
+
+      // Hover tooltip
       this.tooltipEl = document.createElement("div");
       this.tooltipEl.className = "glmap-tooltip";
       this.el.appendChild(this.tooltipEl);
+
+      // Interactive click popup (with close button & Remove button for drawn shapes)
+      this.popupEl = document.createElement("div");
+      this.popupEl.className = "glmap-popup";
+      this.el.appendChild(this.popupEl);
+    }
+
+    _mountInSlot(el, position, order = 10, slotDirection = null) {
+      const pos = this.slots.has(position) ? position : "top-right";
+      const slot = this.slots.get(pos);
+      if (slotDirection) {
+        slot.setAttribute("data-dir", slotDirection);
+      }
+      el.setAttribute("data-order", String(order));
+      el.style.order = String(order);
+      if (el.parentNode !== slot) {
+        slot.appendChild(el);
+      }
+    }
+
+    _applyControlLayout(x) {
+      const ctrls = (x && x.controls) || {};
+      const lsCfg = ctrls.layer_switcher || { enabled: true, position: "top-left", order: 10, collapsed: true };
+      const tbCfg = ctrls.toolbar || { enabled: true, position: "top-center", order: 10, direction: "horizontal" };
+      const scCfg = ctrls.scale || { enabled: true, position: "bottom-left", order: 90 };
+      const hdCfg = ctrls.hud || { enabled: true, position: "bottom-center", order: 20 };
+      const lgCfg = ctrls.legends || { enabled: true, position: "bottom-right", order: 20 };
+      const atCfg = ctrls.attribution || { enabled: true, position: "bottom-right", order: 100 };
+
+      this.switcherEl.classList.toggle("collapsed", lsCfg.collapsed !== false);
+      this._mountInSlot(this.switcherEl, lsCfg.position || "top-left", lsCfg.order || 10);
+      this._mountInSlot(this.toolbarEl, tbCfg.position || "top-center", tbCfg.order || 10, tbCfg.direction || "horizontal");
+      this._mountInSlot(this.scaleEl, scCfg.position || "bottom-left", scCfg.order || 90);
+      this._mountInSlot(this.hudEl, hdCfg.position || "bottom-center", hdCfg.order || 20);
+      this._mountInSlot(this.legendsEl, lgCfg.position || "bottom-right", lgCfg.order || 20);
+      this._mountInSlot(this.attributionEl, atCfg.position || "bottom-right", atCfg.order || 100);
+
+      const bm = (x && x.basemap) || {};
+      this.attributionEl.innerHTML = bm.attribution || "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>";
     }
 
     _initWebGL2Overlay() {
@@ -583,6 +647,7 @@
       }
 
       this._initMapLibre(x);
+      this._applyControlLayout(x);
       this._buildToolbar(x);
 
       // Load all binary buffers & upload to GPU VBOs/Textures
@@ -600,6 +665,7 @@
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
       this._updateHUD();
+      this._emitActiveGroups();
       this._initCrosstalk(x.crosstalk);
       if (x.draw_toolbar && x.draw_toolbar.enabled) {
         this.addDrawToolbar(x.draw_toolbar);
@@ -672,9 +738,6 @@
 
           if (x.controls && x.controls.navigation && x.controls.navigation.enabled) {
             this.map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
-          }
-          if (x.controls && x.controls.scale && x.controls.scale.enabled) {
-            this.map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-left");
           }
 
           const syncMove = () => {
@@ -1032,7 +1095,11 @@
         } else if (layer.type === "heatmap" && layer.parsed) {
           this._drawHeatmapLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
         } else if (layer.type === "points" && layer.parsed) {
-          this._drawPointsLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
+          if (layer.style && layer.style.icons && ctx2d) {
+            this._drawIconMarkersLayer2D(ctx2d, layer, centerMercX, centerMercY, scale, w, h);
+          } else {
+            this._drawPointsLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
+          }
         } else if (layer.type === "labels" && layer.parsed && ctx2d) {
           this._drawLabelsLayer(ctx2d, layer, centerMercX, centerMercY, scale, w, h);
         }
@@ -1090,6 +1157,66 @@
       gl.uniform1f(gl.getUniformLocation(prog, "u_stroke_width"), st.stroke_width || 1.0);
 
       gl.drawArrays(gl.POINTS, 0, layer.parsed.nVertices);
+    }
+
+    _drawIconMarkersLayer2D(ctx, layer, cx, cy, scale, w, h) {
+      const iconSpec = layer.style && layer.style.icons;
+      if (!iconSpec) return;
+      const mc = layer.parsed.mercCoords;
+      const n = layer.parsed.nVertices;
+      const iw = iconSpec.width || 28;
+      const ih = iconSpec.height || 28;
+
+      if (iconSpec.type === "url" && Array.isArray(iconSpec.atlas)) {
+        const atlasImgs = iconSpec.atlas.map((url) => {
+          if (this._iconCache.has(url)) return this._iconCache.get(url);
+          const img = new Image();
+          img.onload = () => this.requestRender();
+          img.src = url;
+          this._iconCache.set(url, img);
+          return img;
+        });
+
+        const indices = iconSpec.indices;
+        const isArr = Array.isArray(indices);
+        for (let i = 0; i < n; i++) {
+          const [sx, sy] = this.lonLatToScreen(
+            layer.parsed.coords[2 * i], layer.parsed.coords[2 * i + 1],
+            cx, cy, scale, w, h
+          );
+          if (sx < -iw || sx > w + iw || sy < -ih || sy > h + ih) continue;
+          const idx = isArr ? (indices[i] || 0) : (indices || 0);
+          const img = atlasImgs[idx];
+          if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, sx - iw * 0.5, sy - ih * 0.5, iw, ih);
+          } else {
+            ctx.fillStyle = "#38bdf8";
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (iconSpec.type === "awesome") {
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let i = 0; i < n; i++) {
+          const [sx, sy] = this.lonLatToScreen(
+            layer.parsed.coords[2 * i], layer.parsed.coords[2 * i + 1],
+            cx, cy, scale, w, h
+          );
+          if (sx < -iw || sx > w + iw || sy < -ih || sy > h + ih) continue;
+          ctx.fillStyle = iconSpec.markerColor || "#0284c7";
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(sx, sy - 8, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = iconSpec.iconColor || "#ffffff";
+          ctx.fillText(iconSpec.text || "●", sx, sy - 8);
+        }
+      }
     }
 
     _drawLabelsLayer(ctx, layer, cx, cy, scale, w, h) {
@@ -1372,6 +1499,40 @@
         this._updateHUD();
         return;
       }
+      if (this.drawMode) return;
+
+      // 1. Check if user clicked inside an existing drawn shape -> show Remove popup (exact Geonesis pattern!)
+      for (let i = this.drawnFeatures.length - 1; i >= 0; i--) {
+        const f = this.drawnFeatures[i];
+        if (f.bbox && lon >= f.bbox[0] && lon <= f.bbox[2] && lat >= f.bbox[1] && lat <= f.bbox[3]) {
+          const fid = f.properties && f.properties._leaflet_id;
+          this._showPopupAt(px, py, `
+            <div style="padding-right:16px">
+              <div style="font-weight:600;margin-bottom:6px;color:#38bdf8;">Drawn Area #${fid}</div>
+              <button type="button" class="btn btn-sm btn-danger glmap-remove-drawn-btn" data-drawn-id="${fid}" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;">
+                Remove
+              </button>
+            </div>
+          `);
+          const rmBtn = this.popupEl.querySelector(".glmap-remove-drawn-btn");
+          if (rmBtn) {
+            rmBtn.onclick = (ev) => {
+              ev.stopPropagation();
+              this._removeDrawnFeatureById(fid);
+              this.popupEl.style.display = "none";
+            };
+          }
+          return;
+        }
+      }
+
+      // 2. Check if user clicked a feature with a popup/tooltip (e.g. polygon with Remove button or table)
+      if (this._hoveredFeature && this.tooltipEl.style.display === "block") {
+        this._showPopupAt(px, py, this.tooltipEl.innerHTML);
+      } else {
+        this.popupEl.style.display = "none";
+      }
+
       if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
         window.Shiny.setInputValue(this.el.id + "_click", {
           lng: lon,
@@ -1384,6 +1545,42 @@
           window.Shiny.setInputValue(this.el.id + evtSuffix, Object.assign({}, this._hoveredFeature, { nonce: Math.random() }));
         }
       }
+    }
+
+    _showPopupAt(px, py, htmlContent) {
+      this.popupEl.innerHTML = `<button type="button" class="glmap-popup-close">&times;</button>${htmlContent}`;
+      this.popupEl.style.left = Math.min((this.el.clientWidth || 800) - 240, Math.max(12, px)) + "px";
+      this.popupEl.style.top = Math.min((this.el.clientHeight || 600) - 120, Math.max(12, py)) + "px";
+      this.popupEl.style.display = "block";
+      const closeBtn = this.popupEl.querySelector(".glmap-popup-close");
+      if (closeBtn) {
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.popupEl.style.display = "none";
+        };
+      }
+    }
+
+    _removeDrawnFeatureById(fid) {
+      const removed = this.drawnFeatures.filter((f) => f.properties && f.properties._leaflet_id === fid);
+      this.drawnFeatures = this.drawnFeatures.filter((f) => !(f.properties && f.properties._leaflet_id === fid));
+      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        window.Shiny.setInputValue("sg_remove", fid, { priority: "event" });
+        window.Shiny.setInputValue(this.el.id + "_draw_deleted_features", {
+          type: "FeatureCollection",
+          features: removed,
+          nonce: Math.random()
+        });
+        window.Shiny.setInputValue(this.el.id + "_draw_all_features", {
+          type: "FeatureCollection",
+          features: this.drawnFeatures,
+          nonce: Math.random()
+        });
+        if (this.drawnFeatures.length === 0) {
+          window.Shiny.setInputValue(this.el.id + "_selected", null);
+        }
+      }
+      this.requestRender();
     }
 
     _buildToolbar(x) {
@@ -1421,34 +1618,139 @@
     }
 
     _rebuildLayerSwitcher() {
-      if (this.layers.size === 0) {
-        this.switcherEl.style.display = "none";
-        return;
+      const lsCfg = (this.spec && this.spec.controls && this.spec.controls.layer_switcher) || {};
+      const baseGroups = Array.isArray(lsCfg.baseGroups) && lsCfg.baseGroups.length > 0
+        ? lsCfg.baseGroups
+        : ["Light", "Dark", "Satellite"];
+      const configuredOverlays = Array.isArray(lsCfg.overlayGroups) ? lsCfg.overlayGroups : [];
+
+      // Collect unique overlay groups from both configured overlayGroups and loaded layers
+      const groupMap = new Map();
+      for (const g of configuredOverlays) {
+        if (g && g !== "sg_shape" && g !== "js_single_call") {
+          groupMap.set(g, { name: g, visible: false, count: 0 });
+        }
       }
-      this.switcherEl.style.display = "block";
-      let html = `<div class="glmap-panel-title"><span>GPU Layers</span><span>${this.layers.size}</span></div>`;
       for (const id of this.layerOrder) {
         const l = this.layers.get(id);
-        const countBadge = l.type === "raster"
-          ? `${l.width}x${l.height}`
-          : (l.n_features || 0).toLocaleString();
+        const gName = l.group || l.id;
+        if (gName === "sg_shape" || gName === "js_single_call") continue;
+        const cnt = l.type === "raster" ? `${l.width}x${l.height}` : (l.n_features || 0).toLocaleString();
+        groupMap.set(gName, { name: gName, visible: Boolean(l.visible), count: cnt });
+      }
+
+      this.switcherEl.style.display = "block";
+      const curBase = this._activeBaseGroup || "Dark";
+
+      let html = `
+        <div class="glmap-panel-title">
+          <span>☰ Layers</span>
+          <span class="glmap-badge">${groupMap.size}</span>
+        </div>
+        <div class="glmap-switcher-body">
+          <div class="glmap-layer-section-hdr">Basemap</div>
+      `;
+
+      for (const bg of baseGroups) {
         html += `
           <div class="glmap-layer-item">
             <label class="glmap-layer-label">
-              <input type="checkbox" data-layer-id="${l.id}" ${l.visible ? "checked" : ""}/>
-              <span>${l.group || l.id}</span>
+              <input type="radio" name="glmap_base_${this.el.id}" value="${bg}" ${curBase === bg ? "checked" : ""}/>
+              <span>${bg}</span>
             </label>
-            <span class="glmap-badge">${countBadge}</span>
           </div>
         `;
       }
+
+      if (groupMap.size > 0) {
+        html += `<div class="glmap-layer-section-hdr">Overlays</div>`;
+        for (const [gName, info] of groupMap.entries()) {
+          html += `
+            <div class="glmap-layer-item">
+              <label class="glmap-layer-label">
+                <input type="checkbox" data-group-name="${gName}" ${info.visible ? "checked" : ""}/>
+                <span>${gName}</span>
+              </label>
+              ${info.count ? `<span class="glmap-badge">${info.count}</span>` : ""}
+            </div>
+          `;
+        }
+      }
+
+      html += `</div>`;
       this.switcherEl.innerHTML = html;
-      this.switcherEl.querySelectorAll("input[type='checkbox']").forEach((cb) => {
-        cb.addEventListener("change", (e) => {
-          const lid = e.target.getAttribute("data-layer-id");
-          this.setLayerVisibility(lid, e.target.checked);
+
+      // Toggle collapsed/expanded on title click
+      const titleEl = this.switcherEl.querySelector(".glmap-panel-title");
+      if (titleEl) {
+        titleEl.onclick = (e) => {
+          e.stopPropagation();
+          this.switcherEl.classList.toggle("expanded");
+        };
+      }
+
+      // Basemap radio change
+      this.switcherEl.querySelectorAll("input[type='radio']").forEach((rb) => {
+        rb.addEventListener("change", (e) => {
+          const val = e.target.value;
+          this._activeBaseGroup = val;
+          this._switchNamedBasemap(val);
+          this._emitActiveGroups();
         });
       });
+
+      // Overlay group checkbox change
+      this.switcherEl.querySelectorAll("input[type='checkbox']").forEach((cb) => {
+        cb.addEventListener("change", (e) => {
+          const grp = e.target.getAttribute("data-group-name");
+          if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
+          if (e.target.checked) this._selectedOverlayGroups.add(grp);
+          else this._selectedOverlayGroups.delete(grp);
+          this.setGroupVisibility([grp], e.target.checked);
+          this._emitActiveGroups();
+        });
+      });
+    }
+
+    _switchNamedBasemap(name) {
+      const b = String(name).toLowerCase();
+      if (b === "light" || b === "positron") {
+        this.setBasemap({
+          basemap: {
+            style_url: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+            bg: "#f4f6f8",
+            attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+          }
+        });
+      } else if (b === "satellite") {
+        this.setBasemap({
+          basemap: {
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+            bg: "#070b12",
+            attribution: "Tiles &copy; Esri"
+          }
+        });
+      } else {
+        this.setBasemap({
+          basemap: {
+            style_url: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+            bg: "#0e1117",
+            attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+          }
+        });
+      }
+    }
+
+    _emitActiveGroups() {
+      if (typeof HTMLWidgets === "undefined" || !HTMLWidgets.shinyMode || !window.Shiny) return;
+      if (!this._selectedOverlayGroups) {
+        this._selectedOverlayGroups = new Set();
+        for (const l of this.layers.values()) {
+          if (l.visible && l.group) this._selectedOverlayGroups.add(l.group);
+        }
+      }
+      const active = [this._activeBaseGroup || "Dark", ...Array.from(this._selectedOverlayGroups)];
+      window.Shiny.setInputValue(this.el.id + "_groups", active);
     }
 
     _rebuildLegends() {
@@ -1457,6 +1759,12 @@
         if (leg.layer_id && this.layers.has(leg.layer_id)) {
           const lyr = this.layers.get(leg.layer_id);
           if (!lyr.visible) continue;
+        } else if (leg.group) {
+          let anyVis = false;
+          for (const l of this.layers.values()) {
+            if (l.group === leg.group && l.visible) anyVis = true;
+          }
+          if (!anyVis) continue;
         }
         const card = document.createElement("div");
         card.className = "glmap-panel";
@@ -1548,6 +1856,14 @@
         <span>Lon/Lat: ${lonStr}, ${latStr}</span>
         ${extra}
       `;
+
+      // Update metric scale bar based on zoom & latitude
+      const metersPerPx = (156543.03392 * Math.cos(this.camera.centerLat * DEG2RAD)) / Math.pow(2.0, this.camera.zoom);
+      const barMeters = metersPerPx * 90;
+      const labelKm = barMeters >= 1000 ? `${Math.round(barMeters / 1000)} km` : `${Math.round(barMeters)} m`;
+      if (this.scaleEl) {
+        this.scaleEl.textContent = labelKm;
+      }
     }
 
     // Proxy & API methods
@@ -1658,6 +1974,11 @@
 
     setGroupVisibility(groups, visible) {
       const grpSet = new Set(Array.isArray(groups) ? groups : [groups]);
+      if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
+      for (const g of grpSet) {
+        if (visible) this._selectedOverlayGroups.add(g);
+        else this._selectedOverlayGroups.delete(g);
+      }
       for (const l of this.layers.values()) {
         if (grpSet.has(l.group) || grpSet.has(l.id)) {
           l.visible = Boolean(visible);
@@ -1666,6 +1987,7 @@
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
       this._updateHUD();
+      this._emitActiveGroups();
       this.requestRender();
     }
 
@@ -1756,8 +2078,12 @@
       if (!spec || !spec.enabled) return;
       this.drawSpec = spec;
       this.drawToolbarEl.style.display = "flex";
-      const pos = spec.position || "top-left";
+      const pos = spec.position || "bottom-left";
+      const dir = spec.direction || "vertical";
+      const ord = spec.order || 15;
       this.drawToolbarEl.setAttribute("data-pos", pos);
+      this.drawToolbarEl.setAttribute("data-dir", dir);
+      this._mountInSlot(this.drawToolbarEl, pos, ord);
 
       const tools = spec.tools || { polygon: true, rectangle: true, circle: true, polyline: true, marker: true, edit: true };
       const btns = (spec.toolbar && spec.toolbar.buttons) || {};
@@ -2346,6 +2672,24 @@
         else if (m === "flyToBounds") inst.flyToBounds(args);
         else if (m === "setMaxBounds") inst.setMaxBounds(args);
         else if (m === "fitBounds") inst.fitBounds(args.bounds);
+        else if (m === "addLegend") {
+          inst.legends = inst.legends.filter((l) => l.layer_id !== args.layer_id);
+          inst.legends.push(args);
+          inst._rebuildLegends();
+        }
+        else if (m === "setLayersControl") {
+          inst.spec = inst.spec || {};
+          inst.spec.controls = inst.spec.controls || {};
+          inst.spec.controls.layer_switcher = args;
+          inst._applyControlLayout(inst.spec);
+          inst._rebuildLayerSwitcher();
+        }
+        else if (m === "configureControl") {
+          inst.spec = inst.spec || {};
+          inst.spec.controls = inst.spec.controls || {};
+          inst.spec.controls[args.type] = args.config;
+          inst._applyControlLayout(inst.spec);
+        }
         else if (m === "addDrawToolbar") inst.addDrawToolbar(args);
         else if (m === "removeDrawToolbar") inst.removeDrawToolbar(args);
         else if (m === "usePlugin") inst._runPlugins([args]);

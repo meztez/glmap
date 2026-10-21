@@ -18,10 +18,13 @@ add_points(
   stroke_width = 1,
   popup = NULL,
   label = NULL,
+  icon = NULL,
+  clusterOptions = NULL,
   id = NULL,
   group = NULL,
   dynamic_viewport = FALSE,
-  legend = TRUE
+  legend = TRUE,
+  lng = NULL
 )
 }
 \arguments{
@@ -51,6 +54,11 @@ add_points(
 
 \item{label}{Alias for \code{popup}.}
 
+\item{icon}{Optional marker icon specification created by \code{\link[=make_icon]{make_icon()}}, \code{\link[=make_awesome_icon]{make_awesome_icon()}},
+\code{leaflet::makeIcon()}, or a character vector / formula (\code{~icon_url}) of SVG/PNG URLs.}
+
+\item{clusterOptions}{Optional clustering specification (\code{leaflet::markerClusterOptions()} compatibility).}
+
 \item{id}{Layer ID string.}
 
 \item{group}{Layer group name shown in the interactive layer switcher.}
@@ -59,6 +67,8 @@ add_points(
 only the visible viewport slice via the local \code{httpuv} server.}
 
 \item{legend}{Logical; whether to automatically add a legend when \code{color} is mapped to data.}
+
+\item{lng}{Optional alias for \code{lon} (\code{leaflet} compatibility).}
 }
 \value{
 Updated \code{glmap} map object.

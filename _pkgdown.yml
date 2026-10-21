@@ -28,6 +28,8 @@ reference:
       - set_terrain
       - set_projection
       - add_control
+      - add_layers_control
+      - layers_control_options
       - add_draw_toolbar
       - remove_draw_toolbar
       - draw_toolbar_options
@@ -39,6 +41,9 @@ reference:
     contents:
       - add_sf
       - add_points
+      - add_markers
+      - make_icon
+      - make_awesome_icon
       - add_circles
       - add_rectangles
       - add_lines

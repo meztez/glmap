@@ -2,25 +2,44 @@
 % Please edit documentation in R/controls.R
 \name{add_control}
 \alias{add_control}
-\title{Configure Map UI Controls}
+\title{Configure Map UI Controls & 9-Zone Layout Anchoring (\code{add_control})}
 \usage{
 add_control(
   map,
-  type = c("navigation", "scale", "fullscreen", "layer_switcher", "hud", "draw",
-    "measure"),
+  type = c("navigation", "scale", "attribution", "fullscreen", "layer_switcher", "hud",
+    "toolbar", "legends", "draw", "measure"),
   enabled = TRUE,
-  position = "top-right"
+  position = "top-right",
+  direction = c("vertical", "horizontal"),
+  order = 10,
+  collapsed = NULL
 )
 }
 \arguments{
-\item{map}{A \code{glmap} widget.}
+\item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
 
-\item{type}{Control type (\code{"navigation"}, \code{"scale"}, \code{"fullscreen"}, \code{"layer_switcher"}, \code{"hud"}, \code{"draw"}, \code{"measure"}).}
+\item{type}{Control type (\code{"navigation"}, \code{"scale"}, \code{"attribution"}, \code{"fullscreen"}, \code{"layer_switcher"}, \code{"hud"}, \code{"toolbar"}, \code{"legends"}, \code{"draw"}, \code{"measure"}).}
 
 \item{enabled}{Logical; whether the control is enabled.}
 
-\item{position}{Control corner (\code{"top-left"}, \code{"top-right"}, \code{"bottom-left"}, \code{"bottom-right"}).}
+\item{position}{One of the 9 anchor positions (\code{"top-left"}, \code{"top-center"}, \code{"top-right"}, \code{"center-left"}, \code{"center-center"}, \code{"center-right"}, \code{"bottom-left"}, \code{"bottom-center"}, \code{"bottom-right"}, or \code{"topleft"}, \code{"bottomright"}, etc.).}
+
+\item{direction}{Layout flow direction for the anchor slot: \code{"vertical"} (default) or \code{"horizontal"}.}
+
+\item{order}{Numeric draw order within the anchor slot (default \code{10}).}
+
+\item{collapsed}{Logical; for \code{"layer_switcher"}, whether the panel starts collapsed as a compact button (default \code{TRUE}).}
 }
 \description{
-Configure Map UI Controls
+Configures built-in map controls and positions them inside \code{glmap}'s
+\strong{9-zone directional layout grid} (\code{x = left | center | right},
+\code{y = top | center | bottom}).
+}
+\details{
+Each of the 9 anchor zones (\code{"top-left"}, \code{"top-center"}, \code{"top-right"},
+\code{"center-left"}, \code{"center-center"}, \code{"center-right"}, \code{"bottom-left"},
+\code{"bottom-center"}, \code{"bottom-right"}) automatically stacks its child controls
+in a configurable \code{direction} (\code{"vertical"} or \code{"horizontal"}) sorted by
+\code{order} (lowest first), so controls, draw tools, legends, scale bar, and
+attribution labels never overlap!
 }

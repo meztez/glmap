@@ -2,23 +2,57 @@
 % Please edit documentation in R/controls.R
 \name{add_legend}
 \alias{add_legend}
-\title{Add a Custom Map Legend}
+\title{Add a Custom Map Legend (\code{add_legend})}
 \usage{
-add_legend(map, title, colors, labels = NULL, domain = NULL, layer_id = NULL)
+add_legend(
+  map,
+  title = "Legend",
+  colors = NULL,
+  labels = NULL,
+  domain = NULL,
+  position = "bottom-right",
+  direction = "vertical",
+  order = 20,
+  layer_id = NULL,
+  group = NULL,
+  pal = NULL,
+  values = NULL,
+  opacity = 1,
+  layerId = NULL,
+  labFormat = NULL
+)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
 
 \item{title}{Legend title.}
 
-\item{colors}{Character vector of hex/CSS colors.}
+\item{colors}{Character vector of hex/CSS colors (or a palette function when \code{pal} is used).}
 
 \item{labels}{Character vector of category labels (for categorical legends).}
 
 \item{domain}{Numeric vector \code{c(min, max)} (for continuous legends).}
 
+\item{position}{One of the 9 anchor positions (default \code{"bottom-right"}).}
+
+\item{direction}{Layout direction (\code{"vertical"} or \code{"horizontal"}).}
+
+\item{order}{Numeric draw order within the anchor zone (default \code{20}).}
+
 \item{layer_id}{Optional associated layer ID.}
+
+\item{group}{Optional associated layer group name (legend hides automatically when group is hidden).}
+
+\item{pal}{Optional \code{leaflet::colorNumeric} palette function for drop-in \code{leaflet::addLegend()} compatibility.}
+
+\item{values}{Optional numeric values vector when using \code{pal}.}
+
+\item{opacity}{Optional numeric opacity.}
+
+\item{layerId}{Optional alias for \code{layer_id} (\code{leaflet} compatibility).}
+
+\item{labFormat}{Optional label format function (\code{leaflet} compatibility).}
 }
 \description{
-Add a Custom Map Legend
+Add a Custom Map Legend (\code{add_legend})
 }

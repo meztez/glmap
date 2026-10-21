@@ -305,7 +305,12 @@ gl_pack_sf_binary <- function(
   }
 
   # Path 2: sf or sfc object
-  sfc <- if (inherits(data, "sf")) sf::st_geometry(data) else data
+  if (inherits(data, "sf")) {
+    geom_col <- attr(data, "sf_column") %||% "geometry"
+    sfc <- data[[geom_col]]
+  } else {
+    sfc <- data
+  }
   if (!inherits(sfc, "sfc")) {
     cli::cli_abort("`data` must be an {.cls sf}, {.cls sfc}, or {.cls data.frame} object.")
   }
@@ -362,6 +367,8 @@ gl_pack_raster_binary <- function(
   if (inherits(raster, c("RasterLayer", "RasterStack", "RasterBrick")) && requireNamespace("terra", quietly = TRUE)) {
     raster <- terra::rast(raster)
   } else if (inherits(raster, "stars") && requireNamespace("terra", quietly = TRUE)) {
+    raster <- terra::rast(raster)
+  } else if (is.character(raster) && length(raster) == 1L && file.exists(raster) && requireNamespace("terra", quietly = TRUE)) {
     raster <- terra::rast(raster)
   }
 

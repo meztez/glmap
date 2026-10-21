@@ -30,6 +30,9 @@ glmap_proxy <- function(
 
   x_holder <- list(transport = "inline")
   attr(x_holder, "glmap_data") <- data
+  state_env <- new.env(parent = emptyenv())
+  state_env$queue <- list()
+  state_env$flush_registered <- FALSE
 
   structure(
     list(
@@ -37,11 +40,13 @@ glmap_proxy <- function(
       session = session,
       deferUntilFlush = isTRUE(deferUntilFlush),
       x = x_holder,
-      calls = list()
+      calls = list(),
+      state = state_env
     ),
     class = c("glmap_proxy", "glmap_proxy")
   )
 }
+
 
 
 invoke_proxy_method <- function(proxy, method, args = list()) {
@@ -58,10 +63,20 @@ invoke_proxy_method <- function(proxy, method, args = list()) {
 
   sess <- proxy$session
   if (!is.null(sess) && is.function(sess$sendCustomMessage)) {
-    if (isTRUE(proxy$deferUntilFlush) && is.function(sess$onFlushed)) {
-      sess$onFlushed(function() {
-        sess$sendCustomMessage("glmap-proxy", msg)
-      }, once = TRUE)
+    if (isTRUE(proxy$deferUntilFlush) && is.function(sess$onFlushed) && is.environment(proxy$state)) {
+      proxy$state$queue[[length(proxy$state$queue) + 1L]] <- msg
+      if (!isTRUE(proxy$state$flush_registered)) {
+        proxy$state$flush_registered <- TRUE
+        st <- proxy$state
+        sess$onFlushed(function() {
+          q <- st$queue
+          st$queue <- list()
+          st$flush_registered <- FALSE
+          for (m in q) {
+            sess$sendCustomMessage("glmap-proxy", m)
+          }
+        }, once = TRUE)
+      }
     } else {
       sess$sendCustomMessage("glmap-proxy", msg)
     }

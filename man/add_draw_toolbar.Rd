@@ -8,7 +8,8 @@ add_draw_toolbar(
   map,
   targetGroup = NULL,
   position = c("topleft", "topright", "bottomleft", "bottomright", "top-left",
-    "top-right", "bottom-left", "bottom-right"),
+    "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center",
+    "center-left", "center-right"),
   polylineOptions = TRUE,
   polygonOptions = TRUE,
   circleOptions = TRUE,
@@ -17,6 +18,8 @@ add_draw_toolbar(
   circleMarkerOptions = FALSE,
   editOptions = TRUE,
   singleFeature = FALSE,
+  direction = c("vertical", "horizontal"),
+  order = 15,
   toolbar = NULL
 )
 }
@@ -42,6 +45,10 @@ add_draw_toolbar(
 \item{editOptions}{List of options or \code{TRUE}/\code{FALSE} to enable/disable feature deletion/clearing (default \code{TRUE}).}
 
 \item{singleFeature}{Logical; if \code{TRUE}, drawing a new feature replaces previous drawn features (default \code{FALSE}).}
+
+\item{direction}{Layout flow direction for the draw toolbar buttons: \code{"vertical"} (default) or \code{"horizontal"}.}
+
+\item{order}{Numeric draw order within the anchor zone (default \code{15}).}
 
 \item{toolbar}{Optional custom button titles created via \code{\link[=draw_toolbar_options]{draw_toolbar_options()}}.}
 }
