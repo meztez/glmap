@@ -387,7 +387,8 @@ gl_pack_raster_binary <- function(
     ext <- as.vector(terra::ext(r)) # xmin, xmax, ymin, ymax
     bb <- c(unname(ext[1]), unname(ext[3]), unname(ext[2]), unname(ext[4]))
     vals <- as.numeric(terra::values(r, mat = FALSE))
-  } else if (is.matrix(raster)) {
+  } else if (is.matrix(raster) || (is.numeric(raster) && length(dim(raster)) == 2L)) {
+    raster <- as.matrix(raster)
     height <- nrow(raster)
     width <- ncol(raster)
     n_bands <- 1L

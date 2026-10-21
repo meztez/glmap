@@ -95,7 +95,7 @@ glmap <- function(
       d <- attr(widget$x, "glmap_data")
       if (!is.null(d)) {
         extra <- attr(widget$x, "glmap_auto_args") %||% list()
-        if (inherits(d, c("SpatRaster", "RasterLayer", "RasterStack", "RasterBrick", "stars")) || is.matrix(d)) {
+        if (inherits(d, c("SpatRaster", "RasterLayer", "RasterStack", "RasterBrick", "stars")) || is.matrix(d) || (is.numeric(d) && length(dim(d)) == 2L)) {
           widget <- do.call(add_raster, c(list(map = widget, raster = d), extra))
         } else {
           widget <- do.call(add_sf, c(list(map = widget, data = d), extra))
