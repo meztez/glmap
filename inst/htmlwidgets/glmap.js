@@ -666,10 +666,17 @@
             const c = this.map.getCenter();
             this.camera.centerLon = c.lng;
             this.camera.centerLat = c.lat;
+            // MapLibre GL uses 512px world size at zoom 0; match its exact transform scale
+            if (this.map.transform && this.map.transform.worldSize) {
+              this.camera.worldSize = this.map.transform.worldSize;
+            }
             this.camera.zoom = this.map.getZoom();
             this.requestRender();
           };
 
+          this.map.on("load", () => {
+            syncMove();
+          });
           this.map.on("move", syncMove);
           this.map.on("moveend", () => {
             syncMove();
@@ -747,9 +754,15 @@
     }
 
     screenToLonLat(px, py) {
+      if (this.map && typeof this.map.unproject === "function") {
+        try {
+          const ll = this.map.unproject([px, py]);
+          return [ll.lng, ll.lat];
+        } catch (e) {}
+      }
       const w = this.el.clientWidth || 800;
       const h = this.el.clientHeight || 600;
-      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
+      const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
       const cx = lonToMercX(this.camera.centerLon);
       const cy = latToMercY(this.camera.centerLat);
       const mx = cx + (px - w * 0.5) / scale;
@@ -974,9 +987,22 @@
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+      // Always sync exact camera center & worldSize from MapLibre right before drawing
+      if (this.map && typeof this.map.getCenter === "function") {
+        try {
+          const c = this.map.getCenter();
+          this.camera.centerLon = c.lng;
+          this.camera.centerLat = c.lat;
+          this.camera.zoom = this.map.getZoom();
+          if (this.map.transform && this.map.transform.worldSize) {
+            this.camera.worldSize = this.map.transform.worldSize;
+          }
+        } catch (e) {}
+      }
+
       const centerMercX = lonToMercX(this.camera.centerLon);
       const centerMercY = latToMercY(this.camera.centerLat);
-      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
+      const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
 
       for (const id of this.layerOrder) {
         const layer = this.layers.get(id);
@@ -1409,6 +1435,10 @@
     _rebuildLegends() {
       this.legendsEl.innerHTML = "";
       for (const leg of this.legends) {
+        if (leg.layer_id && this.layers.has(leg.layer_id)) {
+          const lyr = this.layers.get(leg.layer_id);
+          if (!lyr.visible) continue;
+        }
         const card = document.createElement("div");
         card.className = "glmap-panel";
         let html = `<div class="glmap-panel-title"><span>${leg.title || "Legend"}</span></div>`;
@@ -1536,7 +1566,43 @@
       if (this.map) {
         try {
           this.map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 40, duration: 0 });
+          const c = this.map.getCenter();
+          this.camera.centerLon = c.lng;
+          this.camera.centerLat = c.lat;
+          this.camera.zoom = this.map.getZoom();
+          if (this.map.transform && this.map.transform.worldSize) {
+            this.camera.worldSize = this.map.transform.worldSize;
+          }
         } catch (e) {}
+      }
+      this.requestRender();
+    }
+
+    setBasemap(opts) {
+      if (!opts || !opts.basemap) return;
+      const basemap = opts.basemap;
+      this.el.style.background = basemap.bg || "#0e1117";
+      if (!this.map) return;
+
+      const styleUrl = basemap.style_url || null;
+      if (styleUrl) {
+        this.map.setStyle(styleUrl);
+      } else if (Array.isArray(basemap.tiles) && basemap.tiles.length > 0) {
+        this.map.setStyle({
+          version: 8,
+          sources: {
+            "gl-basemap": {
+              type: "raster",
+              tiles: basemap.tiles,
+              tileSize: 256,
+              attribution: basemap.attribution || ""
+            }
+          },
+          layers: [
+            { id: "gl-background", type: "background", paint: { "background-color": basemap.bg || "#0e1117" } },
+            { id: "gl-basemap-layer", type: "raster", source: "gl-basemap", minzoom: 0, maxzoom: 20 }
+          ]
+        });
       }
       this.requestRender();
     }
@@ -1565,6 +1631,7 @@
       const l = this.layers.get(id);
       if (l) {
         l.visible = Boolean(visible);
+        this._rebuildLegends();
         this._updateHUD();
         this.requestRender();
       }
@@ -1578,6 +1645,7 @@
         }
       }
       this._rebuildLayerSwitcher();
+      this._rebuildLegends();
       this._updateHUD();
       this.requestRender();
     }
@@ -1845,6 +1913,7 @@
         else if (m === "clearGroup") inst.clearGroup(args.group);
         else if (m === "setLayerOpacity") inst.setLayerOpacity(args.id, args.opacity);
         else if (m === "setRasterStyle") inst.setRasterStyle(args);
+        else if (m === "setBasemap") inst.setBasemap(args);
         else if (m === "setView") inst.setView(args);
         else if (m === "flyTo") inst.flyTo(args);
         else if (m === "flyToBounds") inst.flyToBounds(args);
