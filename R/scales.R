@@ -246,8 +246,8 @@ gl_popup_table <- function(data, zcol = NULL, row_numbers = FALSE, feature_id = 
 #'
 #' Converts either a numeric vector `c(xmin, ymin, xmax, ymax)` or a Shiny
 #' `input$map_selected` / `input$map_bounds` list directly into an `EPSG:4326`
-#' `POLYGON ((...))` WKT string ready for Snowflake `ST_WITHIN(GEOGRAPHY, TO_GEOGRAPHY(?))`
-#' or DuckDB Spatial `ST_Intersects(geom, ST_GeomFromText(?))`.
+#' `POLYGON ((...))` WKT string ready for `sf::st_as_sfc()`, `terra::vect()`,
+#' PostGIS, or DuckDB Spatial `ST_Intersects(geom, ST_GeomFromText(?))`.
 #'
 #' @param x A numeric vector `c(xmin, ymin, xmax, ymax)`, or a list from `input$map_selected` / `input$map_bounds`.
 #' @return A single WKT `POLYGON ((...))` character string.

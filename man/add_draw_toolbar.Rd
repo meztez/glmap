@@ -67,13 +67,13 @@ double-click to finish), and \strong{Markers} (click), plus clearing/deleting dr
 shapes.
 \subsection{Shiny Events Emitted (100\% compatible with \code{leaflet.extras::addDrawToolbar}):}{
 
-For a map with \code{outputId = "geonesis"}:
+For a map with \code{outputId = "map"}:
 \itemize{
-\item \code{input$geonesis_draw_start}: \code{list(feature_type = ...)} when a drawing tool is activated.
-\item \code{input$geonesis_draw_stop}: \code{list(feature_type = ...)} when drawing finishes or is cancelled.
-\item \code{input$geonesis_draw_new_feature}: GeoJSON Feature \verb{list(type = "Feature", properties = list(}_leaflet_id\verb{ = id, feature_type = "polygon"|"rectangle"|"circle"|"polyline"|"marker", radius = r_meters), geometry = list(type = ..., coordinates = ...), wkt = "POLYGON ((...))", bbox = c(xmin, ymin, xmax, ymax))}.
-\item \code{input$geonesis_draw_deleted_features}: GeoJSON FeatureCollection of deleted features.
-\item \code{input$geonesis_draw_all_features}: GeoJSON FeatureCollection of all currently drawn features.
+\item \code{input$map_draw_start}: \code{list(feature_type = ...)} when a drawing tool is activated.
+\item \code{input$map_draw_stop}: \code{list(feature_type = ...)} when drawing finishes or is cancelled.
+\item \code{input$map_draw_new_feature}: GeoJSON Feature \verb{list(type = "Feature", properties = list(}_leaflet_id\verb{ = id, feature_type = "polygon"|"rectangle"|"circle"|"polyline"|"marker", radius = r_meters), geometry = list(type = ..., coordinates = ...), wkt = "POLYGON ((...))", bbox = c(xmin, ymin, xmax, ymax))}.
+\item \code{input$map_draw_deleted_features}: GeoJSON FeatureCollection of deleted features.
+\item \code{input$map_draw_all_features}: GeoJSON FeatureCollection of all currently drawn features.
 }
 }
 }

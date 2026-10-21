@@ -25,7 +25,6 @@ outlines, variable radius, and interactive picking)."><meta property="og:image" 
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="../articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
-    <li><a class="dropdown-item" href="../articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -65,10 +64,15 @@ outlines, variable radius, and interactive picking).</p>
 <span>  stroke_width <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  popup <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  label <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  icon <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  clusterOptions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  render_mode <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  lod_zoom <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dynamic_viewport <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  legend <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  legend <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  lng <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -128,6 +132,33 @@ outlines, variable radius, and interactive picking).</p>
 <dd><p>Alias for <code>popup</code>.</p></dd>
 
 
+<dt id="arg-icon">icon<a class="anchor" aria-label="anchor" href="#arg-icon"></a></dt>
+<dd><p>Optional marker icon specification created by <code><a href="add_markers.html">make_icon()</a></code>, <code><a href="add_markers.html">make_awesome_icon()</a></code>,
+<code><a href="https://rstudio.github.io/leaflet/reference/makeIcon.html" class="external-link">leaflet::makeIcon()</a></code>, or a character vector / formula (<code>~icon_url</code>) of SVG/PNG URLs.</p></dd>
+
+
+<dt id="arg-clusteroptions">clusterOptions<a class="anchor" aria-label="anchor" href="#arg-clusteroptions"></a></dt>
+<dd><p>Optional clustering specification (<code><a href="https://rstudio.github.io/leaflet/reference/map-options.html" class="external-link">leaflet::markerClusterOptions()</a></code> or
+<code><a href="add_markers.html">marker_cluster_options()</a></code> compatibility).</p></dd>
+
+
+<dt id="arg-render-mode">render_mode<a class="anchor" aria-label="anchor" href="#arg-render-mode"></a></dt>
+<dd><p>Rendering strategy for markers/icons: <code>"auto"</code> (default; dynamically combines
+clustering, zoom-level LOD cross-fade, and WebGL2 Texture Atlas sprites based on feature count
+and <code>clusterOptions</code>), <code>"cluster"</code> (screen-space clustering + GPU singleton sprites),
+<code>"lod"</code> (zoom-level Level-of-Detail cross-fade from GPU SDF points at overview zooms to full
+WebGL2 Texture Atlas sprites when zoomed in), <code>"atlas"</code> (always render 100% of custom icons via
+the WebGL2 Texture Atlas sprite shader in 1 GPU draw call), or <code>"points"</code> (pure GPU SDF circles).
+Can also be an <code><a href="add_markers.html">icon_render_options()</a></code> object.</p></dd>
+
+
+<dt id="arg-lod-zoom">lod_zoom<a class="anchor" aria-label="anchor" href="#arg-lod-zoom"></a></dt>
+<dd><p>Numeric zoom threshold (or <code>c(fade_start, fade_end)</code>) for Level-of-Detail (<code>"lod"</code> / <code>"auto"</code>)
+transition between fast GPU SDF circles and full custom SVG/PNG Texture Atlas icons. When <code>NULL</code> (default),
+dynamically adapts to dataset size (<code>&lt;= 2,500</code> markers: <code>0</code> i.e. always full icons; <code>2,500-15,000</code>: <code>c(8.5, 10.5)</code>;
+<code>&gt; 15,000</code>: <code>c(10, 12)</code>).</p></dd>
+
+
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
 <dd><p>Layer ID string.</p></dd>
 
@@ -144,6 +175,10 @@ only the visible viewport slice via the local <code>httpuv</code> server.</p></d
 <dt id="arg-legend">legend<a class="anchor" aria-label="anchor" href="#arg-legend"></a></dt>
 <dd><p>Logical; whether to automatically add a legend when <code>color</code> is mapped to data.</p></dd>
 
+
+<dt id="arg-lng">lng<a class="anchor" aria-label="anchor" href="#arg-lng"></a></dt>
+<dd><p>Optional alias for <code>lon</code> (<code>leaflet</code> compatibility).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -155,7 +190,7 @@ only the visible viewport slice via the local <code>httpuv</code> server.</p></d
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Beneva Geospatial Team.</p>
+  <p>Developed by Bruno Tremblay.</p>
 </div>
 
 <div class="pkgdown-footer-right">

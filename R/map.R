@@ -736,8 +736,7 @@ add_points <- function(
 #' Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`, `make_awesome_icon`)
 #'
 #' Drop-in GPU/Canvas equivalents of `leaflet::addMarkers()`, `leaflet::makeIcon()`,
-#' and `leaflet::makeAwesomeIcon()`. Supports per-feature SVG/PNG icon URLs (such as
-#' Geonesis product icons `bateau1.svg`, `habitation1.svg`, `auto1.svg`) as well as
+#' and `leaflet::makeAwesomeIcon()`. Supports per-feature SVG/PNG icon URLs as well as
 #' colored pin/badge markers.
 #'
 #' @inheritParams add_points
@@ -1820,9 +1819,9 @@ clear_popups <- function(map) {
 
 #' Add an OGC Web Map Service (WMS) Raster Tile Layer (`add_wms_tiles`)
 #'
-#' Drop-in equivalent of `leaflet::addWMSTiles()`. Connects to enterprise OGC
-#' WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement du Quebec /
-#' MSC GeoMet) using `{bbox-epsg-3857}` tile requests in MapLibre GL.
+#' Drop-in equivalent of `leaflet::addWMSTiles()`. Connects to OGC
+#' WMS endpoints (GeoServer, MapServer, QGIS Server, MSC GeoMet, etc.)
+#' using `{bbox-epsg-3857}` tile requests in MapLibre GL.
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
 #' @param base_url Base WMS service URL (e.g., `"https://geo.weather.gc.ca/geomet"`).

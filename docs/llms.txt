@@ -250,7 +250,7 @@ levels:
         div.textContent = config.text || 'CONFIDENTIAL';
         instance.el.appendChild(div);
       }",
-      default_config = list(text = "Beneva Geospatial")
+      default_config = list(text = "Live Sensor Feed")
     )
 
     glmap(bench$points_df) |> use_plugin("watermark", config = list(text = "Live Sensor Feed"))
@@ -385,10 +385,55 @@ providers, API keys, terrain, and projection.
   Set Map Projection (`"mercator"` or `"globe"`)
 
 - [`add_control()`](https://meztez.github.io/glmap/reference/add_control.md)
-  : Configure Map UI Controls
+  :
+
+  Configure Map UI Controls & 9-Zone Layout Anchoring (`add_control`)
+
+- [`add_layers_control()`](https://meztez.github.io/glmap/reference/add_layers_control.md)
+  :
+
+  Add a Collapsible Layers & Basemap Control (`add_layers_control`)
+
+- [`layers_control_options()`](https://meztez.github.io/glmap/reference/layers_control_options.md)
+  :
+
+  Options for
+  [`add_layers_control()`](https://meztez.github.io/glmap/reference/add_layers_control.md)
+  (`layers_control_options`)
+
+- [`add_draw_toolbar()`](https://meztez.github.io/glmap/reference/add_draw_toolbar.md)
+  :
+
+  Add an Interactive Vector Drawing Toolbar (`add_draw_toolbar`)
+
+- [`remove_draw_toolbar()`](https://meztez.github.io/glmap/reference/remove_draw_toolbar.md)
+  :
+
+  Remove the Interactive Drawing Toolbar (`remove_draw_toolbar`)
+
+- [`draw_toolbar_options()`](https://meztez.github.io/glmap/reference/draw_toolbar_options.md)
+  :
+
+  Configure Custom Tooltip Titles for
+  [`add_draw_toolbar()`](https://meztez.github.io/glmap/reference/add_draw_toolbar.md)
+  (`draw_toolbar_options`)
+
+- [`add_measure()`](https://meztez.github.io/glmap/reference/add_measure.md)
+  :
+
+  Add an Interactive Distance & Area Measurement Control (`add_measure`)
+
+- [`add_search_osm()`](https://meztez.github.io/glmap/reference/add_search_osm.md)
+  [`search_options()`](https://meztez.github.io/glmap/reference/add_search_osm.md)
+  :
+
+  Add an OpenStreetMap Address & Place Search Bar (`add_search_osm`,
+  `search_options`)
 
 - [`add_legend()`](https://meztez.github.io/glmap/reference/add_legend.md)
-  : Add a Custom Map Legend
+  :
+
+  Add a Custom Map Legend (`add_legend`)
 
 - [`gl_save_html()`](https://meztez.github.io/glmap/reference/gl_save_html.md)
   :
@@ -408,6 +453,16 @@ PMTiles, and DuckDB layers.
 
 - [`add_points()`](https://meztez.github.io/glmap/reference/add_points.md)
   : Add a GPU Instanced Point Layer (Handles 1M+ Points at 60 FPS)
+
+- [`add_markers()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`make_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`make_awesome_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`marker_cluster_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`icon_render_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  :
+
+  Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`,
+  `make_awesome_icon`)
 
 - [`add_circles()`](https://meztez.github.io/glmap/reference/add_circles.md)
   :
@@ -443,9 +498,10 @@ PMTiles, and DuckDB layers.
   Add a GPU Text / Symbol Label Layer (`add_labels`)
 
 - [`add_popups()`](https://meztez.github.io/glmap/reference/add_popups.md)
+  [`clear_popups()`](https://meztez.github.io/glmap/reference/add_popups.md)
   :
 
-  Add Standalone HTML Popups (`add_popups`)
+  Add Standalone HTML Popups (`add_popups`, `clear_popups`)
 
 - [`add_wms_tiles()`](https://meztez.github.io/glmap/reference/add_wms_tiles.md)
   :
@@ -507,6 +563,12 @@ shaders in 0ms without re-rendering.
 - [`set_raster_style()`](https://meztez.github.io/glmap/reference/set_raster_style.md)
   : Live-Update a GPU Raster Layer's Colormap, Contrast Range, or
   Hillshading (0ms GPU Update)
+
+- [`set_marker_mode()`](https://meztez.github.io/glmap/reference/set_marker_mode.md)
+  :
+
+  Dynamically Switch Marker / Icon Rendering Strategy in Shiny
+  (`set_marker_mode`)
 
 - [`set_filter()`](https://meztez.github.io/glmap/reference/set_filter.md)
   : Filter Visible Features by Index on the GPU
@@ -602,7 +664,7 @@ and spatial indices.
 
 # Articles
 
-### Guides, Benchmarks & Case Studies
+### Guides & Benchmarks
 
 - [Getting Started with
   glmap](https://meztez.github.io/glmap/articles/getting-started.md):
@@ -610,6 +672,3 @@ and spatial indices.
   Agents)](https://meztez.github.io/glmap/articles/leaflet-migration.md):
 - [Real-Life Benchmarks & Complete Leaflet Parity
   Matrix](https://meztez.github.io/glmap/articles/benchmarks-and-leaflet-parity.md):
-- [Enterprise Case Studies: Upgrading Actuarial & Geospatial Platforms
-  to
-  glmap](https://meztez.github.io/glmap/articles/enterprise-case-studies.md):

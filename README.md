@@ -210,7 +210,7 @@ For a widget with `outputId = "map"`, `glmap` automatically provides:
        div.textContent = config.text || 'CONFIDENTIAL';
        instance.el.appendChild(div);
      }",
-     default_config = list(text = "Beneva Geospatial")
+     default_config = list(text = "Live Sensor Feed")
    )
 
    glmap(bench$points_df) |> use_plugin("watermark", config = list(text = "Live Sensor Feed"))

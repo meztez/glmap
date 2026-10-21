@@ -1938,8 +1938,8 @@
         }
       }
 
-      // 1. Check if user clicked inside an existing drawn shape -> show Remove popup (exact Geonesis pattern!)
-      // Skip if R server already manages drawn shapes via `sg_shape` layer (e.g. Geonesis geometry.R)
+      // 1. Check if user clicked inside an existing drawn shape -> show Remove popup
+      // Skip if R server already manages drawn shapes via `sg_shape` layer
       const hasServerSgLayer = Array.from(this.layers.values()).some((l) => l.group === "sg_shape" || l.id === "sg_shape");
       if (!hasServerSgLayer) {
         for (let i = this.drawnFeatures.length - 1; i >= 0; i--) {
@@ -2737,7 +2737,7 @@
       if (this.popupEl) this.popupEl.style.display = "none";
       if (this.tooltipEl) this.tooltipEl.style.display = "none";
 
-      // Also clear any server-pushed `sg_shape` AOI layer (e.g. Geonesis geometry.R) and notify `sg_remove`
+      // Also clear any server-pushed `sg_shape` AOI layer and notify `sg_remove`
       const sgIdsToRemove = [];
       for (const [id, l] of this.layers.entries()) {
         if (l.group === "sg_shape" || id === "sg_shape") {
@@ -2751,7 +2751,7 @@
 
       if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
         if (sgIdsToRemove.length > 0 || deleted.length > 0) {
-          // Emit sg_remove with 1..20 so Geonesis `sg$rm(input$sg_remove)` clears all stored polygons in `sg`
+          // Emit sg_remove with 1..25 so server-side reactive AOI handlers clear all stored polygons
           const allIds = Array.from({ length: Math.max(25, this._drawSeq + 5) }, (_, i) => i + 1);
           window.Shiny.setInputValue("sg_remove", allIds, { priority: "event" });
         }
@@ -3074,7 +3074,7 @@
         this.drawnFeatures = [];
       }
 
-      // Compute WKT string for Snowflake / DuckDB Spatial
+      // Compute WKT string for sf / terra / DuckDB Spatial
       let wkt = "";
       const ringForWkt = (geometry.type === "Polygon") ? geometry.coordinates[0] : (props._poly_ring || null);
       if (ringForWkt) {

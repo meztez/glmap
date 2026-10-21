@@ -15,6 +15,6 @@ A single WKT \code{POLYGON ((...))} character string.
 \description{
 Converts either a numeric vector \code{c(xmin, ymin, xmax, ymax)} or a Shiny
 \code{input$map_selected} / \code{input$map_bounds} list directly into an \code{EPSG:4326}
-\code{POLYGON ((...))} WKT string ready for Snowflake \verb{ST_WITHIN(GEOGRAPHY, TO_GEOGRAPHY(?))}
-or DuckDB Spatial \verb{ST_Intersects(geom, ST_GeomFromText(?))}.
+\code{POLYGON ((...))} WKT string ready for \code{sf::st_as_sfc()}, \code{terra::vect()},
+PostGIS, or DuckDB Spatial \verb{ST_Intersects(geom, ST_GeomFromText(?))}.
 }

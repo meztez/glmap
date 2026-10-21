@@ -27,7 +27,6 @@ entirely on the GPU in 0 ms without re-rendering PNGs in R."><meta property="og:
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="../articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
-    <li><a class="dropdown-item" href="../articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -66,7 +65,8 @@ entirely on the GPU in 0 ms without re-rendering PNGs in R.</p>
 <span>  bbox <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">75</span>, <span class="fl">45</span>, <span class="op">-</span><span class="fl">71</span>, <span class="fl">48</span><span class="op">)</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  legend <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  legend <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  shader_controls <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -121,6 +121,13 @@ entirely on the GPU in 0 ms without re-rendering PNGs in R.</p>
 <dt id="arg-legend">legend<a class="anchor" aria-label="anchor" href="#arg-legend"></a></dt>
 <dd><p>Logical; whether to display a color ramp legend and interactive GPU raster controls.</p></dd>
 
+
+<dt id="arg-shader-controls">shader_controls<a class="anchor" aria-label="anchor" href="#arg-shader-controls"></a></dt>
+<dd><p>Controls which interactive GPU shader widgets are shown inside the raster
+legend card. Pass <code>TRUE</code> (default) to show all (<code>c("palette", "hillshade", "opacity")</code>),
+<code>FALSE</code> to hide all interactive shader controls (keeping only the color ramp legend), or a
+character vector / named list selecting any subset of <code>"palette"</code>, <code>"hillshade"</code>, and <code>"opacity"</code>.</p></dd>
+
 </dl></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -128,7 +135,7 @@ entirely on the GPU in 0 ms without re-rendering PNGs in R.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Beneva Geospatial Team.</p>
+  <p>Developed by Bruno Tremblay.</p>
 </div>
 
 <div class="pkgdown-footer-right">

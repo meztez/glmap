@@ -354,12 +354,12 @@ add_legend <- function(
 #' shapes.
 #'
 #' ### Shiny Events Emitted (100% compatible with `leaflet.extras::addDrawToolbar`):
-#' For a map with `outputId = "geonesis"`:
-#' - `input$geonesis_draw_start`: `list(feature_type = ...)` when a drawing tool is activated.
-#' - `input$geonesis_draw_stop`: `list(feature_type = ...)` when drawing finishes or is cancelled.
-#' - `input$geonesis_draw_new_feature`: GeoJSON Feature `list(type = "Feature", properties = list(`_leaflet_id` = id, feature_type = "polygon"|"rectangle"|"circle"|"polyline"|"marker", radius = r_meters), geometry = list(type = ..., coordinates = ...), wkt = "POLYGON ((...))", bbox = c(xmin, ymin, xmax, ymax))`.
-#' - `input$geonesis_draw_deleted_features`: GeoJSON FeatureCollection of deleted features.
-#' - `input$geonesis_draw_all_features`: GeoJSON FeatureCollection of all currently drawn features.
+#' For a map with `outputId = "map"`:
+#' - `input$map_draw_start`: `list(feature_type = ...)` when a drawing tool is activated.
+#' - `input$map_draw_stop`: `list(feature_type = ...)` when drawing finishes or is cancelled.
+#' - `input$map_draw_new_feature`: GeoJSON Feature `list(type = "Feature", properties = list(`_leaflet_id` = id, feature_type = "polygon"|"rectangle"|"circle"|"polyline"|"marker", radius = r_meters), geometry = list(type = ..., coordinates = ...), wkt = "POLYGON ((...))", bbox = c(xmin, ymin, xmax, ymax))`.
+#' - `input$map_draw_deleted_features`: GeoJSON FeatureCollection of deleted features.
+#' - `input$map_draw_all_features`: GeoJSON FeatureCollection of all currently drawn features.
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
 #' @param targetGroup Optional group name for drawn features (default `"drawn_features"`).

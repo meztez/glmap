@@ -113,8 +113,7 @@ map's layer control so users can switch between \code{Auto}, \code{Cluster}, \co
 }
 \description{
 Drop-in GPU/Canvas equivalents of \code{leaflet::addMarkers()}, \code{leaflet::makeIcon()},
-and \code{leaflet::makeAwesomeIcon()}. Supports per-feature SVG/PNG icon URLs (such as
-Geonesis product icons \code{bateau1.svg}, \code{habitation1.svg}, \code{auto1.svg}) as well as
+and \code{leaflet::makeAwesomeIcon()}. Supports per-feature SVG/PNG icon URLs as well as
 colored pin/badge markers.
 
 Configures how \code{glmap} balances visual fidelity and 60 FPS GPU throughput across

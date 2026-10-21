@@ -33,6 +33,9 @@ reference:
       - add_draw_toolbar
       - remove_draw_toolbar
       - draw_toolbar_options
+      - add_measure
+      - add_search_osm
+      - search_options
       - add_legend
       - gl_save_html
 
@@ -44,6 +47,8 @@ reference:
       - add_markers
       - make_icon
       - make_awesome_icon
+      - marker_cluster_options
+      - icon_render_options
       - add_circles
       - add_rectangles
       - add_lines
@@ -53,6 +58,7 @@ reference:
       - add_heatmap
       - add_labels
       - add_popups
+      - clear_popups
       - add_wms_tiles
       - add_pmtiles
       - add_mvt
@@ -73,6 +79,7 @@ reference:
       - set_layer_visibility
       - set_layer_opacity
       - set_raster_style
+      - set_marker_mode
       - set_filter
 
   - title: "Plugins, Custom Shaders & Binary Engine"
@@ -96,10 +103,9 @@ reference:
       - gl_bbox_to_wkt
 
 articles:
-  - title: "Guides, Benchmarks & Case Studies"
+  - title: "Guides & Benchmarks"
     navbar: ~
     contents:
       - getting-started
       - leaflet-migration
       - benchmarks-and-leaflet-parity
-      - enterprise-case-studies

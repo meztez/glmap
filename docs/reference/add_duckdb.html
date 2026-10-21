@@ -23,7 +23,6 @@ SQL query, or .parquet / .csv file path."><meta property="og:image" content="htt
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="../articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
-    <li><a class="dropdown-item" href="../articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -137,7 +136,7 @@ SQL query, or <code>.parquet</code> / <code>.csv</code> file path.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Instead of loading 10M–100M+ rows into R memory, <code>add_duckdb()</code> pushes bounding-box
+    <p>Instead of loading 10M-100M+ rows into R memory, <code>add_duckdb()</code> pushes bounding-box
 viewport filters (<code>WHERE lon BETWEEN xmin AND xmax AND lat BETWEEN ymin AND ymax</code>)
 and Level-of-Detail (LOD) sampling (<code>USING SAMPLE</code> or deterministic stride)
 directly into DuckDB's vectorized execution engine, then packs the resulting
@@ -150,7 +149,7 @@ to WebGL2 over the local <code>httpuv</code> server on every pan/zoom!</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Beneva Geospatial Team.</p>
+  <p>Developed by Bruno Tremblay.</p>
 </div>
 
 <div class="pkgdown-footer-right">
