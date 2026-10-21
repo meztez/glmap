@@ -26,6 +26,15 @@ add_markers(
 make_icon(iconUrl, iconWidth = 28, iconHeight = 28)
 
 make_awesome_icon(text = "●", markerColor = "blue", iconColor = "#ffffff")
+
+marker_cluster_options(
+  showCoverageOnHover = TRUE,
+  zoomToBoundsOnClick = TRUE,
+  spiderfyOnMaxZoom = TRUE,
+  disableClusteringAtZoom = 15,
+  maxClusterRadius = 65,
+  freezeAtZoom = FALSE
+)
 ```
 
 ## Arguments
@@ -99,3 +108,28 @@ make_awesome_icon(text = "●", markerColor = "blue", iconColor = "#ffffff")
 - iconColor:
 
   Inner glyph color (default `"#ffffff"`).
+
+- showCoverageOnHover:
+
+  Logical; highlight cluster bounds on hover.
+
+- zoomToBoundsOnClick:
+
+  Logical; zoom to cluster bounds when clicked (default `TRUE`).
+
+- spiderfyOnMaxZoom:
+
+  Logical; expand overlapping points at max zoom.
+
+- disableClusteringAtZoom:
+
+  Numeric zoom level at or above which individual markers/icons are
+  shown directly (default `15`).
+
+- maxClusterRadius:
+
+  Maximum radius in pixels that a cluster will cover (default `65`).
+
+- freezeAtZoom:
+
+  Optional zoom level to freeze clusters.

@@ -6,7 +6,15 @@ shader without re-transferring the underlying Float32 raster values.
 ## Usage
 
 ``` r
-set_raster_style(map, id, palette = NULL, domain = NULL, hillshade = NULL)
+set_raster_style(
+  map,
+  id,
+  palette = NULL,
+  domain = NULL,
+  hillshade = NULL,
+  opacity = NULL,
+  shader_controls = NULL
+)
 ```
 
 ## Arguments
@@ -31,3 +39,13 @@ set_raster_style(map, id, palette = NULL, domain = NULL, hillshade = NULL)
 - hillshade:
 
   Optional logical to toggle real-time GPU hillshading.
+
+- opacity:
+
+  Optional numeric opacity (`0` to `1`).
+
+- shader_controls:
+
+  Optional specification (`TRUE`, `FALSE`, character vector, or list)
+  controlling which interactive GPU shader controls are shown in the
+  raster legend card.

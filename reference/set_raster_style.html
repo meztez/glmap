@@ -48,7 +48,15 @@ without re-transferring the underlying Float32 raster values.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">set_raster_style</span><span class="op">(</span><span class="va">map</span>, <span class="va">id</span>, palette <span class="op">=</span> <span class="cn">NULL</span>, domain <span class="op">=</span> <span class="cn">NULL</span>, hillshade <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">set_raster_style</span><span class="op">(</span></span>
+<span>  <span class="va">map</span>,</span>
+<span>  <span class="va">id</span>,</span>
+<span>  palette <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  domain <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  hillshade <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  opacity <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  shader_controls <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -73,6 +81,15 @@ without re-transferring the underlying Float32 raster values.</p>
 
 <dt id="arg-hillshade">hillshade<a class="anchor" aria-label="anchor" href="#arg-hillshade"></a></dt>
 <dd><p>Optional logical to toggle real-time GPU hillshading.</p></dd>
+
+
+<dt id="arg-opacity">opacity<a class="anchor" aria-label="anchor" href="#arg-opacity"></a></dt>
+<dd><p>Optional numeric opacity (<code>0</code> to <code>1</code>).</p></dd>
+
+
+<dt id="arg-shader-controls">shader_controls<a class="anchor" aria-label="anchor" href="#arg-shader-controls"></a></dt>
+<dd><p>Optional specification (<code>TRUE</code>, <code>FALSE</code>, character vector, or list)
+controlling which interactive GPU shader controls are shown in the raster legend card.</p></dd>
 
 </dl></div>
 

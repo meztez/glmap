@@ -445,6 +445,7 @@ PMTiles, and DuckDB layers.
 - [`add_markers()`](https://meztez.github.io/glmap/reference/add_markers.md)
   [`make_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
   [`make_awesome_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`marker_cluster_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
   :
 
   Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`,

@@ -20,7 +20,8 @@ add_raster(
   bbox = c(-75, 45, -71, 48),
   id = NULL,
   group = NULL,
-  legend = TRUE
+  legend = TRUE,
+  shader_controls = TRUE
 )
 ```
 
@@ -80,3 +81,12 @@ add_raster(
 
   Logical; whether to display a color ramp legend and interactive GPU
   raster controls.
+
+- shader_controls:
+
+  Controls which interactive GPU shader widgets are shown inside the
+  raster legend card. Pass `TRUE` (default) to show all
+  (`c("palette", "hillshade", "opacity")`), `FALSE` to hide all
+  interactive shader controls (keeping only the color ramp legend), or a
+  character vector / named list selecting any subset of `"palette"`,
+  `"hillshade"`, and `"opacity"`.
