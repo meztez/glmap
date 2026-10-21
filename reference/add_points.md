@@ -23,6 +23,8 @@ add_points(
   label = NULL,
   icon = NULL,
   clusterOptions = NULL,
+  render_mode = "auto",
+  lod_zoom = NULL,
   id = NULL,
   group = NULL,
   dynamic_viewport = FALSE,
@@ -100,7 +102,32 @@ add_points(
 - clusterOptions:
 
   Optional clustering specification (`leaflet::markerClusterOptions()`
+  or
+  [`marker_cluster_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
   compatibility).
+
+- render_mode:
+
+  Rendering strategy for markers/icons: `"auto"` (default; dynamically
+  combines clustering, zoom-level LOD cross-fade, and WebGL2 Texture
+  Atlas sprites based on feature count and `clusterOptions`),
+  `"cluster"` (screen-space clustering + GPU singleton sprites), `"lod"`
+  (zoom-level Level-of-Detail cross-fade from GPU SDF points at overview
+  zooms to full WebGL2 Texture Atlas sprites when zoomed in), `"atlas"`
+  (always render 100% of custom icons via the WebGL2 Texture Atlas
+  sprite shader in 1 GPU draw call), or `"points"` (pure GPU SDF
+  circles). Can also be an
+  [`icon_render_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  object.
+
+- lod_zoom:
+
+  Numeric zoom threshold (or `c(fade_start, fade_end)`) for
+  Level-of-Detail (`"lod"` / `"auto"`) transition between fast GPU SDF
+  circles and full custom SVG/PNG Texture Atlas icons. When `NULL`
+  (default), dynamically adapts to dataset size (`<= 2,500` markers: `0`
+  i.e. always full icons; `2,500-15,000`: `c(8.5, 10.5)`; `> 15,000`:
+  `c(10, 12)`).
 
 - id:
 

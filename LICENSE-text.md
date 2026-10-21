@@ -1,4 +1,4 @@
 # License
 
     YEAR: 2026
-    COPYRIGHT HOLDER: gexplore authors
+    COPYRIGHT HOLDER: glmap authors

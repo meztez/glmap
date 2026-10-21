@@ -1,9 +1,8 @@
 # Add an OGC Web Map Service (WMS) Raster Tile Layer (`add_wms_tiles`)
 
-Drop-in equivalent of `leaflet::addWMSTiles()`. Connects to enterprise
-OGC WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement
-du Quebec / MSC GeoMet) using `{bbox-epsg-3857}` tile requests in
-MapLibre GL.
+Drop-in equivalent of `leaflet::addWMSTiles()`. Connects to OGC WMS
+endpoints (GeoServer, MapServer, QGIS Server, MSC GeoMet, etc.) using
+`{bbox-epsg-3857}` tile requests in MapLibre GL.
 
 ## Usage
 

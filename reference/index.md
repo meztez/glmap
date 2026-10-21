@@ -101,6 +101,18 @@ providers, API keys, terrain, and projection.
   [`add_draw_toolbar()`](https://meztez.github.io/glmap/reference/add_draw_toolbar.md)
   (`draw_toolbar_options`)
 
+- [`add_measure()`](https://meztez.github.io/glmap/reference/add_measure.md)
+  :
+
+  Add an Interactive Distance & Area Measurement Control (`add_measure`)
+
+- [`add_search_osm()`](https://meztez.github.io/glmap/reference/add_search_osm.md)
+  [`search_options()`](https://meztez.github.io/glmap/reference/add_search_osm.md)
+  :
+
+  Add an OpenStreetMap Address & Place Search Bar (`add_search_osm`,
+  `search_options`)
+
 - [`add_legend()`](https://meztez.github.io/glmap/reference/add_legend.md)
   :
 
@@ -129,6 +141,7 @@ PMTiles, and DuckDB layers.
   [`make_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
   [`make_awesome_icon()`](https://meztez.github.io/glmap/reference/add_markers.md)
   [`marker_cluster_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
+  [`icon_render_options()`](https://meztez.github.io/glmap/reference/add_markers.md)
   :
 
   Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`,
@@ -168,9 +181,10 @@ PMTiles, and DuckDB layers.
   Add a GPU Text / Symbol Label Layer (`add_labels`)
 
 - [`add_popups()`](https://meztez.github.io/glmap/reference/add_popups.md)
+  [`clear_popups()`](https://meztez.github.io/glmap/reference/add_popups.md)
   :
 
-  Add Standalone HTML Popups (`add_popups`)
+  Add Standalone HTML Popups (`add_popups`, `clear_popups`)
 
 - [`add_wms_tiles()`](https://meztez.github.io/glmap/reference/add_wms_tiles.md)
   :
@@ -232,6 +246,12 @@ shaders in 0ms without re-rendering.
 - [`set_raster_style()`](https://meztez.github.io/glmap/reference/set_raster_style.md)
   : Live-Update a GPU Raster Layer's Colormap, Contrast Range, or
   Hillshading (0ms GPU Update)
+
+- [`set_marker_mode()`](https://meztez.github.io/glmap/reference/set_marker_mode.md)
+  :
+
+  Dynamically Switch Marker / Icon Rendering Strategy in Shiny
+  (`set_marker_mode`)
 
 - [`set_filter()`](https://meztez.github.io/glmap/reference/set_filter.md)
   : Filter Visible Features by Index on the GPU

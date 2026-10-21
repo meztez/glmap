@@ -25,7 +25,6 @@ y = top | center | bottom)."><meta property="og:image" content="https://meztez.g
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="../articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
-    <li><a class="dropdown-item" href="../articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -54,7 +53,7 @@ y = top | center | bottom)."><meta property="og:image" content="https://meztez.g
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_control</span><span class="op">(</span></span>
 <span>  <span class="va">map</span>,</span>
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"navigation"</span>, <span class="st">"scale"</span>, <span class="st">"attribution"</span>, <span class="st">"fullscreen"</span>, <span class="st">"layer_switcher"</span>, <span class="st">"hud"</span>,</span>
-<span>    <span class="st">"toolbar"</span>, <span class="st">"legends"</span>, <span class="st">"draw"</span>, <span class="st">"measure"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"toolbar"</span>, <span class="st">"legends"</span>, <span class="st">"draw"</span>, <span class="st">"measure"</span>, <span class="st">"search"</span><span class="op">)</span>,</span>
 <span>  enabled <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  position <span class="op">=</span> <span class="st">"top-right"</span>,</span>
 <span>  direction <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"vertical"</span>, <span class="st">"horizontal"</span><span class="op">)</span>,</span>
@@ -72,7 +71,7 @@ y = top | center | bottom)."><meta property="og:image" content="https://meztez.g
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
-<dd><p>Control type (<code>"navigation"</code>, <code>"scale"</code>, <code>"attribution"</code>, <code>"fullscreen"</code>, <code>"layer_switcher"</code>, <code>"hud"</code>, <code>"toolbar"</code>, <code>"legends"</code>, <code>"draw"</code>, <code>"measure"</code>).</p></dd>
+<dd><p>Control type (<code>"navigation"</code>, <code>"scale"</code>, <code>"attribution"</code>, <code>"fullscreen"</code>, <code>"layer_switcher"</code>, <code>"hud"</code>, <code>"toolbar"</code>, <code>"legends"</code>, <code>"draw"</code>, <code>"measure"</code>, <code>"search"</code>).</p></dd>
 
 
 <dt id="arg-enabled">enabled<a class="anchor" aria-label="anchor" href="#arg-enabled"></a></dt>
@@ -110,7 +109,7 @@ attribution labels never overlap!</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Beneva Geospatial Team.</p>
+  <p>Developed by Bruno Tremblay.</p>
 </div>
 
 <div class="pkgdown-footer-right">

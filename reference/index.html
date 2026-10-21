@@ -21,7 +21,6 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started with glmap</a></li>
     <li><a class="dropdown-item" href="../articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="../articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
-    <li><a class="dropdown-item" href="../articles/enterprise-case-studies.html">Enterprise Case Studies: Upgrading Actuarial &amp; Geospatial Platforms to glmap</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -182,6 +181,20 @@
 
         <dt>
 
+          <code><a href="add_measure.html">add_measure()</a></code>
+
+        </dt>
+        <dd>Add an Interactive Distance &amp; Area Measurement Control (<code>add_measure</code>)</dd>
+
+        <dt>
+
+          <code><a href="add_search_osm.html">add_search_osm()</a></code> <code><a href="add_search_osm.html">search_options()</a></code>
+
+        </dt>
+        <dd>Add an OpenStreetMap Address &amp; Place Search Bar (<code>add_search_osm</code>, <code>search_options</code>)</dd>
+
+        <dt>
+
           <code><a href="add_legend.html">add_legend()</a></code>
 
         </dt>
@@ -219,7 +232,7 @@
 
         <dt>
 
-          <code><a href="add_markers.html">add_markers()</a></code> <code><a href="add_markers.html">make_icon()</a></code> <code><a href="add_markers.html">make_awesome_icon()</a></code> <code><a href="add_markers.html">marker_cluster_options()</a></code>
+          <code><a href="add_markers.html">add_markers()</a></code> <code><a href="add_markers.html">make_icon()</a></code> <code><a href="add_markers.html">make_awesome_icon()</a></code> <code><a href="add_markers.html">marker_cluster_options()</a></code> <code><a href="add_markers.html">icon_render_options()</a></code>
 
         </dt>
         <dd>Add Custom Icon or Awesome Markers (<code>add_markers</code>, <code>make_icon</code>, <code>make_awesome_icon</code>)</dd>
@@ -282,10 +295,10 @@
 
         <dt>
 
-          <code><a href="add_popups.html">add_popups()</a></code>
+          <code><a href="add_popups.html">add_popups()</a></code> <code><a href="add_popups.html">clear_popups()</a></code>
 
         </dt>
-        <dd>Add Standalone HTML Popups (<code>add_popups</code>)</dd>
+        <dd>Add Standalone HTML Popups (<code>add_popups</code>, <code>clear_popups</code>)</dd>
 
         <dt>
 
@@ -386,6 +399,13 @@
 
         </dt>
         <dd>Live-Update a GPU Raster Layer's Colormap, Contrast Range, or Hillshading (0ms GPU Update)</dd>
+
+        <dt>
+
+          <code><a href="set_marker_mode.html">set_marker_mode()</a></code>
+
+        </dt>
+        <dd>Dynamically Switch Marker / Icon Rendering Strategy in Shiny (<code>set_marker_mode</code>)</dd>
 
         <dt>
 
@@ -520,7 +540,7 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Beneva Geospatial Team.</p>
+  <p>Developed by Bruno Tremblay.</p>
 </div>
 
 <div class="pkgdown-footer-right">

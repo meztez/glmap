@@ -2,9 +2,24 @@
 
 Drop-in GPU/Canvas equivalents of `leaflet::addMarkers()`,
 `leaflet::makeIcon()`, and `leaflet::makeAwesomeIcon()`. Supports
-per-feature SVG/PNG icon URLs (such as Geonesis product icons
-`bateau1.svg`, `habitation1.svg`, `auto1.svg`) as well as colored
-pin/badge markers.
+per-feature SVG/PNG icon URLs as well as colored pin/badge markers.
+
+Configures how `glmap` balances visual fidelity and 60 FPS GPU
+throughput across the three marker rendering engines:
+
+1.  **WebGL2 Texture Atlas (`"atlas"`)**: Packs all unique SVG/PNG icons
+    into a single GPU sprite sheet texture and renders 100k+ custom
+    icons in 1 `gl.POINTS` draw call.
+
+2.  **Screen-Space Grid Clustering (`"cluster"`)**: Groups nearby
+    markers into interactive count badges (`< 10`, `< 100`, `100+`) that
+    zoom into cluster bounds on click and render unclustered singletons
+    via the GPU Texture Atlas.
+
+3.  **Zoom-Level Level-of-Detail Hybrid (`"lod"`)**: Renders crisp GPU
+    SDF points at overview zoom levels and smoothly cross-fades into
+    full custom SVG/PNG Texture Atlas icons as you zoom in across
+    `lod_zoom`.
 
 ## Usage
 
@@ -19,6 +34,8 @@ add_markers(
   label = NULL,
   group = NULL,
   clusterOptions = NULL,
+  render_mode = "auto",
+  lod_zoom = NULL,
   id = NULL,
   ...
 )
@@ -34,6 +51,13 @@ marker_cluster_options(
   disableClusteringAtZoom = 15,
   maxClusterRadius = 65,
   freezeAtZoom = FALSE
+)
+
+icon_render_options(
+  mode = c("auto", "atlas", "cluster", "lod", "points"),
+  lod_zoom = NULL,
+  atlas_cell_px = 64L,
+  allow_ui_switcher = TRUE
 )
 ```
 
@@ -77,7 +101,26 @@ marker_cluster_options(
 - clusterOptions:
 
   Optional clustering specification (`leaflet::markerClusterOptions()`
-  compatibility).
+  or `marker_cluster_options()` compatibility).
+
+- render_mode:
+
+  Rendering strategy for markers/icons: `"auto"` (default; dynamically
+  combines clustering, zoom-level LOD cross-fade, and WebGL2 Texture
+  Atlas sprites based on feature count and `clusterOptions`),
+  `"cluster"` (screen-space clustering + GPU singleton sprites), `"lod"`
+  (zoom-level Level-of-Detail cross-fade from GPU SDF points at overview
+  zooms to full WebGL2 Texture Atlas sprites when zoomed in), `"atlas"`
+  (always render 100% of custom icons via the WebGL2 Texture Atlas
+  sprite shader in 1 GPU draw call), or `"points"` (pure GPU SDF
+  circles). Can also be an `icon_render_options()` object.
+
+- lod_zoom:
+
+  Numeric zoom threshold (e.g. `10`) or 2-element cross-fade range
+  `c(9, 11)`. If `NULL`, computed dynamically from feature count
+  (`<= 2,500`: `c(0, 0)` always icons; `2,501-15,000`: `c(8.5, 10.5)`;
+  `> 15,000`: `c(10.0, 12.0)`).
 
 - id:
 
@@ -133,3 +176,20 @@ marker_cluster_options(
 - freezeAtZoom:
 
   Optional zoom level to freeze clusters.
+
+- mode:
+
+  Strategy name: `"auto"` (default; dynamically selects based on
+  `clusterOptions` and feature count `n`), `"atlas"`, `"cluster"`,
+  `"lod"`, or `"points"`.
+
+- atlas_cell_px:
+
+  Resolution in pixels of each sprite slot in the GPU Texture Atlas
+  (default `64L`).
+
+- allow_ui_switcher:
+
+  Logical; if `TRUE` (default), exposes a compact mode selector in the
+  map's layer control so users can switch between `Auto`, `Cluster`,
+  `LOD`, and `GPU Atlas` live.

@@ -3,7 +3,6 @@
 <url><loc>https://meztez.github.io/glmap/AGENTS.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/LICENSE-text.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/articles/benchmarks-and-leaflet-parity.html</loc></url>
-<url><loc>https://meztez.github.io/glmap/articles/enterprise-case-studies.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/articles/getting-started.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/articles/index.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/articles/leaflet-migration.html</loc></url>
@@ -24,6 +23,7 @@
 <url><loc>https://meztez.github.io/glmap/reference/add_legend.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_lines.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_markers.html</loc></url>
+<url><loc>https://meztez.github.io/glmap/reference/add_measure.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_pmtiles.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_points.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_polygons.html</loc></url>
@@ -31,6 +31,7 @@
 <url><loc>https://meztez.github.io/glmap/reference/add_provider_tiles.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_raster.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_rectangles.html</loc></url>
+<url><loc>https://meztez.github.io/glmap/reference/add_search_osm.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_sf.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_webgl_shader_layer.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/add_wms_tiles.html</loc></url>
@@ -68,6 +69,7 @@
 <url><loc>https://meztez.github.io/glmap/reference/set_filter.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_layer_opacity.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_layer_visibility.html</loc></url>
+<url><loc>https://meztez.github.io/glmap/reference/set_marker_mode.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_max_bounds.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_projection.html</loc></url>
 <url><loc>https://meztez.github.io/glmap/reference/set_raster_style.html</loc></url>

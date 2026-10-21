@@ -1,6 +1,10 @@
-# Add Standalone HTML Popups (`add_popups`)
+# Add Standalone HTML Popups (`add_popups`, `clear_popups`)
 
-Drop-in equivalent of `leaflet::addPopups()`.
+Drop-in equivalents of `leaflet::addPopups()` and
+`leaflet::clearPopups()`. When called on a `glmap_proxy` with a single
+`lng`/`lat` and `popup` HTML string (such as lazy on-click popup
+generation in Shiny), opens the floating DOM popup card at that exact
+geographic coordinate.
 
 ## Usage
 
@@ -12,8 +16,11 @@ add_popups(
   lat = NULL,
   popup = NULL,
   id = NULL,
-  group = NULL
+  group = NULL,
+  lng = NULL
 )
+
+clear_popups(map)
 ```
 
 ## Arguments
@@ -41,3 +48,7 @@ add_popups(
 - group:
 
   Layer group name.
+
+- lng:
+
+  Optional alias for `lon` (`leaflet` compatibility).

@@ -2,9 +2,10 @@
 
 Converts either a numeric vector `c(xmin, ymin, xmax, ymax)` or a Shiny
 `input$map_selected` / `input$map_bounds` list directly into an
-`EPSG:4326` `POLYGON ((...))` WKT string ready for Snowflake
-`ST_WITHIN(GEOGRAPHY, TO_GEOGRAPHY(?))` or DuckDB Spatial
-`ST_Intersects(geom, ST_GeomFromText(?))`.
+`EPSG:4326` `POLYGON ((...))` WKT string ready for
+[`sf::st_as_sfc()`](https://r-spatial.github.io/sf/reference/st_as_sfc.html),
+[`terra::vect()`](https://rspatial.github.io/terra/reference/vect.html),
+PostGIS, or DuckDB Spatial `ST_Intersects(geom, ST_GeomFromText(?))`.
 
 ## Usage
 

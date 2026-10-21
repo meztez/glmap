@@ -10,7 +10,7 @@ Configures built-in map controls and positions them inside `glmap`'s
 add_control(
   map,
   type = c("navigation", "scale", "attribution", "fullscreen", "layer_switcher", "hud",
-    "toolbar", "legends", "draw", "measure"),
+    "toolbar", "legends", "draw", "measure", "search"),
   enabled = TRUE,
   position = "top-right",
   direction = c("vertical", "horizontal"),
@@ -29,7 +29,7 @@ add_control(
 
   Control type (`"navigation"`, `"scale"`, `"attribution"`,
   `"fullscreen"`, `"layer_switcher"`, `"hud"`, `"toolbar"`, `"legends"`,
-  `"draw"`, `"measure"`).
+  `"draw"`, `"measure"`, `"search"`).
 
 - enabled:
 
