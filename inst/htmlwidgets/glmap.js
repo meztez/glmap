@@ -1522,13 +1522,19 @@
         }
       }
 
-      // Compute spiderfied leg positions (circle or spiral web) if a cluster in this layer is currently spiderfied
+      // Compute spiderfied leg positions (circle or spiral web) in exact WebGL Mercator space
       let spScreenLegs = null;
       const spStartOffset = singles.length;
-      if (sp && sp.indices && sp.indices.length > 0) {
-        const [hubSx, hubSy] = this.lonLatToScreen(sp.centerLon, sp.centerLat, cx, cy, scale, w, h);
+      if (sp && sp.indices && sp.indices.length > 0 && gl) {
+        const hubMx = lonToMercX(sp.centerLon);
+        const hubMy = latToMercY(sp.centerLat);
+        const hubSx = halfW + (hubMx - cx) * scale;
+        const hubSy = halfH + (hubMy - cy) * scale;
         const mCount = sp.indices.length;
         spScreenLegs = [];
+        const legVertsMerc = new Float32Array(mCount * 4);
+        const legCols = new Uint8Array(mCount * 8);
+
         for (let k = 0; k < mCount; k++) {
           let legR, ang;
           if (mCount <= 8) {
@@ -1553,24 +1559,82 @@
             mx: lmx,
             my: lmy
           });
+
+          // Vertex 0: hub; Vertex 1: exact icon center in Web Mercator
+          legVertsMerc[4 * k] = hubMx;
+          legVertsMerc[4 * k + 1] = hubMy;
+          legVertsMerc[4 * k + 2] = lmx;
+          legVertsMerc[4 * k + 3] = lmy;
+          for (let v = 0; v < 2; v++) {
+            const off = (2 * k + v) * 4;
+            legCols[off] = 30;
+            legCols[off + 1] = 41;
+            legCols[off + 2] = 59;
+            legCols[off + 3] = 210;
+          }
         }
 
-        // Draw spiderfy web lines & center hub pin on the 2D overlay BEFORE GPU icons so icons sit cleanly on top of legs
-        ctx.save();
-        ctx.strokeStyle = "rgba(30, 41, 59, 0.75)";
-        ctx.lineWidth = 1.6;
-        for (let k = 0; k < spScreenLegs.length; k++) {
-          const leg = spScreenLegs[k];
-          ctx.beginPath();
-          ctx.moveTo(hubSx, hubSy);
-          ctx.lineTo(leg.sx, leg.sy);
-          ctx.stroke();
-        }
-        ctx.fillStyle = "rgba(30, 41, 59, 0.85)";
-        ctx.beginPath();
-        ctx.arc(hubSx, hubSy, 4.0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        // Draw spiderfy legs + center hub pin on the WebGL canvas (`gl`) BEFORE drawing the GPU icons
+        // so the legs sit strictly underneath the icons and terminate at the exact center of each icon!
+        if (!layer.vboSpiderLegs) layer.vboSpiderLegs = gl.createBuffer();
+        if (!layer.vboSpiderLegCols) layer.vboSpiderLegCols = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegs);
+        gl.bufferData(gl.ARRAY_BUFFER, legVertsMerc, gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegCols);
+        gl.bufferData(gl.ARRAY_BUFFER, legCols, gl.DYNAMIC_DRAW);
+
+        const progM = this.progMesh;
+        gl.useProgram(progM);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        const locMPos = gl.getAttribLocation(progM, "a_pos");
+        const locMCol = gl.getAttribLocation(progM, "a_color");
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegs);
+        gl.enableVertexAttribArray(locMPos);
+        gl.vertexAttribPointer(locMPos, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegCols);
+        gl.enableVertexAttribArray(locMCol);
+        gl.vertexAttribPointer(locMCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.uniform2f(gl.getUniformLocation(progM, "u_center_merc"), cx, cy);
+        gl.uniform1f(gl.getUniformLocation(progM, "u_scale"), scale);
+        gl.uniform2f(gl.getUniformLocation(progM, "u_viewport"), w, h);
+        gl.uniform1f(gl.getUniformLocation(progM, "u_opacity"), 0.85);
+        gl.uniform1f(gl.getUniformLocation(progM, "u_use_uniform_color"), 0.0);
+        gl.drawArrays(gl.LINES, 0, mCount * 2);
+
+        // Draw center hub pin via progPoints underneath the spiderfied icons
+        if (!layer.vboSpiderHubPos) layer.vboSpiderHubPos = gl.createBuffer();
+        if (!layer.vboSpiderHubCol) layer.vboSpiderHubCol = gl.createBuffer();
+        if (!layer.vboSpiderHubRad) layer.vboSpiderHubRad = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubPos);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([hubMx, hubMy]), gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubCol);
+        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([30, 41, 59, 230]), gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubRad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([3.5]), gl.DYNAMIC_DRAW);
+
+        const progP = this.progPoints;
+        gl.useProgram(progP);
+        const locPPos = gl.getAttribLocation(progP, "a_pos");
+        const locPCol = gl.getAttribLocation(progP, "a_color");
+        const locPRad = gl.getAttribLocation(progP, "a_radius");
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubPos);
+        gl.enableVertexAttribArray(locPPos);
+        gl.vertexAttribPointer(locPPos, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubCol);
+        gl.enableVertexAttribArray(locPCol);
+        gl.vertexAttribPointer(locPCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubRad);
+        gl.enableVertexAttribArray(locPRad);
+        gl.vertexAttribPointer(locPRad, 1, gl.FLOAT, false, 0, 0);
+        gl.uniform2f(gl.getUniformLocation(progP, "u_center_merc"), cx, cy);
+        gl.uniform1f(gl.getUniformLocation(progP, "u_scale"), scale);
+        gl.uniform2f(gl.getUniformLocation(progP, "u_viewport"), w, h);
+        gl.uniform1f(gl.getUniformLocation(progP, "u_dpr"), dpr);
+        gl.uniform1f(gl.getUniformLocation(progP, "u_opacity"), 0.9);
+        gl.uniform1f(gl.getUniformLocation(progP, "u_stroke"), 1.0);
+        gl.uniform3f(gl.getUniformLocation(progP, "u_stroke_color"), 255, 255, 255);
+        gl.uniform1f(gl.getUniformLocation(progP, "u_stroke_width"), 1.0);
+        gl.drawArrays(gl.POINTS, 0, 1);
       }
 
       // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call
