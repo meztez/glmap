@@ -469,7 +469,6 @@
       }
       this.scaleEl.style.display = (scCfg && scCfg.enabled === false) ? "none" : "block";
       this.hudEl.style.display = (hdCfg && hdCfg.enabled === false) ? "none" : "flex";
-    }
 
       const bm = (x && x.basemap) || {};
       this.attributionEl.innerHTML = bm.attribution || "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>";
