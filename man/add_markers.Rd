@@ -4,6 +4,7 @@
 \alias{add_markers}
 \alias{make_icon}
 \alias{make_awesome_icon}
+\alias{marker_cluster_options}
 \title{Add Custom Icon or Awesome Markers (\code{add_markers}, \code{make_icon}, \code{make_awesome_icon})}
 \usage{
 add_markers(
@@ -23,6 +24,15 @@ add_markers(
 make_icon(iconUrl, iconWidth = 28, iconHeight = 28)
 
 make_awesome_icon(text = "●", markerColor = "blue", iconColor = "#ffffff")
+
+marker_cluster_options(
+  showCoverageOnHover = TRUE,
+  zoomToBoundsOnClick = TRUE,
+  spiderfyOnMaxZoom = TRUE,
+  disableClusteringAtZoom = 15,
+  maxClusterRadius = 65,
+  freezeAtZoom = FALSE
+)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
@@ -57,6 +67,18 @@ make_awesome_icon(text = "●", markerColor = "blue", iconColor = "#ffffff")
 \item{markerColor}{Marker pin color (e.g., \code{"red"}, \code{"blue"}, \code{"orange"}, \code{"green"}, \code{"purple"}).}
 
 \item{iconColor}{Inner glyph color (default \code{"#ffffff"}).}
+
+\item{showCoverageOnHover}{Logical; highlight cluster bounds on hover.}
+
+\item{zoomToBoundsOnClick}{Logical; zoom to cluster bounds when clicked (default \code{TRUE}).}
+
+\item{spiderfyOnMaxZoom}{Logical; expand overlapping points at max zoom.}
+
+\item{disableClusteringAtZoom}{Numeric zoom level at or above which individual markers/icons are shown directly (default \code{15}).}
+
+\item{maxClusterRadius}{Maximum radius in pixels that a cluster will cover (default \code{65}).}
+
+\item{freezeAtZoom}{Optional zoom level to freeze clusters.}
 }
 \description{
 Drop-in GPU/Canvas equivalents of \code{leaflet::addMarkers()}, \code{leaflet::makeIcon()},

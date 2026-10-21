@@ -28,7 +28,7 @@ resolve_palette_colors <- function(palette = "viridis", n = 256L) {
     return(palette(n))
   }
   if (length(palette) > 1L) {
-    return(grDevices::colorRampPalette(palette)(n))
+    return(grDevices::colorRampPalette(palette, alpha = TRUE)(n))
   }
   pal_name <- tolower(as.character(palette[1]))
   switch(

@@ -679,6 +679,7 @@ add_points <- function(
   stroke_rgb <- as.integer(grDevices::col2rgb(stroke_color, alpha = FALSE)[, 1])
   tooltips <- build_popup_labels(popup, label, data)
   icon_spec <- resolve_icon_spec(icon, data, n)
+  cluster_spec <- resolve_cluster_spec(clusterOptions)
 
   layer_spec <- list(
     id = id,
@@ -696,7 +697,8 @@ add_points <- function(
       stroke = isTRUE(stroke),
       stroke_color = stroke_rgb,
       stroke_width = as.numeric(stroke_width),
-      icons = icon_spec
+      icons = icon_spec,
+      cluster = cluster_spec
     ),
     tooltips = tooltips
   )
@@ -781,6 +783,52 @@ make_awesome_icon <- function(text = "●", markerColor = "blue", iconColor = "#
     ),
     class = c("gl_awesome_icon", "leaflet_awesome_icon")
   )
+}
+
+#' @param showCoverageOnHover Logical; highlight cluster bounds on hover.
+#' @param zoomToBoundsOnClick Logical; zoom to cluster bounds when clicked (default `TRUE`).
+#' @param spiderfyOnMaxZoom Logical; expand overlapping points at max zoom.
+#' @param disableClusteringAtZoom Numeric zoom level at or above which individual markers/icons are shown directly (default `15`).
+#' @param maxClusterRadius Maximum radius in pixels that a cluster will cover (default `65`).
+#' @param freezeAtZoom Optional zoom level to freeze clusters.
+#' @rdname add_markers
+#' @export
+marker_cluster_options <- function(
+    showCoverageOnHover = TRUE,
+    zoomToBoundsOnClick = TRUE,
+    spiderfyOnMaxZoom = TRUE,
+    disableClusteringAtZoom = 15,
+    maxClusterRadius = 65,
+    freezeAtZoom = FALSE
+) {
+  structure(
+    list(
+      enabled = TRUE,
+      showCoverageOnHover = isTRUE(showCoverageOnHover),
+      zoomToBoundsOnClick = isTRUE(zoomToBoundsOnClick),
+      spiderfyOnMaxZoom = isTRUE(spiderfyOnMaxZoom),
+      disableClusteringAtZoom = if (is.numeric(disableClusteringAtZoom)) as.numeric(disableClusteringAtZoom[1]) else 15,
+      maxClusterRadius = as.numeric(maxClusterRadius[1] %||% 65),
+      freezeAtZoom = freezeAtZoom
+    ),
+    class = c("gl_cluster_options", "markerClusterOptions")
+  )
+}
+
+resolve_cluster_spec <- function(clusterOptions) {
+  if (is.null(clusterOptions) || identical(clusterOptions, FALSE)) return(NULL)
+  if (isTRUE(clusterOptions)) {
+    return(unclass(marker_cluster_options()))
+  }
+  if (is.list(clusterOptions)) {
+    return(list(
+      enabled = TRUE,
+      zoomToBoundsOnClick = isTRUE(clusterOptions$zoomToBoundsOnClick %||% TRUE),
+      disableClusteringAtZoom = as.numeric(clusterOptions$disableClusteringAtZoom %||% 15),
+      maxClusterRadius = as.numeric(clusterOptions$maxClusterRadius %||% 65)
+    ))
+  }
+  NULL
 }
 
 resolve_icon_spec <- function(icon, data, n) {
@@ -976,6 +1024,10 @@ add_polygons <- function(
 #' @param id Layer ID string.
 #' @param group Layer group name.
 #' @param legend Logical; whether to display a color ramp legend and interactive GPU raster controls.
+#' @param shader_controls Controls which interactive GPU shader widgets are shown inside the raster
+#'   legend card. Pass `TRUE` (default) to show all (`c("palette", "hillshade", "opacity")`),
+#'   `FALSE` to hide all interactive shader controls (keeping only the color ramp legend), or a
+#'   character vector / named list selecting any subset of `"palette"`, `"hillshade"`, and `"opacity"`.
 #' @export
 add_raster <- function(
     map,
@@ -989,7 +1041,8 @@ add_raster <- function(
     bbox = c(-75, 45, -71, 48),
     id = NULL,
     group = NULL,
-    legend = TRUE
+    legend = TRUE,
+    shader_controls = TRUE
 ) {
   raster <- raster %||% attr(map$x, "glmap_data")
   if (is.null(raster)) cli::cli_abort("`raster` must be provided to {.fn add_raster}.")
@@ -1009,7 +1062,10 @@ add_raster <- function(
   }
 
   pal_hex <- resolve_palette_colors(palette, 256L)
+  lut_rgba <- as.integer(grDevices::col2rgb(pal_hex, alpha = TRUE))
   lut_rgb <- as.integer(grDevices::col2rgb(pal_hex, alpha = FALSE))
+
+  ctrl_spec <- resolve_raster_shader_controls(shader_controls)
 
   layer_spec <- list(
     id = id,
@@ -1025,28 +1081,64 @@ add_raster <- function(
     vmax = vmax,
     buffer = buf_spec,
     style = list(
-      palette = as.character(palette[1]),
+      palette = if (length(palette) == 1L && is.character(palette)) as.character(palette[1]) else "custom",
+      lut_rgba = lut_rgba,
       lut_rgb = lut_rgb,
       hillshade = isTRUE(hillshade),
       vmin = vmin,
-      vmax = vmax
+      vmax = vmax,
+      shader_controls = ctrl_spec
     )
   )
 
   legend_spec <- if (isTRUE(legend)) {
+    # Strip trailing alpha from legend CSS gradient stops so the legend bar itself remains readable
+    leg_cols <- substr(pal_hex[round(seq(1, 256, length.out = 7))], 1L, 7L)
     list(
       layer_id = id,
+      group = group,
       type = "continuous",
       title = group,
       domain = c(vmin, vmax),
-      colors = pal_hex[round(seq(1, 256, length.out = 7))],
-      is_raster = TRUE
+      colors = leg_cols,
+      is_raster = TRUE,
+      shader_controls = ctrl_spec
     )
   } else {
     NULL
   }
 
   dispatch_layer(map, layer_spec, legend_spec, attr(raw_buf, "bbox"))
+}
+
+resolve_raster_shader_controls <- function(shader_controls) {
+  if (is.null(shader_controls) || identical(shader_controls, FALSE)) {
+    return(list(enabled = FALSE, palette = FALSE, hillshade = FALSE, opacity = FALSE))
+  }
+  if (isTRUE(shader_controls)) {
+    return(list(enabled = TRUE, palette = TRUE, hillshade = TRUE, opacity = TRUE))
+  }
+  if (is.character(shader_controls)) {
+    sc <- tolower(shader_controls)
+    return(list(
+      enabled = length(sc) > 0L,
+      palette = "palette" %in% sc,
+      hillshade = "hillshade" %in% sc,
+      opacity = "opacity" %in% sc
+    ))
+  }
+  if (is.list(shader_controls)) {
+    pal <- isTRUE(shader_controls$palette %||% TRUE)
+    hs <- isTRUE(shader_controls$hillshade %||% TRUE)
+    op <- isTRUE(shader_controls$opacity %||% TRUE)
+    return(list(
+      enabled = pal || hs || op,
+      palette = pal,
+      hillshade = hs,
+      opacity = op
+    ))
+  }
+  list(enabled = TRUE, palette = TRUE, hillshade = TRUE, opacity = TRUE)
 }
 
 #' Add a C++ Accelerated Hexagonal Binning Layer for 1M+ Points

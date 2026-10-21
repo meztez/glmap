@@ -158,22 +158,31 @@ set_layer_opacity <- function(map, id, opacity = 0.85) {
 #' @param palette New palette name (`"viridis"`, `"magma"`, `"turbo"`, `"terrain"`, `"RdYlBu"`).
 #' @param domain Optional numeric `c(vmin, vmax)` contrast stretch limits.
 #' @param hillshade Optional logical to toggle real-time GPU hillshading.
+#' @param opacity Optional numeric opacity (`0` to `1`).
+#' @param shader_controls Optional specification (`TRUE`, `FALSE`, character vector, or list)
+#'   controlling which interactive GPU shader controls are shown in the raster legend card.
 #' @export
-set_raster_style <- function(map, id, palette = NULL, domain = NULL, hillshade = NULL) {
-  lut_rgb <- if (!is.null(palette)) {
+set_raster_style <- function(map, id, palette = NULL, domain = NULL, hillshade = NULL, opacity = NULL, shader_controls = NULL) {
+  lut_rgba <- NULL
+  lut_rgb <- NULL
+  if (!is.null(palette)) {
     pal_hex <- resolve_palette_colors(palette, 256L)
-    as.integer(grDevices::col2rgb(pal_hex, alpha = FALSE))
-  } else {
-    NULL
+    lut_rgba <- as.integer(grDevices::col2rgb(pal_hex, alpha = TRUE))
+    lut_rgb <- as.integer(grDevices::col2rgb(pal_hex, alpha = FALSE))
   }
+
+  ctrl_spec <- if (!is.null(shader_controls)) resolve_raster_shader_controls(shader_controls) else NULL
 
   style_patch <- list(
     id = as.character(id),
-    palette = palette,
+    palette = if (!is.null(palette) && length(palette) == 1L) as.character(palette[1]) else if (!is.null(palette)) "custom" else NULL,
+    lut_rgba = lut_rgba,
     lut_rgb = lut_rgb,
     vmin = if (!is.null(domain)) as.numeric(domain[1]) else NULL,
     vmax = if (!is.null(domain)) as.numeric(domain[2]) else NULL,
-    hillshade = if (!is.null(hillshade)) isTRUE(hillshade) else NULL
+    hillshade = if (!is.null(hillshade)) isTRUE(hillshade) else NULL,
+    opacity = if (!is.null(opacity)) max(0, min(1, as.numeric(opacity[1]))) else NULL,
+    shader_controls = ctrl_spec
   )
 
   if (inherits(map, "glmap_proxy")) {
@@ -182,13 +191,16 @@ set_raster_style <- function(map, id, palette = NULL, domain = NULL, hillshade =
 
   for (i in seq_along(map$x$layers)) {
     if (identical(map$x$layers[[i]]$id, id)) {
-      if (!is.null(palette)) map$x$layers[[i]]$style$palette <- palette
+      if (!is.null(palette)) map$x$layers[[i]]$style$palette <- style_patch$palette
+      if (!is.null(lut_rgba)) map$x$layers[[i]]$style$lut_rgba <- lut_rgba
       if (!is.null(lut_rgb)) map$x$layers[[i]]$style$lut_rgb <- lut_rgb
       if (!is.null(domain)) {
         map$x$layers[[i]]$style$vmin <- as.numeric(domain[1])
         map$x$layers[[i]]$style$vmax <- as.numeric(domain[2])
       }
       if (!is.null(hillshade)) map$x$layers[[i]]$style$hillshade <- isTRUE(hillshade)
+      if (!is.null(opacity)) map$x$layers[[i]]$opacity <- style_patch$opacity
+      if (!is.null(ctrl_spec)) map$x$layers[[i]]$style$shader_controls <- ctrl_spec
     }
   }
   map

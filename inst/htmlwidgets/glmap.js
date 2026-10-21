@@ -40,7 +40,7 @@
 
   function buildPaletteLUT256(name) {
     const stops = BUILTIN_PALETTES[(name || "viridis").toLowerCase()] || BUILTIN_PALETTES.viridis;
-    const out = new Uint8Array(256 * 3);
+    const out = new Uint8Array(256 * 4);
     const m = stops.length - 1;
     for (let i = 0; i < 256; i++) {
       const t = (i / 255) * m;
@@ -48,11 +48,29 @@
       const frac = t - idx;
       const c0 = stops[idx];
       const c1 = stops[idx + 1];
-      out[3 * i] = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
-      out[3 * i + 1] = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
-      out[3 * i + 2] = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
+      out[4 * i] = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
+      out[4 * i + 1] = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
+      out[4 * i + 2] = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
+      out[4 * i + 3] = 255;
     }
     return out;
+  }
+
+  function ensureLUT256RGBA(lutRgba, lutRgb, fallbackName) {
+    if (Array.isArray(lutRgba) && lutRgba.length === 1024) {
+      return new Uint8Array(lutRgba);
+    }
+    if (Array.isArray(lutRgb) && lutRgb.length === 768) {
+      const out = new Uint8Array(1024);
+      for (let i = 0; i < 256; i++) {
+        out[4 * i] = lutRgb[3 * i];
+        out[4 * i + 1] = lutRgb[3 * i + 1];
+        out[4 * i + 2] = lutRgb[3 * i + 2];
+        out[4 * i + 3] = 255;
+      }
+      return out;
+    }
+    return buildPaletteLUT256(fallbackName);
   }
 
   function lonToMercX(lon) {
@@ -572,7 +590,7 @@
       `;
       this.progHeat = createProgram(gl, vsHeat, fsHeat);
 
-      // 4. GPU Raster Float32 Shader (live LUT colormap, contrast stretch, hillshading, multi-band math)
+      // 4. GPU Raster Float32 Shader (live RGBA LUT colormap, Web Mercator -> EPSG:4326 latitude unprojection, contrast stretch, hillshading, multi-band math)
       const vsRaster = `
         attribute vec2 a_pos;
         attribute vec2 a_uv;
@@ -598,8 +616,17 @@
         uniform float u_hillshade;
         uniform float u_band_math;
         uniform vec2 u_texel_size;
+        uniform vec2 u_lat_bounds;
+        uniform vec2 u_merc_y_bounds;
         void main() {
-          vec4 sample_val = texture2D(u_raster_tex, v_uv);
+          // Convert interpolated Web Mercator Y back to exact EPSG:4326 latitude so large-extent rasters hug coastlines tightly
+          float my = mix(u_merc_y_bounds.x, u_merc_y_bounds.y, v_uv.y);
+          float n = 3.141592653589793 - 6.283185307179586 * my;
+          float lat = 57.29577951308232 * atan(0.5 * (exp(n) - exp(-n)));
+          float v_lat = clamp((u_lat_bounds.y - lat) / max(1e-6, u_lat_bounds.y - u_lat_bounds.x), 0.0, 1.0);
+          vec2 uv = vec2(v_uv.x, v_lat);
+
+          vec4 sample_val = texture2D(u_raster_tex, uv);
           if (sample_val.a < 0.5) discard;
           float b1 = sample_val.r;
           float b2 = sample_val.g;
@@ -610,13 +637,15 @@
             val = (b2 - b1) / max(1e-5, abs(b2 + b1)); // Normalized Difference (NDVI)
           }
           float t = clamp((val - u_vmin) / max(1e-6, u_vmax - u_vmin), 0.0, 1.0);
-          vec3 rgb = texture2D(u_lut_tex, vec2(t, 0.5)).rgb;
+          vec4 lut_col = texture2D(u_lut_tex, vec2(t, 0.5));
+          if (lut_col.a <= 0.004) discard;
+          vec3 rgb = lut_col.rgb;
 
           if (u_hillshade > 0.5) {
-            float vL = texture2D(u_raster_tex, v_uv + vec2(-u_texel_size.x, 0.0)).r;
-            float vR = texture2D(u_raster_tex, v_uv + vec2( u_texel_size.x, 0.0)).r;
-            float vU = texture2D(u_raster_tex, v_uv + vec2(0.0, -u_texel_size.y)).r;
-            float vD = texture2D(u_raster_tex, v_uv + vec2(0.0,  u_texel_size.y)).r;
+            float vL = texture2D(u_raster_tex, uv + vec2(-u_texel_size.x, 0.0)).r;
+            float vR = texture2D(u_raster_tex, uv + vec2( u_texel_size.x, 0.0)).r;
+            float vU = texture2D(u_raster_tex, uv + vec2(0.0, -u_texel_size.y)).r;
+            float vD = texture2D(u_raster_tex, uv + vec2(0.0,  u_texel_size.y)).r;
             float dzdx = (vR - vL) / max(1e-5, u_vmax - u_vmin) * 4.0;
             float dzdy = (vD - vU) / max(1e-5, u_vmax - u_vmin) * 4.0;
             vec3 norm = normalize(vec3(-dzdx, -dzdy, 1.0));
@@ -625,10 +654,46 @@
             rgb = clamp(rgb * shade, 0.0, 1.0);
           }
 
-          gl_FragColor = vec4(rgb, u_opacity);
+          gl_FragColor = vec4(rgb, lut_col.a * u_opacity);
         }
       `;
       this.progRaster = createProgram(gl, vsRaster, fsRaster);
+
+      // 5. GPU Sprite Atlas Shader for Custom SVG/PNG Icons (1 draw call for 100k+ custom markers)
+      const vsIcons = `
+        attribute vec2 a_pos;
+        attribute float a_icon_idx;
+        uniform vec2 u_center_merc;
+        uniform float u_scale;
+        uniform vec2 u_viewport;
+        uniform float u_dpr;
+        uniform float u_icon_size;
+        varying float v_icon_idx;
+        void main() {
+          vec2 delta_px = (a_pos - u_center_merc) * u_scale;
+          vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
+          gl_Position = vec4(clip, 0.0, 1.0);
+          gl_PointSize = u_icon_size * u_dpr;
+          v_icon_idx = a_icon_idx;
+        }
+      `;
+      const fsIcons = `
+        precision highp float;
+        varying float v_icon_idx;
+        uniform sampler2D u_atlas_tex;
+        uniform float u_atlas_count;
+        uniform float u_opacity;
+        void main() {
+          vec2 p = gl_PointCoord;
+          // Pad 4% inside cell to prevent texture bleeding across adjacent atlas sprites
+          vec2 cell_uv = clamp(p, 0.02, 0.98);
+          float u = (floor(v_icon_idx + 0.5) + cell_uv.x) / max(1.0, u_atlas_count);
+          vec4 tex_col = texture2D(u_atlas_tex, vec2(u, cell_uv.y));
+          if (tex_col.a <= 0.02) discard;
+          gl_FragColor = vec4(tex_col.rgb, tex_col.a * u_opacity);
+        }
+      `;
+      this.progIcons = createProgram(gl, vsIcons, fsIcons);
     }
 
     async renderValue(x) {
@@ -874,6 +939,10 @@
           gl.bindBuffer(gl.ARRAY_BUFFER, entry.vboRad);
           gl.bufferData(gl.ARRAY_BUFFER, parsed.vertexRadius, gl.STATIC_DRAW);
 
+          if (entry.style && entry.style.icons) {
+            this._prepareLayerIconAtlas(entry, parsed);
+          }
+
           if (parsed.indices && parsed.indices.length > 0) {
             entry.iboTri = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, entry.iboTri);
@@ -973,10 +1042,9 @@
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, texData);
       }
 
-      // Upload 256x1 RGB LUT texture
-      const lutBytes = entry.style && Array.isArray(entry.style.lut_rgb) && entry.style.lut_rgb.length === 768
-        ? new Uint8Array(entry.style.lut_rgb)
-        : buildPaletteLUT256(entry.style ? entry.style.palette : "viridis");
+      // Upload 256x1 RGBA LUT texture (preserving per-stop alpha such as transparent 0mm precipitation)
+      const st = entry.style || {};
+      const lutBytes = ensureLUT256RGBA(st.lut_rgba, st.lut_rgb, st.palette || "viridis");
 
       entry.lutTex = gl.createTexture();
       this._updateRasterLUT(entry, lutBytes);
@@ -987,6 +1055,8 @@
       const mx1 = lonToMercX(xmax);
       const my0 = latToMercY(ymax); // top (north)
       const my1 = latToMercY(ymin); // bottom (south)
+      entry.latBounds = [ymin, ymax];
+      entry.mercYBounds = [my0, my1];
 
       const quadPos = new Float32Array([
         mx0, my0,
@@ -1022,7 +1092,110 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 256, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, lutBytes);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lutBytes);
+    }
+
+    _prepareLayerIconAtlas(entry, parsed) {
+      const gl = this.gl;
+      if (!gl) return;
+      const iconSpec = entry.style && entry.style.icons;
+      if (!iconSpec) return;
+
+      const n = parsed.nVertices;
+      const iconIdxArr = new Float32Array(n);
+      if (Array.isArray(iconSpec.indices)) {
+        for (let i = 0; i < n; i++) {
+          iconIdxArr[i] = Number(iconSpec.indices[i] || 0);
+        }
+      } else {
+        const cIdx = Number(iconSpec.indices || 0);
+        iconIdxArr.fill(cIdx);
+      }
+
+      entry.vboIcon = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.vboIcon);
+      gl.bufferData(gl.ARRAY_BUFFER, iconIdxArr, gl.STATIC_DRAW);
+      entry.iconIdxArr = iconIdxArr;
+
+      const cellPx = 64;
+      if (iconSpec.type === "url" && Array.isArray(iconSpec.atlas) && iconSpec.atlas.length > 0) {
+        const urls = iconSpec.atlas;
+        const count = urls.length;
+        entry.atlasCount = count;
+        const atlasCanvas = document.createElement("canvas");
+        atlasCanvas.width = count * cellPx;
+        atlasCanvas.height = cellPx;
+        const actx = atlasCanvas.getContext("2d");
+
+        entry.atlasTex = gl.createTexture();
+        const uploadAtlas = () => {
+          if (!this.gl || !entry.atlasTex) return;
+          gl.bindTexture(gl.TEXTURE_2D, entry.atlasTex);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlasCanvas);
+          this.requestRender();
+        };
+
+        // Draw initial fallback circle badges so markers are immediately visible before SVGs finish loading
+        for (let i = 0; i < count; i++) {
+          actx.fillStyle = "#0284c7";
+          actx.strokeStyle = "#ffffff";
+          actx.lineWidth = 3;
+          actx.beginPath();
+          actx.arc(i * cellPx + cellPx * 0.5, cellPx * 0.5, cellPx * 0.34, 0, Math.PI * 2);
+          actx.fill();
+          actx.stroke();
+        }
+        uploadAtlas();
+
+        urls.forEach((url, idx) => {
+          let img = this._iconCache.get(url);
+          const paintSlot = (loadedImg) => {
+            if (!loadedImg || !loadedImg.complete || loadedImg.naturalWidth === 0) return;
+            actx.clearRect(idx * cellPx, 0, cellPx, cellPx);
+            const pad = 4;
+            actx.drawImage(loadedImg, idx * cellPx + pad, pad, cellPx - pad * 2, cellPx - pad * 2);
+            uploadAtlas();
+          };
+          if (img && img.complete && img.naturalWidth > 0) {
+            paintSlot(img);
+          } else {
+            img = new Image();
+            img.onload = () => paintSlot(img);
+            img.src = url;
+            this._iconCache.set(url, img);
+          }
+        });
+      } else if (iconSpec.type === "awesome") {
+        entry.atlasCount = 1;
+        const atlasCanvas = document.createElement("canvas");
+        atlasCanvas.width = cellPx;
+        atlasCanvas.height = cellPx;
+        const actx = atlasCanvas.getContext("2d");
+        actx.fillStyle = iconSpec.markerColor || "#0284c7";
+        actx.strokeStyle = "#ffffff";
+        actx.lineWidth = 3;
+        actx.beginPath();
+        actx.arc(cellPx * 0.5, cellPx * 0.5, cellPx * 0.38, 0, Math.PI * 2);
+        actx.fill();
+        actx.stroke();
+        actx.fillStyle = iconSpec.iconColor || "#ffffff";
+        actx.font = "bold 22px sans-serif";
+        actx.textAlign = "center";
+        actx.textBaseline = "middle";
+        actx.fillText(iconSpec.text || "●", cellPx * 0.5, cellPx * 0.5);
+
+        entry.atlasTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, entry.atlasTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlasCanvas);
+      }
     }
 
     requestRender() {
@@ -1082,6 +1255,8 @@
       const centerMercY = latToMercY(this.camera.centerLat);
       const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
 
+      this._activeClusterBadges = [];
+
       for (const id of this.layerOrder) {
         const layer = this.layers.get(id);
         if (!layer || !layer.visible) continue;
@@ -1095,8 +1270,13 @@
         } else if (layer.type === "heatmap" && layer.parsed) {
           this._drawHeatmapLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
         } else if (layer.type === "points" && layer.parsed) {
-          if (layer.style && layer.style.icons && ctx2d) {
-            this._drawIconMarkersLayer2D(ctx2d, layer, centerMercX, centerMercY, scale, w, h);
+          const clCfg = layer.style && layer.style.cluster;
+          const disableZoom = (clCfg && clCfg.disableClusteringAtZoom !== undefined) ? clCfg.disableClusteringAtZoom : 15;
+          const doCluster = Boolean(clCfg && clCfg.enabled && this.camera.zoom < disableZoom && layer.parsed.nVertices > 1);
+          if (doCluster && ctx2d) {
+            this._drawClusteredLayer(ctx2d, layer, centerMercX, centerMercY, scale, w, h, dpr);
+          } else if (layer.style && layer.style.icons && layer.atlasTex && layer.vboIcon) {
+            this._drawIconAtlasLayerGPU(layer, centerMercX, centerMercY, scale, w, h, dpr, null, 0);
           } else {
             this._drawPointsLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
           }
@@ -1159,63 +1339,223 @@
       gl.drawArrays(gl.POINTS, 0, layer.parsed.nVertices);
     }
 
-    _drawIconMarkersLayer2D(ctx, layer, cx, cy, scale, w, h) {
-      const iconSpec = layer.style && layer.style.icons;
-      if (!iconSpec) return;
+    _drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, customPosBuf, customIconBuf, customCount) {
+      const gl = this.gl;
+      const prog = this.progIcons;
+      if (!gl || !prog || !layer.atlasTex) return;
+
+      const count = customPosBuf ? customCount : layer.parsed.nVertices;
+      if (count <= 0) return;
+
+      gl.useProgram(prog);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      const locPos = gl.getAttribLocation(prog, "a_pos");
+      const locIdx = gl.getAttribLocation(prog, "a_icon_idx");
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, customPosBuf || layer.vboPos);
+      gl.enableVertexAttribArray(locPos);
+      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, customIconBuf || layer.vboIcon);
+      gl.enableVertexAttribArray(locIdx);
+      gl.vertexAttribPointer(locIdx, 1, gl.FLOAT, false, 0, 0);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, layer.atlasTex);
+      gl.uniform1i(gl.getUniformLocation(prog, "u_atlas_tex"), 0);
+
+      const iconSpec = (layer.style && layer.style.icons) || {};
+      const iconSize = Math.max(iconSpec.width || 28, iconSpec.height || 28);
+
+      gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_icon_size"), iconSize);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_atlas_count"), layer.atlasCount || 1);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity !== undefined ? layer.opacity : 1.0);
+
+      gl.drawArrays(gl.POINTS, 0, count);
+    }
+
+    _drawClusteredLayer(ctx, layer, cx, cy, scale, w, h, dpr) {
+      const gl = this.gl;
       const mc = layer.parsed.mercCoords;
+      const coords = layer.parsed.coords;
       const n = layer.parsed.nVertices;
-      const iw = iconSpec.width || 28;
-      const ih = iconSpec.height || 28;
+      const clCfg = (layer.style && layer.style.cluster) || {};
+      const cellPx = Math.max(36, Number(clCfg.maxClusterRadius || 65));
+      const cols = Math.max(1, Math.ceil(w / cellPx));
+      const rows = Math.max(1, Math.ceil(h / cellPx));
+      const halfW = w * 0.5;
+      const halfH = h * 0.5;
+      const pad = cellPx;
 
-      if (iconSpec.type === "url" && Array.isArray(iconSpec.atlas)) {
-        const atlasImgs = iconSpec.atlas.map((url) => {
-          if (this._iconCache.has(url)) return this._iconCache.get(url);
-          const img = new Image();
-          img.onload = () => this.requestRender();
-          img.src = url;
-          this._iconCache.set(url, img);
-          return img;
-        });
+      // Fast O(N) screen-space spatial hash using pure arithmetic on precomputed mercCoords
+      const buckets = new Map();
+      for (let i = 0; i < n; i++) {
+        const mx = mc[2 * i];
+        const my = mc[2 * i + 1];
+        const sx = halfW + (mx - cx) * scale;
+        const sy = halfH + (my - cy) * scale;
+        if (sx < -pad || sx > w + pad || sy < -pad || sy > h + pad) continue;
+        const gx = Math.floor(sx / cellPx);
+        const gy = Math.floor(sy / cellPx);
+        const key = (gy + 16) * (cols + 32) + (gx + 16);
+        let b = buckets.get(key);
+        if (!b) {
+          const lon = coords[2 * i];
+          const lat = coords[2 * i + 1];
+          b = {
+            count: 1,
+            sumSx: sx,
+            sumSy: sy,
+            firstIdx: i,
+            minLon: lon,
+            minLat: lat,
+            maxLon: lon,
+            maxLat: lat
+          };
+          buckets.set(key, b);
+        } else {
+          b.count++;
+          b.sumSx += sx;
+          b.sumSy += sy;
+          const lon = coords[2 * i];
+          const lat = coords[2 * i + 1];
+          if (lon < b.minLon) b.minLon = lon;
+          if (lon > b.maxLon) b.maxLon = lon;
+          if (lat < b.minLat) b.minLat = lat;
+          if (lat > b.maxLat) b.maxLat = lat;
+        }
+      }
 
-        const indices = iconSpec.indices;
-        const isArr = Array.isArray(indices);
-        for (let i = 0; i < n; i++) {
-          const [sx, sy] = this.lonLatToScreen(
-            layer.parsed.coords[2 * i], layer.parsed.coords[2 * i + 1],
-            cx, cy, scale, w, h
-          );
-          if (sx < -iw || sx > w + iw || sy < -ih || sy > h + ih) continue;
-          const idx = isArr ? (indices[i] || 0) : (indices || 0);
-          const img = atlasImgs[idx];
-          if (img && img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, sx - iw * 0.5, sy - ih * 0.5, iw, ih);
-          } else {
-            ctx.fillStyle = "#38bdf8";
-            ctx.beginPath();
-            ctx.arc(sx, sy, 5, 0, Math.PI * 2);
-            ctx.fill();
+      // Separate singleton markers (rendered via GPU shader) from multi-point clusters
+      const singles = [];
+      const clusters = [];
+      for (const b of buckets.values()) {
+        if (b.count === 1) {
+          singles.push(b.firstIdx);
+        } else {
+          clusters.push(b);
+        }
+      }
+
+      // 1. Render all unclustered singletons in 1 GPU draw call
+      if (singles.length > 0 && gl) {
+        const sCount = singles.length;
+        const posArr = new Float32Array(sCount * 2);
+        for (let k = 0; k < sCount; k++) {
+          const idx = singles[k];
+          posArr[2 * k] = mc[2 * idx];
+          posArr[2 * k + 1] = mc[2 * idx + 1];
+        }
+        if (!layer.vboSinglePos) layer.vboSinglePos = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
+        gl.bufferData(gl.ARRAY_BUFFER, posArr, gl.DYNAMIC_DRAW);
+
+        if (layer.style && layer.style.icons && layer.atlasTex && layer.iconIdxArr) {
+          const idxArr = new Float32Array(sCount);
+          for (let k = 0; k < sCount; k++) {
+            idxArr[k] = layer.iconIdxArr[singles[k]];
           }
+          if (!layer.vboSingleIcon) layer.vboSingleIcon = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleIcon);
+          gl.bufferData(gl.ARRAY_BUFFER, idxArr, gl.DYNAMIC_DRAW);
+          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, layer.vboSinglePos, layer.vboSingleIcon, sCount);
+        } else {
+          const colArr = new Uint8Array(sCount * 4);
+          const radArr = new Float32Array(sCount);
+          const vRgba = layer.parsed.vertexRgba;
+          const vRad = layer.parsed.vertexRadius;
+          for (let k = 0; k < sCount; k++) {
+            const idx = singles[k];
+            colArr[4 * k] = vRgba[4 * idx];
+            colArr[4 * k + 1] = vRgba[4 * idx + 1];
+            colArr[4 * k + 2] = vRgba[4 * idx + 2];
+            colArr[4 * k + 3] = vRgba[4 * idx + 3];
+            radArr[k] = vRad[idx];
+          }
+          if (!layer.vboSingleCol) layer.vboSingleCol = gl.createBuffer();
+          if (!layer.vboSingleRad) layer.vboSingleRad = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleCol);
+          gl.bufferData(gl.ARRAY_BUFFER, colArr, gl.DYNAMIC_DRAW);
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
+          gl.bufferData(gl.ARRAY_BUFFER, radArr, gl.DYNAMIC_DRAW);
+
+          const prog = this.progPoints;
+          gl.useProgram(prog);
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+          const locPos = gl.getAttribLocation(prog, "a_pos");
+          const locCol = gl.getAttribLocation(prog, "a_color");
+          const locRad = gl.getAttribLocation(prog, "a_radius");
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
+          gl.enableVertexAttribArray(locPos);
+          gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleCol);
+          gl.enableVertexAttribArray(locCol);
+          gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
+          gl.enableVertexAttribArray(locRad);
+          gl.vertexAttribPointer(locRad, 1, gl.FLOAT, false, 0, 0);
+          gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
+          gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
+          gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+          gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
+          gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
+          const st = layer.style || {};
+          gl.uniform1f(gl.getUniformLocation(prog, "u_stroke"), st.stroke ? 1.0 : 0.0);
+          const sc = st.stroke_color || [255, 255, 255];
+          gl.uniform3f(gl.getUniformLocation(prog, "u_stroke_color"), sc[0], sc[1], sc[2]);
+          gl.uniform1f(gl.getUniformLocation(prog, "u_stroke_width"), st.stroke_width || 1.0);
+          gl.drawArrays(gl.POINTS, 0, sCount);
         }
-      } else if (iconSpec.type === "awesome") {
-        ctx.font = "bold 11px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        for (let i = 0; i < n; i++) {
-          const [sx, sy] = this.lonLatToScreen(
-            layer.parsed.coords[2 * i], layer.parsed.coords[2 * i + 1],
-            cx, cy, scale, w, h
-          );
-          if (sx < -iw || sx > w + iw || sy < -ih || sy > h + ih) continue;
-          ctx.fillStyle = iconSpec.markerColor || "#0284c7";
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(sx, sy - 8, 10, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.fillStyle = iconSpec.iconColor || "#ffffff";
-          ctx.fillText(iconSpec.text || "●", sx, sy - 8);
+      }
+
+      // 2. Render Leaflet.markercluster-style dual-ring badges for clusters (at most ~150 on screen)
+      ctx.font = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i < clusters.length; i++) {
+        const cl = clusters[i];
+        const sx = cl.sumSx / cl.count;
+        const sy = cl.sumSy / cl.count;
+        const cnt = cl.count;
+        let outerCol = "rgba(181, 226, 140, 0.6)";
+        let innerCol = "rgba(110, 204, 57, 0.85)";
+        let rIn = 15;
+        if (cnt >= 100) {
+          outerCol = "rgba(253, 156, 115, 0.6)";
+          innerCol = "rgba(241, 128, 23, 0.88)";
+          rIn = 19;
+        } else if (cnt >= 10) {
+          outerCol = "rgba(241, 211, 87, 0.6)";
+          innerCol = "rgba(240, 194, 12, 0.88)";
+          rIn = 17;
         }
+        const rOut = rIn + 5;
+
+        ctx.fillStyle = outerCol;
+        ctx.beginPath();
+        ctx.arc(sx, sy, rOut, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = innerCol;
+        ctx.beginPath();
+        ctx.arc(sx, sy, rIn, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#1e293b";
+        ctx.fillText(String(cnt), sx, sy + 0.5);
+
+        this._activeClusterBadges.push({
+          sx,
+          sy,
+          r: rOut,
+          count: cnt,
+          bbox: [cl.minLon, cl.minLat, cl.maxLon, cl.maxLat]
+        });
       }
     }
 
@@ -1375,6 +1715,10 @@
       gl.uniform1f(gl.getUniformLocation(prog, "u_hillshade"), layer.style && layer.style.hillshade ? 1.0 : 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_band_math"), layer.bandMathMode || 0.0);
       gl.uniform2f(gl.getUniformLocation(prog, "u_texel_size"), 1.0 / layer.parsed.width, 1.0 / layer.parsed.height);
+      const lb = layer.latBounds || [layer.parsed.bbox[1], layer.parsed.bbox[3]];
+      const mb = layer.mercYBounds || [latToMercY(lb[1]), latToMercY(lb[0])];
+      gl.uniform2f(gl.getUniformLocation(prog, "u_lat_bounds"), lb[0], lb[1]);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_merc_y_bounds"), mb[0], mb[1]);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
@@ -1500,6 +1844,24 @@
         return;
       }
       if (this.drawMode) return;
+
+      // 0. Check if user clicked a marker cluster badge -> zoom into cluster bounds (exact Leaflet.markercluster UX!)
+      if (Array.isArray(this._activeClusterBadges) && this._activeClusterBadges.length > 0) {
+        for (let i = this._activeClusterBadges.length - 1; i >= 0; i--) {
+          const cl = this._activeClusterBadges[i];
+          const dx = px - cl.sx;
+          const dy = py - cl.sy;
+          if (dx * dx + dy * dy <= cl.r * cl.r) {
+            const [b0, b1, b2, b3] = cl.bbox;
+            if (Math.abs(b2 - b0) < 1e-4 && Math.abs(b3 - b1) < 1e-4) {
+              this.flyTo({ center: [(b0 + b2) * 0.5, (b1 + b3) * 0.5], zoom: Math.min(18, this.camera.zoom + 3), duration: 600 });
+            } else {
+              this.flyToBounds({ bounds: [b0, b1, b2, b3], padding: 60, duration: 600 });
+            }
+            return;
+          }
+        }
+      }
 
       // 1. Check if user clicked inside an existing drawn shape -> show Remove popup (exact Geonesis pattern!)
       for (let i = this.drawnFeatures.length - 1; i >= 0; i--) {
@@ -1779,20 +2141,40 @@
           `;
           if (leg.is_raster && leg.layer_id && this.layers.has(leg.layer_id)) {
             const rl = this.layers.get(leg.layer_id);
-            html += `
-              <div class="glmap-raster-controls" data-raster-id="${leg.layer_id}">
-                <label style="font-size:10px;color:#94a3b8">GPU Shader Palette</label>
-                <select class="gl-pal-select">
-                  ${["viridis", "magma", "plasma", "turbo", "terrain", "rdylbu"].map(p =>
-                    `<option value="${p}" ${(rl.style && rl.style.palette === p) ? "selected" : ""}>${p}</option>`
-                  ).join("")}
-                </select>
-                <label style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:3px">
-                  <input type="checkbox" class="gl-hill-cb" ${(rl.style && rl.style.hillshade) ? "checked" : ""}/>
-                  Real-Time GPU Hillshade
-                </label>
-              </div>
-            `;
+            const sc = (rl.style && rl.style.shader_controls) || leg.shader_controls || { enabled: true, palette: true, hillshade: true, opacity: true };
+            if (sc.enabled !== false && (sc.palette || sc.hillshade || sc.opacity)) {
+              const curPal = (rl.style && rl.style.palette) || "viridis";
+              const palOpts = ["custom", "viridis", "magma", "plasma", "turbo", "terrain", "rdylbu"]
+                .filter((p) => p !== "custom" || curPal === "custom")
+                .map((p) => `<option value="${p}" ${curPal === p ? "selected" : ""}>${p === "custom" ? "custom (R)" : p}</option>`)
+                .join("");
+              const curOp = rl.opacity !== undefined ? Number(rl.opacity) : 0.85;
+              html += `<div class="glmap-raster-controls" data-raster-id="${leg.layer_id}">`;
+              if (sc.palette !== false) {
+                html += `
+                  <label style="font-size:10px;color:#94a3b8">GPU Shader Palette</label>
+                  <select class="gl-pal-select">${palOpts}</select>
+                `;
+              }
+              if (sc.hillshade !== false) {
+                html += `
+                  <label style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:3px">
+                    <input type="checkbox" class="gl-hill-cb" ${(rl.style && rl.style.hillshade) ? "checked" : ""}/>
+                    Real-Time GPU Hillshade
+                  </label>
+                `;
+              }
+              if (sc.opacity !== false) {
+                html += `
+                  <label style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;margin-top:4px">
+                    <span>Layer Opacity</span>
+                    <span class="gl-op-val">${Math.round(curOp * 100)}%</span>
+                  </label>
+                  <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:#38bdf8;cursor:pointer;margin-top:2px"/>
+                `;
+              }
+              html += `</div>`;
+            }
           }
         } else if (leg.type === "categorical" && Array.isArray(leg.labels)) {
           for (let i = 0; i < leg.labels.length; i++) {
@@ -1812,6 +2194,8 @@
           const rid = ctrl.getAttribute("data-raster-id");
           const sel = ctrl.querySelector(".gl-pal-select");
           const cb = ctrl.querySelector(".gl-hill-cb");
+          const opSlider = ctrl.querySelector(".gl-op-slider");
+          const opVal = ctrl.querySelector(".gl-op-val");
           if (sel) {
             sel.addEventListener("change", (e) => {
               this.setRasterStyle({ id: rid, palette: e.target.value });
@@ -1820,6 +2204,13 @@
           if (cb) {
             cb.addEventListener("change", (e) => {
               this.setRasterStyle({ id: rid, hillshade: e.target.checked });
+            });
+          }
+          if (opSlider) {
+            opSlider.addEventListener("input", (e) => {
+              const v = Number(e.target.value);
+              if (opVal) opVal.textContent = `${Math.round(v * 100)}%`;
+              this.setLayerOpacity(rid, v);
             });
           }
         }
@@ -2042,16 +2433,26 @@
       if (!l || l.type !== "raster") return;
       l.style = l.style || {};
       if (patch.palette) {
-        l.style.palette = patch.palette;
-        const lutBytes = Array.isArray(patch.lut_rgb) && patch.lut_rgb.length === 768
-          ? new Uint8Array(patch.lut_rgb)
-          : buildPaletteLUT256(patch.palette);
-        this._updateRasterLUT(l, lutBytes);
+        if (patch.palette === "custom" && Array.isArray(l.style.lut_rgba)) {
+          l.style.palette = "custom";
+          this._updateRasterLUT(l, new Uint8Array(l.style.lut_rgba));
+        } else {
+          l.style.palette = patch.palette;
+          const lutBytes = ensureLUT256RGBA(patch.lut_rgba, patch.lut_rgb, patch.palette);
+          this._updateRasterLUT(l, lutBytes);
+        }
       }
       if (patch.vmin !== undefined && patch.vmin !== null) l.curMin = Number(patch.vmin);
       if (patch.vmax !== undefined && patch.vmax !== null) l.curMax = Number(patch.vmax);
       if (patch.hillshade !== undefined && patch.hillshade !== null) {
         l.style.hillshade = Boolean(patch.hillshade);
+      }
+      if (patch.opacity !== undefined && patch.opacity !== null) {
+        l.opacity = Number(patch.opacity);
+      }
+      if (patch.shader_controls !== undefined && patch.shader_controls !== null) {
+        l.style.shader_controls = patch.shader_controls;
+        this._rebuildLegends();
       }
       this.requestRender();
     }

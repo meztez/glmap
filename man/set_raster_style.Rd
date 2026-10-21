@@ -4,7 +4,15 @@
 \alias{set_raster_style}
 \title{Live-Update a GPU Raster Layer's Colormap, Contrast Range, or Hillshading (0ms GPU Update)}
 \usage{
-set_raster_style(map, id, palette = NULL, domain = NULL, hillshade = NULL)
+set_raster_style(
+  map,
+  id,
+  palette = NULL,
+  domain = NULL,
+  hillshade = NULL,
+  opacity = NULL,
+  shader_controls = NULL
+)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
@@ -16,6 +24,11 @@ set_raster_style(map, id, palette = NULL, domain = NULL, hillshade = NULL)
 \item{domain}{Optional numeric \code{c(vmin, vmax)} contrast stretch limits.}
 
 \item{hillshade}{Optional logical to toggle real-time GPU hillshading.}
+
+\item{opacity}{Optional numeric opacity (\code{0} to \code{1}).}
+
+\item{shader_controls}{Optional specification (\code{TRUE}, \code{FALSE}, character vector, or list)
+controlling which interactive GPU shader controls are shown in the raster legend card.}
 }
 \description{
 Updates uniforms and the 1D LUT texture in the WebGL2 raster fragment shader

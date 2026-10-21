@@ -16,7 +16,8 @@ add_raster(
   bbox = c(-75, 45, -71, 48),
   id = NULL,
   group = NULL,
-  legend = TRUE
+  legend = TRUE,
+  shader_controls = TRUE
 )
 }
 \arguments{
@@ -43,6 +44,11 @@ add_raster(
 \item{group}{Layer group name.}
 
 \item{legend}{Logical; whether to display a color ramp legend and interactive GPU raster controls.}
+
+\item{shader_controls}{Controls which interactive GPU shader widgets are shown inside the raster
+legend card. Pass \code{TRUE} (default) to show all (\code{c("palette", "hillshade", "opacity")}),
+\code{FALSE} to hide all interactive shader controls (keeping only the color ramp legend), or a
+character vector / named list selecting any subset of \code{"palette"}, \code{"hillshade"}, and \code{"opacity"}.}
 }
 \description{
 Streams raw Float32 raster values (\code{GLMR} binary packet) directly into a
