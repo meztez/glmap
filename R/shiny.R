@@ -206,6 +206,58 @@ set_raster_style <- function(map, id, palette = NULL, domain = NULL, hillshade =
   map
 }
 
+#' Dynamically Switch Marker / Icon Rendering Strategy in Shiny (`set_marker_mode`)
+#'
+#' Live-switches a marker or point layer between `"auto"`, `"cluster"` (screen-space
+#' clustering + GPU singletons), `"lod"` (zoom-level Level-of-Detail cross-fade between
+#' GPU SDF dots and WebGL2 Texture Atlas icons), `"atlas"` (always render 100% of custom
+#' icons via WebGL2 Texture Atlas), and `"points"` (GPU SDF circles) in 0 ms without
+#' re-sending point coordinates.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param id Layer ID or group name.
+#' @param mode Rendering mode: `"auto"`, `"cluster"`, `"lod"`, `"atlas"`, or `"points"`.
+#' @param lod_zoom Optional numeric zoom threshold or `c(fade_start, fade_end)` range for `"lod"`.
+#' @param disable_clustering_at_zoom Optional numeric zoom level at which clusters expand into individual icons.
+#' @export
+set_marker_mode <- function(
+    map,
+    id,
+    mode = c("auto", "cluster", "lod", "atlas", "points"),
+    lod_zoom = NULL,
+    disable_clustering_at_zoom = NULL
+) {
+  mode <- match.arg(mode)
+  patch <- list(
+    id = as.character(id),
+    mode = mode,
+    lod_zoom = if (!is.null(lod_zoom)) as.numeric(lod_zoom) else NULL,
+    disableClusteringAtZoom = if (!is.null(disable_clustering_at_zoom)) as.numeric(disable_clustering_at_zoom[1]) else NULL
+  )
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "setMarkerMode", patch))
+  }
+  for (i in seq_along(map$x$layers)) {
+    lyr <- map$x$layers[[i]]
+    if (identical(lyr$id, id) || identical(lyr$group, id)) {
+      map$x$layers[[i]]$style$render$mode <- mode
+      if (!is.null(lod_zoom)) {
+        r <- if (length(lod_zoom) == 1L) c(max(0, lod_zoom - 1), lod_zoom + 0.5) else lod_zoom[1:2]
+        map$x$layers[[i]]$style$render$lod_min_zoom <- r[1]
+        map$x$layers[[i]]$style$render$lod_max_zoom <- r[2]
+      }
+      if (!is.null(disable_clustering_at_zoom)) {
+        if (is.null(map$x$layers[[i]]$style$cluster)) {
+          map$x$layers[[i]]$style$cluster <- unclass(marker_cluster_options(disableClusteringAtZoom = disable_clustering_at_zoom))
+        } else {
+          map$x$layers[[i]]$style$cluster$disableClusteringAtZoom <- as.numeric(disable_clustering_at_zoom[1])
+        }
+      }
+    }
+  }
+  map
+}
+
 #' Filter Visible Features by Index on the GPU
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.

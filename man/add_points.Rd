@@ -20,6 +20,8 @@ add_points(
   label = NULL,
   icon = NULL,
   clusterOptions = NULL,
+  render_mode = "auto",
+  lod_zoom = NULL,
   id = NULL,
   group = NULL,
   dynamic_viewport = FALSE,
@@ -57,7 +59,21 @@ add_points(
 \item{icon}{Optional marker icon specification created by \code{\link[=make_icon]{make_icon()}}, \code{\link[=make_awesome_icon]{make_awesome_icon()}},
 \code{leaflet::makeIcon()}, or a character vector / formula (\code{~icon_url}) of SVG/PNG URLs.}
 
-\item{clusterOptions}{Optional clustering specification (\code{leaflet::markerClusterOptions()} compatibility).}
+\item{clusterOptions}{Optional clustering specification (\code{leaflet::markerClusterOptions()} or
+\code{\link[=marker_cluster_options]{marker_cluster_options()}} compatibility).}
+
+\item{render_mode}{Rendering strategy for markers/icons: \code{"auto"} (default; dynamically combines
+clustering, zoom-level LOD cross-fade, and WebGL2 Texture Atlas sprites based on feature count
+and \code{clusterOptions}), \code{"cluster"} (screen-space clustering + GPU singleton sprites),
+\code{"lod"} (zoom-level Level-of-Detail cross-fade from GPU SDF points at overview zooms to full
+WebGL2 Texture Atlas sprites when zoomed in), \code{"atlas"} (always render 100\% of custom icons via
+the WebGL2 Texture Atlas sprite shader in 1 GPU draw call), or \code{"points"} (pure GPU SDF circles).
+Can also be an \code{\link[=icon_render_options]{icon_render_options()}} object.}
+
+\item{lod_zoom}{Numeric zoom threshold (or \code{c(fade_start, fade_end)}) for Level-of-Detail (\code{"lod"} / \code{"auto"})
+transition between fast GPU SDF circles and full custom SVG/PNG Texture Atlas icons. When \code{NULL} (default),
+dynamically adapts to dataset size (\verb{<= 2,500} markers: \code{0} i.e. always full icons; \verb{2,500-15,000}: \code{c(8.5, 10.5)};
+\verb{> 15,000}: \code{c(10, 12)}).}
 
 \item{id}{Layer ID string.}
 

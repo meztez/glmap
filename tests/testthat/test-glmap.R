@@ -374,6 +374,27 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
 
   m_nodraw <- remove_draw_toolbar(m_draw, clearFeatures = TRUE)
   expect_null(m_nodraw$x$draw_toolbar)
+
+  # Test all 3 GPU icon/marker rendering strategies (atlas, cluster, lod) + dynamic defaults
+  df_small <- data.frame(lon = runif(500, -74, -71), lat = runif(500, 45, 47), icon_url = rep(c("a.svg", "b.svg"), 250))
+  m_small <- glmap(df_small) |> add_markers(lng = ~lon, lat = ~lat, icon = ~icon_url, id = "small_icons")
+  expect_equal(m_small$x$layers[[1]]$style$render$mode, "atlas")
+  expect_equal(m_small$x$layers[[1]]$style$render$lod_max_zoom, 0)
+
+  df_large <- data.frame(lon = runif(5000, -74, -71), lat = runif(5000, 45, 47), icon_url = rep(c("a.svg", "b.svg"), 2500))
+  m_large <- glmap(df_large) |> add_markers(lng = ~lon, lat = ~lat, icon = ~icon_url, id = "large_icons")
+  expect_equal(m_large$x$layers[[1]]$style$render$mode, "lod")
+  expect_equal(m_large$x$layers[[1]]$style$render$lod_min_zoom, 8.5)
+  expect_equal(m_large$x$layers[[1]]$style$render$lod_max_zoom, 10.5)
+
+  m_clust <- glmap(df_large) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = ~icon_url, clusterOptions = marker_cluster_options(), id = "clust_icons")
+  expect_equal(m_clust$x$layers[[1]]$style$render$mode, "cluster")
+  expect_true(m_clust$x$layers[[1]]$style$cluster$enabled)
+
+  m_sw <- set_marker_mode(m_clust, "clust_icons", mode = "lod", lod_zoom = c(9, 11))
+  expect_equal(m_sw$x$layers[[1]]$style$render$mode, "lod")
+  expect_equal(m_sw$x$layers[[1]]$style$render$lod_min_zoom, 9)
 })
 
 

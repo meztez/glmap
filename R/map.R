@@ -606,7 +606,19 @@ add_sf <- function(map, data = NULL, ...) {
 #' @param label Alias for `popup`.
 #' @param icon Optional marker icon specification created by [make_icon()], [make_awesome_icon()],
 #'   `leaflet::makeIcon()`, or a character vector / formula (`~icon_url`) of SVG/PNG URLs.
-#' @param clusterOptions Optional clustering specification (`leaflet::markerClusterOptions()` compatibility).
+#' @param clusterOptions Optional clustering specification (`leaflet::markerClusterOptions()` or
+#'   [marker_cluster_options()] compatibility).
+#' @param render_mode Rendering strategy for markers/icons: `"auto"` (default; dynamically combines
+#'   clustering, zoom-level LOD cross-fade, and WebGL2 Texture Atlas sprites based on feature count
+#'   and `clusterOptions`), `"cluster"` (screen-space clustering + GPU singleton sprites),
+#'   `"lod"` (zoom-level Level-of-Detail cross-fade from GPU SDF points at overview zooms to full
+#'   WebGL2 Texture Atlas sprites when zoomed in), `"atlas"` (always render 100% of custom icons via
+#'   the WebGL2 Texture Atlas sprite shader in 1 GPU draw call), or `"points"` (pure GPU SDF circles).
+#'   Can also be an [icon_render_options()] object.
+#' @param lod_zoom Numeric zoom threshold (or `c(fade_start, fade_end)`) for Level-of-Detail (`"lod"` / `"auto"`)
+#'   transition between fast GPU SDF circles and full custom SVG/PNG Texture Atlas icons. When `NULL` (default),
+#'   dynamically adapts to dataset size (`<= 2,500` markers: `0` i.e. always full icons; `2,500-15,000`: `c(8.5, 10.5)`;
+#'   `> 15,000`: `c(10, 12)`).
 #' @param id Layer ID string.
 #' @param group Layer group name shown in the interactive layer switcher.
 #' @param dynamic_viewport Logical; if `TRUE`, builds an in-memory C++ spatial index and streams
@@ -631,6 +643,8 @@ add_points <- function(
     label = NULL,
     icon = NULL,
     clusterOptions = NULL,
+    render_mode = "auto",
+    lod_zoom = NULL,
     id = NULL,
     group = NULL,
     dynamic_viewport = FALSE,
@@ -679,7 +693,14 @@ add_points <- function(
   stroke_rgb <- as.integer(grDevices::col2rgb(stroke_color, alpha = FALSE)[, 1])
   tooltips <- build_popup_labels(popup, label, data)
   icon_spec <- resolve_icon_spec(icon, data, n)
-  cluster_spec <- resolve_cluster_spec(clusterOptions)
+  cluster_spec <- resolve_cluster_spec(clusterOptions, n = n, render_mode = render_mode)
+  render_spec <- resolve_icon_render_spec(
+    render_mode = render_mode,
+    lod_zoom = lod_zoom,
+    n = n,
+    has_icons = !is.null(icon_spec),
+    has_cluster = !is.null(cluster_spec)
+  )
 
   layer_spec <- list(
     id = id,
@@ -698,7 +719,8 @@ add_points <- function(
       stroke_color = stroke_rgb,
       stroke_width = as.numeric(stroke_width),
       icons = icon_spec,
-      cluster = cluster_spec
+      cluster = cluster_spec,
+      render = render_spec
     ),
     tooltips = tooltips
   )
@@ -732,6 +754,8 @@ add_markers <- function(
     label = NULL,
     group = NULL,
     clusterOptions = NULL,
+    render_mode = "auto",
+    lod_zoom = NULL,
     id = NULL,
     ...
 ) {
@@ -745,6 +769,8 @@ add_markers <- function(
     label = label,
     group = group,
     clusterOptions = clusterOptions,
+    render_mode = render_mode,
+    lod_zoom = lod_zoom,
     id = id %||% next_layer_id("markers"),
     legend = FALSE,
     ...
@@ -815,8 +841,15 @@ marker_cluster_options <- function(
   )
 }
 
-resolve_cluster_spec <- function(clusterOptions) {
-  if (is.null(clusterOptions) || identical(clusterOptions, FALSE)) return(NULL)
+resolve_cluster_spec <- function(clusterOptions, n = 0L, render_mode = "auto") {
+  mode_str <- if (is.character(render_mode)) tolower(render_mode[1]) else if (is.list(render_mode) && !is.null(render_mode$mode)) tolower(render_mode$mode[1]) else "auto"
+  if (identical(clusterOptions, FALSE)) return(NULL)
+  if (is.null(clusterOptions)) {
+    if (identical(mode_str, "cluster")) {
+      return(unclass(marker_cluster_options()))
+    }
+    return(NULL)
+  }
   if (isTRUE(clusterOptions)) {
     return(unclass(marker_cluster_options()))
   }
@@ -829,6 +862,97 @@ resolve_cluster_spec <- function(clusterOptions) {
     ))
   }
   NULL
+}
+
+#' Configure GPU Icon & Marker Rendering Strategy (`icon_render_options`)
+#'
+#' Configures how `glmap` balances visual fidelity and 60 FPS GPU throughput across
+#' the three marker rendering engines:
+#' 1. **WebGL2 Texture Atlas (`"atlas"`)**: Packs all unique SVG/PNG icons into a single
+#'    GPU sprite sheet texture and renders 100k+ custom icons in 1 `gl.POINTS` draw call.
+#' 2. **Screen-Space Grid Clustering (`"cluster"`)**: Groups nearby markers into interactive
+#'    count badges (`< 10`, `< 100`, `100+`) that zoom into cluster bounds on click and render
+#'    unclustered singletons via the GPU Texture Atlas.
+#' 3. **Zoom-Level Level-of-Detail Hybrid (`"lod"`)**: Renders crisp GPU SDF points at overview
+#'    zoom levels and smoothly cross-fades into full custom SVG/PNG Texture Atlas icons as you
+#'    zoom in across `lod_zoom`.
+#'
+#' @param mode Strategy name: `"auto"` (default; dynamically selects based on `clusterOptions`
+#'   and feature count `n`), `"atlas"`, `"cluster"`, `"lod"`, or `"points"`.
+#' @param lod_zoom Numeric zoom threshold (e.g. `10`) or 2-element cross-fade range `c(9, 11)`.
+#'   If `NULL`, computed dynamically from feature count (`<= 2,500`: `c(0, 0)` always icons;
+#'   `2,501-15,000`: `c(8.5, 10.5)`; `> 15,000`: `c(10.0, 12.0)`).
+#' @param atlas_cell_px Resolution in pixels of each sprite slot in the GPU Texture Atlas (default `64L`).
+#' @param allow_ui_switcher Logical; if `TRUE` (default), exposes a compact mode selector in the
+#'   map's layer control so users can switch between `Auto`, `Cluster`, `LOD`, and `GPU Atlas` live.
+#' @rdname add_markers
+#' @export
+icon_render_options <- function(
+    mode = c("auto", "atlas", "cluster", "lod", "points"),
+    lod_zoom = NULL,
+    atlas_cell_px = 64L,
+    allow_ui_switcher = TRUE
+) {
+  mode <- match.arg(mode)
+  structure(
+    list(
+      mode = mode,
+      lod_zoom = if (!is.null(lod_zoom)) as.numeric(lod_zoom) else NULL,
+      atlas_cell_px = as.integer(atlas_cell_px[1] %||% 64L),
+      allow_ui_switcher = isTRUE(allow_ui_switcher)
+    ),
+    class = "gl_icon_render_options"
+  )
+}
+
+resolve_icon_render_spec <- function(render_mode = "auto", lod_zoom = NULL, n = 0L, has_icons = FALSE, has_cluster = FALSE) {
+  allow_ui <- TRUE
+  cell_px <- 64L
+  if (inherits(render_mode, "gl_icon_render_options") || is.list(render_mode)) {
+    lod_zoom <- lod_zoom %||% render_mode$lod_zoom
+    cell_px <- as.integer(render_mode$atlas_cell_px %||% 64L)
+    allow_ui <- isTRUE(render_mode$allow_ui_switcher %||% TRUE)
+    mode_str <- tolower(as.character(render_mode$mode %||% "auto")[1])
+  } else {
+    mode_str <- tolower(as.character(render_mode %||% "auto")[1])
+  }
+
+  # Dynamic LOD zoom range based on dataset scale n when not explicitly provided
+  if (is.null(lod_zoom)) {
+    if (n <= 2500L) {
+      lod_range <- c(0.0, 0.0) # Small/medium dataset: GPU atlas renders 100% of icons at all zooms
+    } else if (n <= 15000L) {
+      lod_range <- c(8.5, 10.5) # Smooth cross-fade between zoom 8.5 and 10.5
+    } else {
+      lod_range <- c(10.0, 12.0) # Large dataset (15k-1M+): SDF dots at provincial view -> icons at city view
+    }
+  } else if (length(lod_zoom) == 1L) {
+    z0 <- as.numeric(lod_zoom[1])
+    lod_range <- if (z0 <= 0) c(0.0, 0.0) else c(max(0.0, z0 - 1.0), z0 + 0.5)
+  } else {
+    lod_range <- c(as.numeric(lod_zoom[1]), as.numeric(lod_zoom[2]))
+  }
+
+  # Resolve effective default strategy when mode == "auto"
+  effective_mode <- mode_str
+  if (identical(mode_str, "auto")) {
+    if (isTRUE(has_cluster)) {
+      effective_mode <- "cluster"
+    } else if (isTRUE(has_icons)) {
+      effective_mode <- if (n > 2500L) "lod" else "atlas"
+    } else {
+      effective_mode <- "points"
+    }
+  }
+
+  list(
+    requested_mode = mode_str,
+    mode = effective_mode,
+    lod_min_zoom = lod_range[1],
+    lod_max_zoom = lod_range[2],
+    atlas_cell_px = cell_px,
+    allow_ui_switcher = allow_ui
+  )
 }
 
 resolve_icon_spec <- function(icon, data, n) {

@@ -1270,16 +1270,7 @@
         } else if (layer.type === "heatmap" && layer.parsed) {
           this._drawHeatmapLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
         } else if (layer.type === "points" && layer.parsed) {
-          const clCfg = layer.style && layer.style.cluster;
-          const disableZoom = (clCfg && clCfg.disableClusteringAtZoom !== undefined) ? clCfg.disableClusteringAtZoom : 15;
-          const doCluster = Boolean(clCfg && clCfg.enabled && this.camera.zoom < disableZoom && layer.parsed.nVertices > 1);
-          if (doCluster && ctx2d) {
-            this._drawClusteredLayer(ctx2d, layer, centerMercX, centerMercY, scale, w, h, dpr);
-          } else if (layer.style && layer.style.icons && layer.atlasTex && layer.vboIcon) {
-            this._drawIconAtlasLayerGPU(layer, centerMercX, centerMercY, scale, w, h, dpr, null, 0);
-          } else {
-            this._drawPointsLayer(layer, centerMercX, centerMercY, scale, w, h, dpr);
-          }
+          this._dispatchPointAndIconRender(ctx2d, layer, centerMercX, centerMercY, scale, w, h, dpr);
         } else if (layer.type === "labels" && layer.parsed && ctx2d) {
           this._drawLabelsLayer(ctx2d, layer, centerMercX, centerMercY, scale, w, h);
         }
@@ -1302,7 +1293,74 @@
       this._updateHUD();
     }
 
-    _drawPointsLayer(layer, cx, cy, scale, w, h, dpr) {
+    _dispatchPointAndIconRender(ctx2d, layer, cx, cy, scale, w, h, dpr) {
+      const st = layer.style || {};
+      const hasIcons = Boolean(st.icons && layer.atlasTex && layer.vboIcon);
+      const clCfg = st.cluster || {};
+      const renCfg = st.render || {};
+      const n = layer.parsed.nVertices || 0;
+      const zoom = this.camera.zoom;
+
+      // Determine active rendering mode (user override > layer render.mode > dynamic auto)
+      let mode = this._userMarkerModeOverride || renCfg.mode || "auto";
+      if (mode === "auto") {
+        if (clCfg.enabled) {
+          mode = "cluster";
+        } else if (hasIcons) {
+          mode = n > 2500 ? "lod" : "atlas";
+        } else {
+          mode = "points";
+        }
+      }
+
+      // Option 2: Screen-Space Grid Clustering + GPU Singleton Sprites (with LOD inside singletons)
+      if (mode === "cluster" && ctx2d && n > 1) {
+        const disableZoom = clCfg.disableClusteringAtZoom !== undefined ? Number(clCfg.disableClusteringAtZoom) : 15;
+        if (zoom < disableZoom) {
+          this._drawClusteredLayer(ctx2d, layer, cx, cy, scale, w, h, dpr);
+          return;
+        }
+        // Once zoomed in past disableClusteringAtZoom, fall through to GPU Atlas / Points
+      }
+
+      // Option 3: Zoom-Level LOD (Level-of-Detail) Hybrid Cross-Fade (GPU SDF Points <-> WebGL2 Icon Atlas)
+      if (mode === "lod") {
+        if (!hasIcons) {
+          this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0);
+          return;
+        }
+        let z0 = renCfg.lod_min_zoom !== undefined ? Number(renCfg.lod_min_zoom) : (n <= 2500 ? 0 : (n <= 15000 ? 8.5 : 10.0));
+        let z1 = renCfg.lod_max_zoom !== undefined ? Number(renCfg.lod_max_zoom) : (n <= 2500 ? 0 : (n <= 15000 ? 10.5 : 12.0));
+        // If user explicitly switched to "lod" in UI on a small dataset where z1===0, use a sensible [8.5, 10.5] fade
+        if (this._userMarkerModeOverride === "lod" && z1 <= 0) {
+          z0 = 8.5;
+          z1 = 10.5;
+        }
+        if (z1 <= 0 || zoom >= z1) {
+          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, null, null, 0, 1.0);
+        } else if (zoom <= z0) {
+          this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0);
+        } else {
+          // Smooth cross-fade transition band
+          const t = (zoom - z0) / Math.max(0.1, z1 - z0);
+          const smoothT = t * t * (3.0 - 2.0 * t);
+          this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0 - smoothT * 0.85);
+          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, null, null, 0, smoothT);
+        }
+        return;
+      }
+
+      // Option 1: Full WebGL2 Texture Atlas Sprite Sheet (1 GPU draw call for all custom icons)
+      if ((mode === "atlas" || mode === "cluster") && hasIcons) {
+        this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, null, null, 0, 1.0);
+        return;
+      }
+
+      // Pure GPU SDF Points
+      this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0);
+    }
+
+    _drawPointsLayer(layer, cx, cy, scale, w, h, dpr, opacityMult = 1.0) {
       const gl = this.gl;
       const prog = this.progPoints;
       gl.useProgram(prog);
@@ -1328,7 +1386,7 @@
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 0.85) * opacityMult);
 
       const st = layer.style || {};
       gl.uniform1f(gl.getUniformLocation(prog, "u_stroke"), st.stroke ? 1.0 : 0.0);
@@ -1339,7 +1397,7 @@
       gl.drawArrays(gl.POINTS, 0, layer.parsed.nVertices);
     }
 
-    _drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, customPosBuf, customIconBuf, customCount) {
+    _drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, customPosBuf, customIconBuf, customCount, opacityMult = 1.0) {
       const gl = this.gl;
       const prog = this.progIcons;
       if (!gl || !prog || !layer.atlasTex) return;
@@ -1374,7 +1432,7 @@
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
       gl.uniform1f(gl.getUniformLocation(prog, "u_icon_size"), iconSize);
       gl.uniform1f(gl.getUniformLocation(prog, "u_atlas_count"), layer.atlasCount || 1);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity !== undefined ? layer.opacity : 1.0);
+      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 1.0) * opacityMult);
 
       gl.drawArrays(gl.POINTS, 0, count);
     }
@@ -1463,7 +1521,7 @@
           if (!layer.vboSingleIcon) layer.vboSingleIcon = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleIcon);
           gl.bufferData(gl.ARRAY_BUFFER, idxArr, gl.DYNAMIC_DRAW);
-          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, layer.vboSinglePos, layer.vboSingleIcon, sCount);
+          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, layer.vboSinglePos, layer.vboSingleIcon, sCount, 1.0);
         } else {
           const colArr = new Uint8Array(sCount * 4);
           const radArr = new Float32Array(sCount);
@@ -1988,6 +2046,7 @@
 
       // Collect unique overlay groups from both configured overlayGroups and loaded layers
       const groupMap = new Map();
+      let hasSwitchablePointLayer = false;
       for (const g of configuredOverlays) {
         if (g && g !== "sg_shape" && g !== "js_single_call") {
           groupMap.set(g, { name: g, visible: false, count: 0 });
@@ -1997,6 +2056,10 @@
         const l = this.layers.get(id);
         const gName = l.group || l.id;
         if (gName === "sg_shape" || gName === "js_single_call") continue;
+        if (l.type === "points") {
+          const allowUi = !(l.style && l.style.render && l.style.render.allow_ui_switcher === false);
+          if (allowUi) hasSwitchablePointLayer = true;
+        }
         const cnt = l.type === "raster" ? `${l.width}x${l.height}` : (l.n_features || 0).toLocaleString();
         groupMap.set(gName, { name: gName, visible: Boolean(l.visible), count: cnt });
       }
@@ -2039,6 +2102,25 @@
         }
       }
 
+      if (hasSwitchablePointLayer) {
+        const curMode = this._userMarkerModeOverride || "auto";
+        const modeOpts = [
+          { val: "auto", label: "Auto (Dynamic)" },
+          { val: "cluster", label: "Cluster + GPU Atlas" },
+          { val: "lod", label: "LOD Hybrid (Dots -> Icons)" },
+          { val: "atlas", label: "GPU Sprite Atlas (All Icons)" },
+          { val: "points", label: "GPU Fast Dots (SDF)" }
+        ];
+        html += `
+          <div class="glmap-layer-section-hdr" style="margin-top:6px">Marker / Icon Engine</div>
+          <div style="padding:2px 4px 4px 4px">
+            <select class="gl-marker-mode-select" style="width:100%;font-size:11px;padding:3px 5px;border-radius:4px;background:rgba(15,23,42,0.85);color:#e2e8f0;border:1px solid rgba(148,163,184,0.35);cursor:pointer">
+              ${modeOpts.map((o) => `<option value="${o.val}" ${curMode === o.val ? "selected" : ""}>${o.label}</option>`).join("")}
+            </select>
+          </div>
+        `;
+      }
+
       html += `</div>`;
       this.switcherEl.innerHTML = html;
 
@@ -2049,6 +2131,16 @@
           e.stopPropagation();
           this.switcherEl.classList.toggle("expanded");
         };
+      }
+
+      const modeSel = this.switcherEl.querySelector(".gl-marker-mode-select");
+      if (modeSel) {
+        modeSel.addEventListener("change", (e) => {
+          e.stopPropagation();
+          const val = e.target.value;
+          this._userMarkerModeOverride = val === "auto" ? null : val;
+          this.requestRender();
+        });
       }
 
       // Basemap radio change
@@ -2454,6 +2546,37 @@
         l.style.shader_controls = patch.shader_controls;
         this._rebuildLegends();
       }
+      this.requestRender();
+    }
+
+    setMarkerMode(patch) {
+      if (!patch) return;
+      const target = patch.id;
+      const mode = patch.mode || "auto";
+      for (const l of this.layers.values()) {
+        if (!target || l.id === target || l.group === target) {
+          l.style = l.style || {};
+          l.style.render = l.style.render || {};
+          l.style.render.mode = mode;
+          if (Array.isArray(patch.lod_zoom) && patch.lod_zoom.length >= 2) {
+            l.style.render.lod_min_zoom = Number(patch.lod_zoom[0]);
+            l.style.render.lod_max_zoom = Number(patch.lod_zoom[1]);
+          } else if (typeof patch.lod_zoom === "number") {
+            l.style.render.lod_min_zoom = Math.max(0, patch.lod_zoom - 1.0);
+            l.style.render.lod_max_zoom = patch.lod_zoom + 0.5;
+          }
+          if (patch.disableClusteringAtZoom !== undefined && patch.disableClusteringAtZoom !== null) {
+            l.style.cluster = l.style.cluster || { enabled: true };
+            l.style.cluster.disableClusteringAtZoom = Number(patch.disableClusteringAtZoom);
+          }
+          if (mode === "cluster") {
+            l.style.cluster = l.style.cluster || { enabled: true, maxClusterRadius: 65, disableClusteringAtZoom: 15 };
+            l.style.cluster.enabled = true;
+          }
+        }
+      }
+      this._userMarkerModeOverride = null;
+      this._rebuildLayerSwitcher();
       this.requestRender();
     }
 
