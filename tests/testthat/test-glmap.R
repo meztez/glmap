@@ -197,19 +197,15 @@ test_that("DuckDB out-of-core spatial viewport pushdown and SQL filtering work s
   expect_lte(attr(slice_buf, "n_features"), 5000L)
 })
 
-test_that("terra::SpatVector, raster::RasterLayer, and sp::Spatial* objects are supported directly", {
+test_that("terra::SpatVector and terra::SpatRaster objects are supported directly", {
   if (requireNamespace("terra", quietly = TRUE)) {
     v <- terra::vect(cbind(c(-73.5, -73.6), c(45.5, 45.6)), type = "points", crs = "EPSG:4326")
     m_v <- glmap(v)
     expect_s3_class(m_v, "glmap")
     buf_v <- gl_pack_sf_binary(v)
     expect_equal(attr(buf_v, "n_features"), 2L)
-  }
 
-  if (requireNamespace("raster", quietly = TRUE)) {
-    raster_fn <- getExportedValue("raster", "raster")
-    values_fn <- getExportedValue("raster", "setValues")
-    rl <- values_fn(raster_fn(nrows = 20, ncols = 20, xmn = -74, xmx = -72, ymn = 45, ymx = 46), runif(400, 10, 100))
+    rl <- terra::rast(nrows = 20, ncols = 20, xmin = -74, xmax = -72, ymin = 45, ymax = 46, vals = runif(400, 10, 100))
     buf_rl <- gl_pack_raster_binary(rl)
     expect_equal(attr(buf_rl, "width"), 20L)
   }
