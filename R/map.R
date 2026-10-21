@@ -771,7 +771,7 @@ make_icon <- function(iconUrl, iconWidth = 28, iconHeight = 28) {
 #' @param iconColor Inner glyph color (default `"#ffffff"`).
 #' @rdname add_markers
 #' @export
-make_awesome_icon <- function(text = "●", markerColor = "blue", iconColor = "#ffffff") {
+make_awesome_icon <- function(text = "*", markerColor = "blue", iconColor = "#ffffff") {
   structure(
     list(
       type = "awesome",
@@ -855,7 +855,7 @@ resolve_icon_spec <- function(icon, data, n) {
   if (inherits(icon, c("gl_awesome_icon", "leaflet_awesome_icon")) || (is.list(icon) && identical(icon$type, "awesome"))) {
     return(list(
       type = "awesome",
-      text = as.character(icon$text[1] %||% "●"),
+      text = as.character(icon$text[1] %||% "*"),
       markerColor = as.character(icon$markerColor[1] %||% "#0284c7"),
       iconColor = as.character(icon$iconColor[1] %||% "#ffffff"),
       width = as.numeric(icon$iconWidth[1] %||% 28),
@@ -1676,7 +1676,7 @@ add_popups <- function(
 #' Add an OGC Web Map Service (WMS) Raster Tile Layer (`add_wms_tiles`)
 #'
 #' Drop-in equivalent of `leaflet::addWMSTiles()`. Connects to enterprise OGC
-#' WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement du Québec /
+#' WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement du Quebec /
 #' MSC GeoMet) using `{bbox-epsg-3857}` tile requests in MapLibre GL.
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.

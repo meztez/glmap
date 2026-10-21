@@ -24,5 +24,5 @@ gl_benchmark_data(
 A list with \code{points_df}, \code{polygons_sf}, and \code{raster_mat}.
 }
 \description{
-Useful for stress-testing 100k–1M+ points, polygons, and rasters.
+Useful for stress-testing 100k-1M+ points, polygons, and rasters.
 }

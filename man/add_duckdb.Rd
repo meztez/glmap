@@ -61,7 +61,7 @@ Connects \code{glmap} directly to a \code{DuckDB} connection (\code{DBI}), table
 SQL query, or \code{.parquet} / \code{.csv} file path.
 }
 \details{
-Instead of loading 10M–100M+ rows into R memory, \code{add_duckdb()} pushes bounding-box
+Instead of loading 10M-100M+ rows into R memory, \code{add_duckdb()} pushes bounding-box
 viewport filters (\verb{WHERE lon BETWEEN xmin AND xmax AND lat BETWEEN ymin AND ymax})
 and Level-of-Detail (LOD) sampling (\verb{USING SAMPLE} or deterministic stride)
 directly into DuckDB's vectorized execution engine, then packs the resulting

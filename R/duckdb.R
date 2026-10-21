@@ -3,7 +3,7 @@
 #' Connects `glmap` directly to a `DuckDB` connection (`DBI`), table name,
 #' SQL query, or `.parquet` / `.csv` file path.
 #'
-#' Instead of loading 10M–100M+ rows into R memory, `add_duckdb()` pushes bounding-box
+#' Instead of loading 10M-100M+ rows into R memory, `add_duckdb()` pushes bounding-box
 #' viewport filters (`WHERE lon BETWEEN xmin AND xmax AND lat BETWEEN ymin AND ymax`)
 #' and Level-of-Detail (LOD) sampling (`USING SAMPLE` or deterministic stride)
 #' directly into DuckDB's vectorized execution engine, then packs the resulting

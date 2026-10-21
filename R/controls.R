@@ -482,7 +482,7 @@ gl_save_html <- function(map, file, selfcontained = FALSE, title = "glmap GPU Ma
 
 #' Generate Synthetic Geospatial Benchmark Datasets (`gl_benchmark_data`)
 #'
-#' Useful for stress-testing 100k–1M+ points, polygons, and rasters.
+#' Useful for stress-testing 100k-1M+ points, polygons, and rasters.
 #'
 #' @param n_points Number of points to generate.
 #' @param n_polygons Number of polygons to generate.

@@ -46,6 +46,6 @@ add_wms_tiles(
 }
 \description{
 Drop-in equivalent of \code{leaflet::addWMSTiles()}. Connects to enterprise OGC
-WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement du Québec /
+WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement du Quebec /
 MSC GeoMet) using \code{{bbox-epsg-3857}} tile requests in MapLibre GL.
 }
