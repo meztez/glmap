@@ -2,7 +2,8 @@
 % Please edit documentation in R/map.R
 \name{add_popups}
 \alias{add_popups}
-\title{Add Standalone HTML Popups (\code{add_popups})}
+\alias{clear_popups}
+\title{Add Standalone HTML Popups (\code{add_popups}, \code{clear_popups})}
 \usage{
 add_popups(
   map,
@@ -11,8 +12,11 @@ add_popups(
   lat = NULL,
   popup = NULL,
   id = NULL,
-  group = NULL
+  group = NULL,
+  lng = NULL
 )
+
+clear_popups(map)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
@@ -26,7 +30,12 @@ add_popups(
 \item{id}{Layer ID.}
 
 \item{group}{Layer group name.}
+
+\item{lng}{Optional alias for \code{lon} (\code{leaflet} compatibility).}
 }
 \description{
-Drop-in equivalent of \code{leaflet::addPopups()}.
+Drop-in equivalents of \code{leaflet::addPopups()} and \code{leaflet::clearPopups()}.
+When called on a \code{glmap_proxy} with a single \code{lng}/\code{lat} and \code{popup} HTML string
+(such as lazy on-click popup generation in Shiny), opens the floating DOM popup
+card at that exact geographic coordinate.
 }

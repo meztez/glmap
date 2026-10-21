@@ -1989,7 +1989,7 @@
     }
 
     _showPopupAt(px, py, htmlContent) {
-      this.popupEl.innerHTML = `<button type="button" class="glmap-popup-close">&times;</button>${htmlContent}`;
+      this.popupEl.innerHTML = `<button type="button" class="glmap-popup-close">&times;</button><div class="glmap-popup-content leaflet-popup-content">${htmlContent}</div>`;
       this.popupEl.style.left = Math.min((this.el.clientWidth || 800) - 240, Math.max(12, px)) + "px";
       this.popupEl.style.top = Math.min((this.el.clientHeight || 600) - 120, Math.max(12, py)) + "px";
       this.popupEl.style.display = "block";
@@ -1999,6 +1999,26 @@
           e.stopPropagation();
           this.popupEl.style.display = "none";
         };
+      }
+    }
+
+    showPopup(opts) {
+      if (!opts) return;
+      const lon = Number(opts.lng !== undefined ? opts.lng : opts.lon);
+      const lat = Number(opts.lat);
+      const cx = lonToMercX(this.camera.centerLon);
+      const cy = latToMercY(this.camera.centerLat);
+      const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
+      const w = this.el.clientWidth || 800;
+      const h = this.el.clientHeight || 600;
+      const [px, py] = this.lonLatToScreen(lon, lat, cx, cy, scale, w, h);
+      this._showPopupAt(px, py, opts.html || "");
+    }
+
+    clearPopups() {
+      if (this.popupEl) {
+        this.popupEl.style.display = "none";
+        this.popupEl.innerHTML = "";
       }
     }
 
@@ -3433,6 +3453,8 @@
         else if (m === "setMarkerMode") inst.setMarkerMode(args);
         else if (m === "addMeasureControl") inst.addMeasureControl(args);
         else if (m === "addSearchControl") inst.addSearchControl(args);
+        else if (m === "showPopup") inst.showPopup(args);
+        else if (m === "clearPopups") inst.clearPopups();
         else if (m === "setBasemap") inst.setBasemap(args);
         else if (m === "setView") inst.setView(args);
         else if (m === "flyTo") inst.flyTo(args);

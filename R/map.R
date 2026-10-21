@@ -1765,9 +1765,12 @@ add_rectangles <- function(
   )
 }
 
-#' Add Standalone HTML Popups (`add_popups`)
+#' Add Standalone HTML Popups (`add_popups`, `clear_popups`)
 #'
-#' Drop-in equivalent of `leaflet::addPopups()`.
+#' Drop-in equivalents of `leaflet::addPopups()` and `leaflet::clearPopups()`.
+#' When called on a `glmap_proxy` with a single `lng`/`lat` and `popup` HTML string
+#' (such as lazy on-click popup generation in Shiny), opens the floating DOM popup
+#' card at that exact geographic coordinate.
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
 #' @param data Optional `sf` or `data.frame` object.
@@ -1775,6 +1778,7 @@ add_rectangles <- function(
 #' @param popup Character vector or formula (`~html`) of popup HTML content.
 #' @param id Layer ID.
 #' @param group Layer group name.
+#' @param lng Optional alias for `lon` (`leaflet` compatibility).
 #' @export
 add_popups <- function(
     map,
@@ -1783,8 +1787,17 @@ add_popups <- function(
     lat = NULL,
     popup = NULL,
     id = NULL,
-    group = NULL
+    group = NULL,
+    lng = NULL
 ) {
+  lon <- lon %||% lng
+  if (inherits(map, "glmap_proxy") && is.null(data) && length(lon) == 1L && length(lat) == 1L) {
+    return(invoke_proxy_method(map, "showPopup", list(
+      lng = as.numeric(lon[1]),
+      lat = as.numeric(lat[1]),
+      html = as.character(popup[1] %||% "")
+    )))
+  }
   add_labels(
     map = map,
     data = data,
@@ -1794,6 +1807,15 @@ add_popups <- function(
     id = id %||% next_layer_id("popups"),
     group = group
   )
+}
+
+#' @rdname add_popups
+#' @export
+clear_popups <- function(map) {
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "clearPopups", list()))
+  }
+  map
 }
 
 #' Add an OGC Web Map Service (WMS) Raster Tile Layer (`add_wms_tiles`)
