@@ -2,7 +2,7 @@
 
 Drop-in equivalent of `leaflet::addWMSTiles()`. Connects to enterprise
 OGC WMS endpoints (GeoServer, MapServer, ArcGIS Enterprise, gouvernement
-du Québec / MSC GeoMet) using `{bbox-epsg-3857}` tile requests in
+du Quebec / MSC GeoMet) using `{bbox-epsg-3857}` tile requests in
 MapLibre GL.
 
 ## Usage

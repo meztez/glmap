@@ -25,7 +25,7 @@ add_markers(
 
 make_icon(iconUrl, iconWidth = 28, iconHeight = 28)
 
-make_awesome_icon(text = "●", markerColor = "blue", iconColor = "#ffffff")
+make_awesome_icon(text = "*", markerColor = "blue", iconColor = "#ffffff")
 
 marker_cluster_options(
   showCoverageOnHover = TRUE,

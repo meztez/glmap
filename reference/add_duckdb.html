@@ -137,7 +137,7 @@ SQL query, or <code>.parquet</code> / <code>.csv</code> file path.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Instead of loading 10M–100M+ rows into R memory, <code>add_duckdb()</code> pushes bounding-box
+    <p>Instead of loading 10M-100M+ rows into R memory, <code>add_duckdb()</code> pushes bounding-box
 viewport filters (<code>WHERE lon BETWEEN xmin AND xmax AND lat BETWEEN ymin AND ymax</code>)
 and Level-of-Detail (LOD) sampling (<code>USING SAMPLE</code> or deterministic stride)
 directly into DuckDB's vectorized execution engine, then packs the resulting

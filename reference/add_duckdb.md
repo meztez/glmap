@@ -99,7 +99,7 @@ Updated `glmap` map object.
 
 ## Details
 
-Instead of loading 10M–100M+ rows into R memory, `add_duckdb()` pushes
+Instead of loading 10M-100M+ rows into R memory, `add_duckdb()` pushes
 bounding-box viewport filters
 (`WHERE lon BETWEEN xmin AND xmax AND lat BETWEEN ymin AND ymax`) and
 Level-of-Detail (LOD) sampling (`USING SAMPLE` or deterministic stride)

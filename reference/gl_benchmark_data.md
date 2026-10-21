@@ -1,6 +1,6 @@
 # Generate Synthetic Geospatial Benchmark Datasets (`gl_benchmark_data`)
 
-Useful for stress-testing 100k–1M+ points, polygons, and rasters.
+Useful for stress-testing 100k-1M+ points, polygons, and rasters.
 
 ## Usage
 
