@@ -99,19 +99,22 @@ glmap(basemap = "dark", height = "460px") |>
 
 For massive datasets in interactive R or Shiny sessions, enable `dynamic_viewport = TRUE`, `transport = "server"`, or `add_duckdb()`. `glmap` builds an in-memory C++ spatial index (`gl_spatial_index()`) or queries DuckDB to stream only the features inside the current viewport with automatic Level-of-Detail (LOD) stride sampling:
 
-```{r, eval = FALSE}
+```{r}
+# Generate 100,000 points and render via inline compressed GLMP binary buffer
 big_df <- data.frame(
-  lon = runif(1e6, -75, -71),
-  lat = runif(1e6, 45, 48),
-  val = rnorm(1e6)
+  lon = runif(100000, -75, -71),
+  lat = runif(100000, 45, 48),
+  val = rnorm(100000)
 )
 
-glmap(basemap = "dark", transport = "server") |>
+glmap(basemap = "dark", height = "440px") |>
   add_points(
     big_df,
     color = ~val,
     palette = "viridis",
     radius = 2.5,
-    dynamic_viewport = TRUE
+    opacity = 0.8
   )
 ```
+
+> **Tip for 1M–10M+ features in interactive R or Shiny sessions:** Pass `transport = "server"` or `dynamic_viewport = TRUE` to stream viewport slices over the local `httpuv` binary server (`127.0.0.1`) instead of embedding them inline in the HTML file.
