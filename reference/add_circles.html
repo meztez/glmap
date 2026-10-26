@@ -11,7 +11,7 @@ on the ground and builds geodesic polygon rings triangulated in C++17."><meta pr
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,7 +43,7 @@ on the ground and builds geodesic polygon rings triangulated in C++17."><meta pr
     </div>
 
     <div class="ref-description section level2">
-    <p>Drop-in equivalent of <code>leaflet::addCircles()</code>. Unlike <code><a href="add_points.html">add_points()</a></code> (where
+    <p>Drop-in equivalent of <code><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">leaflet::addCircles()</a></code>. Unlike <code><a href="add_points.html">add_points()</a></code> (where
 <code>radius</code> is in screen pixels), <code>add_circles()</code> takes <code>radius</code> in <strong>meters</strong>
 on the ground and builds geodesic polygon rings triangulated in C++17.</p>
     </div>
@@ -67,7 +67,16 @@ on the ground and builds geodesic polygon rings triangulated in C++17.</p>
 <span>  n_segments <span class="op">=</span> <span class="fl">24L</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  legend <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  legend <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  lng <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fillColor <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fillOpacity <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  color <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  weight <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  opacity <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  layerId <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  highlightOptions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  labelOptions <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -141,6 +150,14 @@ on the ground and builds geodesic polygon rings triangulated in C++17.</p>
 
 <dt id="arg-legend">legend<a class="anchor" aria-label="anchor" href="#arg-legend"></a></dt>
 <dd><p>Logical; whether to automatically add a legend when <code>color</code> is mapped to data.</p></dd>
+
+
+<dt id="arg-lng">lng<a class="anchor" aria-label="anchor" href="#arg-lng"></a></dt>
+<dd><p>Optional alias for <code>lon</code> (<code>leaflet</code> compatibility).</p></dd>
+
+
+<dt id="arg-fillcolor-fillopacity-color-weight-opacity-layerid-highlightoptions-labeloptions">fillColor, fillOpacity, color, weight, opacity, layerId, highlightOptions, labelOptions<a class="anchor" aria-label="anchor" href="#arg-fillcolor-fillopacity-color-weight-opacity-layerid-highlightoptions-labeloptions"></a></dt>
+<dd><p>Optional <code><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">leaflet::addCircles()</a></code> compatibility parameters.</p></dd>
 
 </dl></div>
 

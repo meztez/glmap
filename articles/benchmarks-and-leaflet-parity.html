@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -417,8 +417,8 @@ serverless <code>.pmtiles</code> and Mapbox Vector Tiles
 <tbody>
 <tr class="odd">
 <td align="left">
-<code>addCircleMarkers()</code> /
-<code>addMarkers()</code>
+<code><a href="../reference/leaflet_compat.html">addCircleMarkers()</a></code> /
+<code><a href="../reference/leaflet_compat.html">addMarkers()</a></code>
 </td>
 <td align="left"><code>add_points(radius = 5, stroke = TRUE)</code></td>
 <td align="left">
@@ -435,14 +435,14 @@ serverless <code>.pmtiles</code> and Mapbox Vector Tiles
 triangulated in C++17).</td>
 </tr>
 <tr class="odd">
-<td align="left"><code>addPolylines()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addPolylines()</a></code></td>
 <td align="left"><code>add_lines(width = 2)</code></td>
 <td align="left">
 <strong>Full Parity</strong>: Multi-ring aware
 <code>Uint32Array</code> segment index buffer.</td>
 </tr>
 <tr class="even">
-<td align="left"><code>addPolygons()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addPolygons()</a></code></td>
 <td align="left"><code>add_polygons(fill_color = ~col, extrude = ~h)</code></td>
 <td align="left">
 <strong>Full Parity + 3D</strong>: Pre-triangulates
@@ -458,8 +458,8 @@ bounding boxes.</td>
 </tr>
 <tr class="even">
 <td align="left">
-<code>addLabelOnlyMarkers()</code> /
-<code>addPopups()</code>
+<code><a href="../reference/leaflet_compat.html">addLabelOnlyMarkers()</a></code> /
+<code><a href="../reference/leaflet_compat.html">addPopups()</a></code>
 </td>
 <td align="left">
 <code>add_labels(text = ~lbl)</code> /
@@ -470,7 +470,7 @@ bounding boxes.</td>
 canvas text labels + HTML click/hover tooltips.</td>
 </tr>
 <tr class="odd">
-<td align="left"><code>addGeoJSON()</code></td>
+<td align="left"><code><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">addGeoJSON()</a></code></td>
 <td align="left"><code><a href="../reference/add_geojson.html">add_geojson()</a></code></td>
 <td align="left">
 <strong>Full Parity</strong>: Native GeoJSON layer
@@ -526,8 +526,8 @@ bounding-box pushdown.</td>
 <tbody>
 <tr class="odd">
 <td align="left">
-<code>colorNumeric()</code> /
-<code>colorFactor()</code> / <code>colorBin()</code>
+<code><a href="../reference/color_numeric.html">colorNumeric()</a></code> /
+<code><a href="../reference/color_numeric.html">colorFactor()</a></code> / <code><a href="../reference/color_numeric.html">colorBin()</a></code>
 </td>
 <td align="left"><strong>Built into
 <code>color = ~col, palette = "viridis"</code></strong></td>
@@ -538,8 +538,8 @@ generates the legend automatically.</td>
 </tr>
 <tr class="even">
 <td align="left">
-<code>addLegend()</code> /
-<code>addRasterLegend()</code>
+<code><a href="../reference/leaflet_compat.html">addLegend()</a></code> /
+<code><a href="https://rstudio.github.io/leaflet/reference/addRasterLegend.html" class="external-link">addRasterLegend()</a></code>
 </td>
 <td align="left">Automatic (or <code><a href="../reference/add_legend.html">add_legend()</a></code> for
 custom)</td>
@@ -549,7 +549,7 @@ Controls</strong>: Raster legends include live browser dropdowns for GPU
 shader palette &amp; hillshade toggling.</td>
 </tr>
 <tr class="odd">
-<td align="left"><code>addLayersControl()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addLayersControl()</a></code></td>
 <td align="left">Built-in GPU Layer Switcher
 (<code>add_control("layer_switcher")</code>)</td>
 <td align="left">
@@ -558,8 +558,8 @@ counts and visibility checkboxes for every layer.</td>
 </tr>
 <tr class="even">
 <td align="left">
-<code>addScaleBar()</code> / <code>addMeasure()</code>
-/ <code>addMiniMap()</code>
+<code><a href="https://rstudio.github.io/leaflet/reference/addScaleBar.html" class="external-link">addScaleBar()</a></code> / <code><a href="../reference/leaflet_compat.html">addMeasure()</a></code>
+/ <code><a href="../reference/leaflet_compat.html">addMiniMap()</a></code>
 </td>
 <td align="left">
 <code>add_control("scale")</code> /
@@ -593,7 +593,7 @@ plugin system.</td>
 <tr class="odd">
 <td align="left">
 <code>leafletOutput("map")</code> /
-<code>renderLeaflet()</code>
+<code><a href="../reference/leaflet_compat.html">renderLeaflet()</a></code>
 </td>
 <td align="left">
 <code>glmapOutput("map")</code> /
@@ -624,8 +624,8 @@ layers belonging to <code>group</code> in 0 ms.</td>
 </tr>
 <tr class="even">
 <td align="left">
-<code>clearShapes()</code> /
-<code>clearMarkers()</code> / <code>removeShape(id)</code>
+<code><a href="../reference/leaflet_compat.html">clearShapes()</a></code> /
+<code><a href="../reference/leaflet_compat.html">clearMarkers()</a></code> / <code>removeShape(id)</code>
 </td>
 <td align="left">
 <code><a href="../reference/clear_layers.html">clear_layers()</a></code> /
@@ -636,9 +636,9 @@ layers belonging to <code>group</code> in 0 ms.</td>
 </tr>
 <tr class="odd">
 <td align="left">
-<code>setView()</code> / <code>flyTo()</code> /
-<code>fitBounds()</code> / <code>flyToBounds()</code> /
-<code>setMaxBounds()</code>
+<code><a href="../reference/leaflet_compat.html">setView()</a></code> / <code><a href="../reference/leaflet_compat.html">flyTo()</a></code> /
+<code><a href="../reference/leaflet_compat.html">fitBounds()</a></code> / <code><a href="../reference/leaflet_compat.html">flyToBounds()</a></code> /
+<code><a href="../reference/leaflet_compat.html">setMaxBounds()</a></code>
 </td>
 <td align="left">
 <code><a href="../reference/set_view.html">set_view()</a></code> / <code><a href="../reference/fly_to.html">fly_to()</a></code> /

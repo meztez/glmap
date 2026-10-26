@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -139,8 +139,8 @@ use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics
 </tr>
 <tr class="even">
 <td align="left">
-<code>addTiles()</code> /
-<code>addProviderTiles()</code>
+<code><a href="../reference/leaflet_compat.html">addTiles()</a></code> /
+<code><a href="../reference/leaflet_compat.html">addProviderTiles()</a></code>
 </td>
 <td align="left"><code>set_basemap("positron")</code></td>
 <td align="left">Or set <code>basemap =</code> directly in
@@ -149,8 +149,8 @@ use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics
 </tr>
 <tr class="odd">
 <td align="left">
-<code>addCircleMarkers()</code> /
-<code>addMarkers()</code>
+<code><a href="../reference/leaflet_compat.html">addCircleMarkers()</a></code> /
+<code><a href="../reference/leaflet_compat.html">addMarkers()</a></code>
 </td>
 <td align="left"><code><a href="../reference/add_points.html">add_points()</a></code></td>
 <td align="left">
@@ -160,7 +160,7 @@ use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics
 <code>color = ~col, palette = "viridis"</code> directly</td>
 </tr>
 <tr class="even">
-<td align="left"><code>addLabelOnlyMarkers()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addLabelOnlyMarkers()</a></code></td>
 <td align="left"><code><a href="../reference/add_labels.html">add_labels()</a></code></td>
 <td align="left">
 <code>label</code>
@@ -168,7 +168,7 @@ use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics
 </td>
 </tr>
 <tr class="odd">
-<td align="left"><code>addPolylines()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addPolylines()</a></code></td>
 <td align="left"><code><a href="../reference/add_lines.html">add_lines()</a></code></td>
 <td align="left">
 <code>weight</code>
@@ -176,7 +176,7 @@ use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics
 </td>
 </tr>
 <tr class="even">
-<td align="left"><code>addPolygons()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addPolygons()</a></code></td>
 <td align="left"><code><a href="../reference/add_polygons.html">add_polygons()</a></code></td>
 <td align="left">
 <code>fillColor</code>
@@ -187,7 +187,7 @@ use consistent <code>snake_case</code>, evaluate tidy/formula aesthetics
 </td>
 </tr>
 <tr class="odd">
-<td align="left"><code>addRasterImage()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">addRasterImage()</a></code></td>
 <td align="left"><code><a href="../reference/add_raster.html">add_raster()</a></code></td>
 <td align="left">Streams raw <code>Float32</code> values to GPU shader;
 supports <code>hillshade = TRUE</code> and live UI palette
@@ -226,8 +226,8 @@ switching</td>
 </tr>
 <tr class="odd">
 <td align="left">
-<code>leafletOutput()</code> /
-<code>renderLeaflet()</code>
+<code><a href="../reference/leaflet_compat.html">leafletOutput()</a></code> /
+<code><a href="../reference/leaflet_compat.html">renderLeaflet()</a></code>
 </td>
 <td align="left">
 <code><a href="../reference/glmapOutput.html">glmapOutput()</a></code> /
@@ -236,7 +236,7 @@ switching</td>
 <td align="left">Drop-in Shiny UI &amp; Server replacements</td>
 </tr>
 <tr class="even">
-<td align="left"><code>leafletProxy()</code></td>
+<td align="left"><code><a href="../reference/leaflet_compat.html">leafletProxy()</a></code></td>
 <td align="left"><code><a href="../reference/glmap_proxy.html">glmap_proxy()</a></code></td>
 <td align="left">Supports <code><a href="../reference/clear_layer.html">clear_layer()</a></code>,
 <code><a href="../reference/clear_layers.html">clear_layers()</a></code>, <code><a href="../reference/set_layer_visibility.html">set_layer_visibility()</a></code>,
@@ -261,18 +261,18 @@ switching</td>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://rstudio.github.io/leaflet/" class="external-link">leaflet</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">pal</span> <span class="op">&lt;-</span> <span class="fu">colorNumeric</span><span class="op">(</span><span class="st">"viridis"</span>, domain <span class="op">=</span> <span class="va">nc</span><span class="op">$</span><span class="va">BIR74</span><span class="op">)</span></span>
+<span><span class="va">pal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/color_numeric.html">colorNumeric</a></span><span class="op">(</span><span class="st">"viridis"</span>, domain <span class="op">=</span> <span class="va">nc</span><span class="op">$</span><span class="va">BIR74</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">leaflet</span><span class="op">(</span><span class="va">nc</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">addProviderTiles</span><span class="op">(</span><span class="va">providers</span><span class="op">$</span><span class="va">CartoDB.Positron</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">addPolygons</span><span class="op">(</span></span>
+<span><span class="fu"><a href="../reference/leaflet_compat.html">leaflet</a></span><span class="op">(</span><span class="va">nc</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/leaflet_compat.html">addProviderTiles</a></span><span class="op">(</span><span class="va">providers</span><span class="op">$</span><span class="va">CartoDB.Positron</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/leaflet_compat.html">addPolygons</a></span><span class="op">(</span></span>
 <span>    fillColor <span class="op">=</span> <span class="op">~</span><span class="fu">pal</span><span class="op">(</span><span class="va">BIR74</span><span class="op">)</span>,</span>
 <span>    fillOpacity <span class="op">=</span> <span class="fl">0.75</span>,</span>
 <span>    color <span class="op">=</span> <span class="st">"#ffffff"</span>,</span>
 <span>    weight <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>    popup <span class="op">=</span> <span class="op">~</span><span class="va">NAME</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">addLegend</span><span class="op">(</span><span class="st">"bottomright"</span>, pal <span class="op">=</span> <span class="va">pal</span>, values <span class="op">=</span> <span class="op">~</span><span class="va">BIR74</span>, title <span class="op">=</span> <span class="st">"Births 1974"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="../reference/leaflet_compat.html">addLegend</a></span><span class="op">(</span><span class="st">"bottomright"</span>, pal <span class="op">=</span> <span class="va">pal</span>, values <span class="op">=</span> <span class="op">~</span><span class="va">BIR74</span>, title <span class="op">=</span> <span class="st">"Births 1974"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="glmap">
@@ -303,10 +303,10 @@ Shader Controls<a class="anchor" aria-label="anchor" href="#example-2-terraspatr
 </h4>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Projects and renders a static PNG in R on the CPU; changing colors requires re-running R</span></span>
-<span><span class="va">pal</span> <span class="op">&lt;-</span> <span class="fu">colorNumeric</span><span class="op">(</span><span class="st">"terrain"</span>, <span class="fu">values</span><span class="op">(</span><span class="va">dem</span><span class="op">)</span>, na.color <span class="op">=</span> <span class="st">"transparent"</span><span class="op">)</span></span>
-<span><span class="fu">leaflet</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">addTiles</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">addRasterImage</span><span class="op">(</span><span class="va">dem</span>, colors <span class="op">=</span> <span class="va">pal</span>, opacity <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">pal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/color_numeric.html">colorNumeric</a></span><span class="op">(</span><span class="st">"terrain"</span>, <span class="fu">values</span><span class="op">(</span><span class="va">dem</span><span class="op">)</span>, na.color <span class="op">=</span> <span class="st">"transparent"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/leaflet_compat.html">leaflet</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/leaflet_compat.html">addTiles</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/leaflet_compat.html">addRasterImage</a></span><span class="op">(</span><span class="va">dem</span>, colors <span class="op">=</span> <span class="va">pal</span>, opacity <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="glmap-1">

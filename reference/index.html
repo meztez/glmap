@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -195,6 +195,27 @@
 
         <dt>
 
+          <code><a href="add_minimap.html">add_minimap()</a></code>
+
+        </dt>
+        <dd>Add an Interactive Overview MiniMap (<code>add_minimap</code>)</dd>
+
+        <dt>
+
+          <code><a href="add_graticule.html">add_graticule()</a></code> <code><a href="add_graticule.html">add_simple_graticule()</a></code>
+
+        </dt>
+        <dd>Add a Coordinate Graticule Grid (<code>add_graticule</code>, <code>add_simple_graticule</code>)</dd>
+
+        <dt>
+
+          <code><a href="add_terminator.html">add_terminator()</a></code>
+
+        </dt>
+        <dd>Add a Solar Day/Night Terminator Polygon Layer (<code>add_terminator</code>)</dd>
+
+        <dt>
+
           <code><a href="add_legend.html">add_legend()</a></code>
 
         </dt>
@@ -206,6 +227,13 @@
 
         </dt>
         <dd>Save a <code>glmap</code> Map to a Standalone HTML File (<code>gl_save_html</code>)</dd>
+
+        <dt>
+
+          <code><a href="gl_save_png.html">gl_save_png()</a></code>
+
+        </dt>
+        <dd>Capture a High-Resolution Static PNG Screenshot of a <code>glmap</code> Widget (<code>gl_save_png</code>)</dd>
       </dl></div><div class="section level2">
       <h2 id="gpu-vector-raster-out-of-core-layers">GPU Vector, Raster &amp; Out-of-Core Layers<a class="anchor" aria-label="anchor" href="#gpu-vector-raster-out-of-core-layers"></a></h2>
 
@@ -232,7 +260,7 @@
 
         <dt>
 
-          <code><a href="add_markers.html">add_markers()</a></code> <code><a href="add_markers.html">make_icon()</a></code> <code><a href="add_markers.html">make_awesome_icon()</a></code> <code><a href="add_markers.html">marker_cluster_options()</a></code> <code><a href="add_markers.html">icon_render_options()</a></code>
+          <code><a href="add_markers.html">add_markers()</a></code> <code><a href="add_markers.html">make_icon()</a></code> <code><a href="add_markers.html">icons()</a></code> <code><a href="add_markers.html">icon_list()</a></code> <code><a href="add_markers.html">make_awesome_icon()</a></code> <code><a href="add_markers.html">awesome_icons()</a></code> <code><a href="add_markers.html">awesome_icon_list()</a></code> <code><a href="add_markers.html">marker_cluster_options()</a></code> <code><a href="add_markers.html">icon_render_options()</a></code>
 
         </dt>
         <dd>Add Custom Icon or Awesome Markers (<code>add_markers</code>, <code>make_icon</code>, <code>make_awesome_icon</code>)</dd>
@@ -327,6 +355,20 @@
 
         </dt>
         <dd>Add a Live Out-of-Core DuckDB / Parquet Layer (<code>add_duckdb</code>)</dd>
+
+        <dt>
+
+          <code><a href="color_numeric.html">color_numeric()</a></code> <code><a href="color_numeric.html">color_bin()</a></code> <code><a href="color_numeric.html">color_quantile()</a></code> <code><a href="color_numeric.html">color_factor()</a></code> <code><a href="color_numeric.html">label_format()</a></code> <code><a href="color_numeric.html">colorNumeric()</a></code> <code><a href="color_numeric.html">colorBin()</a></code> <code><a href="color_numeric.html">colorQuantile()</a></code> <code><a href="color_numeric.html">colorFactor()</a></code> <code><a href="color_numeric.html">labelFormat()</a></code>
+
+        </dt>
+        <dd>Leaflet-Compatible Color Palette Functions (<code>color_numeric</code>, <code>color_bin</code>, <code>color_quantile</code>, <code>color_factor</code>, <code>label_format</code>)</dd>
+
+        <dt>
+
+          <code><a href="highlight_options.html">highlight_options()</a></code> <code><a href="highlight_options.html">label_options()</a></code> <code><a href="highlight_options.html">popup_options()</a></code> <code><a href="highlight_options.html">provider_tile_options()</a></code> <code><a href="highlight_options.html">wms_tile_options()</a></code>
+
+        </dt>
+        <dd>Leaflet Option Helpers (<code>highlight_options</code>, <code>label_options</code>, <code>popup_options</code>, <code>provider_tile_options</code>, <code>wms_tile_options</code>)</dd>
       </dl></div><div class="section level2">
       <h2 id="shiny-proxy-group-controls-live-gpu-updates">Shiny Proxy, Group Controls &amp; Live GPU Updates<a class="anchor" aria-label="anchor" href="#shiny-proxy-group-controls-live-gpu-updates"></a></h2>
 
@@ -374,10 +416,10 @@
 
         <dt>
 
-          <code><a href="clear_layers.html">clear_layers()</a></code>
+          <code><a href="clear_layers.html">clear_layers()</a></code> <code><a href="clear_layers.html">clear_shapes()</a></code> <code><a href="clear_layers.html">clear_markers()</a></code> <code><a href="clear_layers.html">clear_controls()</a></code> <code><a href="clear_layers.html">remove_shape()</a></code> <code><a href="clear_layers.html">remove_marker()</a></code>
 
         </dt>
-        <dd>Clear All Data Layers from a Map</dd>
+        <dd>Clear All Data Layers from a Map (<code>clear_layers</code>, <code>clear_shapes</code>, <code>clear_markers</code>, <code>clear_controls</code>, <code>remove_shape</code>, <code>remove_marker</code>)</dd>
 
         <dt>
 
@@ -413,6 +455,22 @@
 
         </dt>
         <dd>Filter Visible Features by Index on the GPU</dd>
+      </dl></div><div class="section level2">
+      <h2 id="drop-in-leaflet-leaflet-extras-compatibility-api">Drop-In Leaflet &amp; Leaflet.Extras Compatibility API<a class="anchor" aria-label="anchor" href="#drop-in-leaflet-leaflet-extras-compatibility-api"></a></h2>
+
+      <div class="section-desc"><p>100% camelCase function and option aliases so existing R leaflet scripts, Quarto reports, and Shiny apps run on glmap’s GPU engine without modification.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="leaflet_compat.html">leaflet()</a></code> <code><a href="leaflet_compat.html">leafletOptions()</a></code> <code><a href="leaflet_compat.html">providers</a></code> <code><a href="leaflet_compat.html">addTiles()</a></code> <code><a href="leaflet_compat.html">addProviderTiles()</a></code> <code><a href="leaflet_compat.html">providerTileOptions()</a></code> <code><a href="leaflet_compat.html">setView()</a></code> <code><a href="leaflet_compat.html">fitBounds()</a></code> <code><a href="leaflet_compat.html">flyTo()</a></code> <code><a href="leaflet_compat.html">flyToBounds()</a></code> <code><a href="leaflet_compat.html">setMaxBounds()</a></code> <code><a href="leaflet_compat.html">addMarkers()</a></code> <code><a href="leaflet_compat.html">makeIcon()</a></code> <code><a href="leaflet_compat.html">iconList()</a></code> <code><a href="leaflet_compat.html">addAwesomeMarkers()</a></code> <code><a href="leaflet_compat.html">makeAwesomeIcon()</a></code> <code><a href="leaflet_compat.html">awesomeIcons()</a></code> <code><a href="leaflet_compat.html">awesomeIconList()</a></code> <code><a href="leaflet_compat.html">markerClusterOptions()</a></code> <code><a href="leaflet_compat.html">addCircleMarkers()</a></code> <code><a href="leaflet_compat.html">addLabelOnlyMarkers()</a></code> <code><a href="leaflet_compat.html">addPolygons()</a></code> <code><a href="leaflet_compat.html">addPolylines()</a></code> <code><a href="leaflet_compat.html">addCircles()</a></code> <code><a href="leaflet_compat.html">addRectangles()</a></code> <code><a href="leaflet_compat.html">addPopups()</a></code> <code><a href="leaflet_compat.html">clearPopups()</a></code> <code><a href="leaflet_compat.html">popupOptions()</a></code> <code><a href="leaflet_compat.html">labelOptions()</a></code> <code><a href="leaflet_compat.html">highlightOptions()</a></code> <code><a href="leaflet_compat.html">addRasterImage()</a></code> <code><a href="leaflet_compat.html">addWMSTiles()</a></code> <code><a href="leaflet_compat.html">WMSTileOptions()</a></code> <code><a href="leaflet_compat.html">addLegend()</a></code> <code><a href="leaflet_compat.html">addLayersControl()</a></code> <code><a href="leaflet_compat.html">layersControlOptions()</a></code> <code><a href="leaflet_compat.html">addMeasure()</a></code> <code><a href="leaflet_compat.html">addMiniMap()</a></code> <code><a href="leaflet_compat.html">addGraticule()</a></code> <code><a href="leaflet_compat.html">addSimpleGraticule()</a></code> <code><a href="leaflet_compat.html">addTerminator()</a></code> <code><a href="leaflet_compat.html">addDrawToolbar()</a></code> <code><a href="leaflet_compat.html">removeDrawToolbar()</a></code> <code><a href="leaflet_compat.html">addSearchOSM()</a></code> <code><a href="leaflet_compat.html">searchOptions()</a></code> <code><a href="leaflet_compat.html">showGroup()</a></code> <code><a href="leaflet_compat.html">hideGroup()</a></code> <code><a href="leaflet_compat.html">clearGroup()</a></code> <code><a href="leaflet_compat.html">clearShapes()</a></code> <code><a href="leaflet_compat.html">clearMarkers()</a></code> <code><a href="leaflet_compat.html">clearControls()</a></code> <code><a href="leaflet_compat.html">removeShape()</a></code> <code><a href="leaflet_compat.html">removeMarker()</a></code> <code><a href="leaflet_compat.html">leafletOutput()</a></code> <code><a href="leaflet_compat.html">`%&gt;%`</a></code> <code><a href="leaflet_compat.html">renderLeaflet()</a></code> <code><a href="leaflet_compat.html">leafletProxy()</a></code>
+
+        </dt>
+        <dd>Drop-In <code>leaflet</code> &amp; <code>leaflet.extras</code> Compatibility Layer</dd>
       </dl></div><div class="section level2">
       <h2 id="plugins-custom-shaders-binary-engine">Plugins, Custom Shaders &amp; Binary Engine<a class="anchor" aria-label="anchor" href="#plugins-custom-shaders-binary-engine"></a></h2>
 
