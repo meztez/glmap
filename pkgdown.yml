@@ -2,10 +2,16 @@ pandoc: 3.8.3
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
+  basemaps-and-projections: basemaps-and-projections.html
   benchmarks-and-leaflet-parity: benchmarks-and-leaflet-parity.html
+  controls-shiny-and-export: controls-shiny-and-export.html
   getting-started: getting-started.html
   leaflet-migration: leaflet-migration.html
-last_built: 2026-10-26T15:08Z
+  legacy-leaflet-mapping: legacy-leaflet-mapping.html
+  markers-and-clusters: markers-and-clusters.html
+  raster-hexbin-duckdb: raster-hexbin-duckdb.html
+  shapes-and-choropleths: shapes-and-choropleths.html
+last_built: 2026-10-26T15:16Z
 urls:
   reference: https://meztez.github.io/glmap/reference
   article: https://meztez.github.io/glmap/articles
