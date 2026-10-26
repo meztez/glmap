@@ -259,6 +259,7 @@ The package ships with three complete, runnable examples in `inst/examples/`:
 | :--- | :--- | :--- | :--- |
 | **`glmap` R / C++17 / JS Engine** | `1.0.0` | **MIT License** | Copyright (c) 2026 Bruno Tremblay and `glmap` authors |
 | **MapLibre GL JS** (`inst/htmlwidgets/lib/maplibre-gl/`) | `4.7.1` | **BSD-3-Clause** | Copyright (c) 2020 MapLibre contributors; Copyright (c) 2014–2020 Mapbox, Inc. |
+| **GLMap `earstrip.hpp`** (`src/earstrip.h`) | `1.0.0` | **ISC License** | Copyright (c) 2026 Evgen Bodunov |
 | **Mapbox `earcut.hpp`** (`src/earcut.h`) | `2.2.4` | **ISC License** | Copyright (c) 2015 Mapbox |
 | **Default Map Tiles** | — | **ODbL / CC-BY** | `© OpenStreetMap contributors`, `© CARTO`, `© OpenFreeMap` (rendered automatically in the bottom-right attribution control) |
 

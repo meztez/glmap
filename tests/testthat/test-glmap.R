@@ -211,10 +211,10 @@ test_that("terra::SpatVector and terra::SpatRaster objects are supported directl
   }
 })
 
-test_that("mapbox/earcut.hpp in C++17 accurately triangulates complex polygons with interior holes", {
+test_that("GLMap/earstrip.hpp in C++17 accurately triangulates complex polygons with interior holes and self-intersections", {
   skip_if_not_installed("sf")
 
-  # Outer square (0,0) -> (10,10) with an interior square hole (3,3) -> (7,7)
+  # 1. Outer square with an interior square hole
   outer_ring <- rbind(c(-74, 45), c(-70, 45), c(-70, 49), c(-74, 49), c(-74, 45))
   hole_ring  <- rbind(c(-73, 46), c(-73, 48), c(-71, 48), c(-71, 46), c(-73, 46))
   poly_with_hole <- sf::st_polygon(list(outer_ring, hole_ring))
@@ -224,8 +224,14 @@ test_that("mapbox/earcut.hpp in C++17 accurately triangulates complex polygons w
   raw_buf <- gl_pack_sf_binary(sf_donut, elevation = 120.0)
   expect_type(raw_buf, "raw")
   expect_equal(attr(raw_buf, "n_features"), 1L)
-  # 8 unique vertices in donut -> 8 triangles = 24 indices
   expect_gte(attr(raw_buf, "n_indices"), 24L)
+
+  # 2. Self-intersecting bowtie / figure-8 polygon (handled by earstrip CDT fallback with Steiner point)
+  bowtie_ring <- rbind(c(-74, 45), c(-70, 49), c(-70, 45), c(-74, 49), c(-74, 45))
+  sfc_bowtie <- sf::st_sfc(sf::st_polygon(list(bowtie_ring)), crs = 4326)
+  raw_bowtie <- gl_pack_sf_binary(sfc_bowtie)
+  expect_type(raw_bowtie, "raw")
+  expect_gte(attr(raw_bowtie, "n_indices"), 6L)
 })
 
 test_that("add_labels, 3D polygon extrusion, categorical color scales, and camera controls work", {

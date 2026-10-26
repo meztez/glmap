@@ -31,7 +31,12 @@ SOFTWARE.
    - **Copyright:** Copyright (c) 2020, MapLibre contributors; Copyright (c) 2014-2020, Mapbox, Inc.
    - **URL:** <https://github.com/maplibre/maplibre-gl-js>
 
-2. **Mapbox `earcut.hpp` (`v2.2.4`)** — `src/earcut.h`
+2. **GLMap `earstrip.hpp`** — `src/earstrip.h`
+   - **License:** ISC License (`ISC`)
+   - **Copyright:** Copyright (c) 2026, Evgen Bodunov (GLOBUS / GLMap)
+   - **URL:** <https://github.com/GLMap/earstrip>
+
+3. **Mapbox `earcut.hpp` (`v2.2.4`)** — `src/earcut.h`
    - **License:** ISC License (`ISC`)
    - **Copyright:** Copyright (c) 2015, Mapbox
    - **URL:** <https://github.com/mapbox/earcut.hpp>

@@ -1,4 +1,6 @@
 #include <cpp11.hpp>
+#define EARSTRIP_SMALL_CONSTRAINED
+#include "earstrip.h"
 #include "earcut.h"
 #include <vector>
 #include <cstdint>
@@ -11,6 +13,23 @@
 using namespace cpp11;
 
 namespace {
+
+// Zero-copy adapter over R's column-major numeric ring matrices (`SEXP` list of `N x 2` `REALSXP` matrices)
+// so earstrip::Triangulator reads R memory directly without allocating std::vector<std::array<double, 2>> per ring!
+struct SfRingPointProxy {
+  double x;
+  double y;
+};
+
+struct SfRingView {
+  const double* xp;
+  const double* yp;
+  size_t n;
+  size_t size() const { return n; }
+  SfRingPointProxy operator[](size_t i) const { return {xp[i], yp[i]}; }
+};
+
+using SfPolygonRingsAdapter = std::vector<SfRingView>;
 
 #pragma pack(push, 1)
 struct GlmpHeader {
@@ -57,7 +76,10 @@ void extract_sfg_coords(
     std::vector<uint32_t>& ring_starts,
     std::vector<uint32_t>& tri_indices,
     std::vector<uint32_t>& vertex_feat_ids,
-    float bbox[4]
+    float bbox[4],
+    earstrip::Triangulator<uint32_t>& triangulator,
+    SfPolygonRingsAdapter& poly_adapter,
+    std::vector<uint32_t>& local_tris
 ) {
   if (TYPEOF(sfg) == REALSXP) {
     // Either a numeric vector (POINT) or a numeric matrix (LINESTRING / Multipoint)
@@ -98,9 +120,10 @@ void extract_sfg_coords(
     // Check if this VECSXP is a single POLYGON (list of numeric ring matrices: exterior + holes)
     SEXP first_elt = VECTOR_ELT(sfg, 0);
     if (geom_type == 3 && TYPEOF(first_elt) == REALSXP && Rf_getAttrib(first_elt, R_DimSymbol) != R_NilValue) {
-      using Pt = std::array<double, 2>;
-      std::vector<std::vector<Pt>> polygon_rings;
-      polygon_rings.reserve(n_sub);
+      poly_adapter.clear();
+      if (poly_adapter.capacity() < static_cast<size_t>(n_sub)) {
+        poly_adapter.reserve(static_cast<size_t>(n_sub));
+      }
       uint32_t poly_base_v = static_cast<uint32_t>(coords.size() / 2);
 
       for (R_xlen_t r_idx = 0; r_idx < n_sub; ++r_idx) {
@@ -116,25 +139,34 @@ void extract_sfg_coords(
         uint32_t ring_start_v = static_cast<uint32_t>(coords.size() / 2);
         ring_starts.push_back(ring_start_v);
 
-        std::vector<Pt> ring_pts;
-        ring_pts.reserve(nrow);
         for (int r = 0; r < nrow; ++r) {
-          double dx = ptr[r];
-          double dy = ptr[r + nrow];
-          float fx = static_cast<float>(dx);
-          float fy = static_cast<float>(dy);
+          float fx = static_cast<float>(ptr[r]);
+          float fy = static_cast<float>(ptr[r + nrow]);
           coords.push_back(fx);
           coords.push_back(fy);
           vertex_feat_ids.push_back(feat_id);
           update_bbox(fx, fy, bbox);
-          ring_pts.push_back({dx, dy});
         }
-        polygon_rings.push_back(std::move(ring_pts));
+        poly_adapter.push_back({ptr, ptr + nrow, static_cast<size_t>(nrow)});
       }
 
-      if (!polygon_rings.empty()) {
-        std::vector<uint32_t> local_indices = mapbox::earcut<uint32_t>(polygon_rings);
-        for (uint32_t idx : local_indices) {
+      if (!poly_adapter.empty()) {
+        triangulator.run(poly_adapter);
+        triangulator.triangles(local_tris);
+        // If Constrained Delaunay fallback added Steiner intersection points on self-intersecting rings,
+        // append them to `coords` and `vertex_feat_ids` so indices >= inputVertices remain valid!
+        const std::vector<double>& extra = triangulator.extraPoints();
+        if (!extra.empty()) {
+          size_t n_extra = extra.size() / 2;
+          for (size_t k = 0; k < n_extra; ++k) {
+            float ex = static_cast<float>(extra[2 * k]);
+            float ey = static_cast<float>(extra[2 * k + 1]);
+            coords.push_back(ex);
+            coords.push_back(ey);
+            vertex_feat_ids.push_back(feat_id);
+          }
+        }
+        for (uint32_t idx : local_tris) {
           tri_indices.push_back(poly_base_v + idx);
         }
       }
@@ -144,7 +176,7 @@ void extract_sfg_coords(
     // Otherwise recurse (e.g., MULTIPOLYGON list of polygons, or MULTILINESTRING list of matrices)
     for (R_xlen_t i = 0; i < n_sub; ++i) {
       SEXP sub = VECTOR_ELT(sfg, i);
-      extract_sfg_coords(sub, geom_type, feat_id, coords, ring_starts, tri_indices, vertex_feat_ids, bbox);
+      extract_sfg_coords(sub, geom_type, feat_id, coords, ring_starts, tri_indices, vertex_feat_ids, bbox, triangulator, poly_adapter, local_tris);
     }
   }
 }
@@ -296,10 +328,14 @@ cpp11::raws cpp_pack_sfc_binary(
     -std::numeric_limits<float>::infinity()
   };
 
+  earstrip::Triangulator<uint32_t> triangulator;
+  SfPolygonRingsAdapter poly_adapter;
+  std::vector<uint32_t> local_tris;
+
   SEXP sfc_sexp = sfc;
   for (uint32_t i = 0; i < n_features; ++i) {
     SEXP sfg = VECTOR_ELT(sfc_sexp, i);
-    extract_sfg_coords(sfg, geom_type, i, coords, ring_starts, tri_indices, vertex_feat_ids, bbox);
+    extract_sfg_coords(sfg, geom_type, i, coords, ring_starts, tri_indices, vertex_feat_ids, bbox, triangulator, poly_adapter, local_tris);
   }
 
   uint32_t n_vertices = static_cast<uint32_t>(coords.size() / 2);
