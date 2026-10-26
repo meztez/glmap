@@ -1,0 +1,155 @@
+---
+title: "Legacy Leaflet Function Call Mapping & Zero-Rewrite Reuse"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Legacy Leaflet Function Call Mapping & Zero-Rewrite Reuse}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Overview: Two Ways to Use `glmap`
+
+`glmap` supports **two complementary APIs** on top of the exact same C++17 + WebGL2 + MapLibre GL engine:
+
+1. **Zero-Rewrite `leaflet` Compatibility API (`camelCase`)**:
+   - Exported directly by `library(glmap)` (`leaflet()`, `addTiles()`, `addProviderTiles()`, `addMarkers()`, `addAwesomeMarkers()`, `addCircleMarkers()`, `addPolygons()`, `addPolylines()`, `addCircles()`, `addRectangles()`, `addRasterImage()`, `addLegend()`, `addLayersControl()`, `colorNumeric()`, `colorBin()`, `colorQuantile()`, `colorFactor()`, `leafletOutput()`, `renderLeaflet()`, `leafletProxy()`, and `%>%`).
+   - Existing R scripts, Quarto/RMarkdown reports, and Shiny apps written for `leaflet` and `leaflet.extras` run on the GPU simply by replacing `library(leaflet)` with `library(glmap)`.
+2. **Idiomatic `glmap` API (`snake_case`)**:
+   - Designed for concise new code and AI coding agents (`glmap()`, `add_points()`, `add_polygons()`, `add_lines()`, `add_raster()`, `add_hexbin()`, `add_heatmap()`, `add_duckdb()`, `glmapOutput()`, `renderGlmap()`, `glmap_proxy()`).
+   - Eliminates `colorNumeric()` and `addLegend()` boilerplate by accepting `color = ~col, palette = "viridis"` directly.
+
+---
+
+## 1. Zero-Rewrite Drop-In Example
+
+The following classic `leaflet` + `leaflet.extras` script runs **unchanged** with `library(glmap)`:
+
+```{r}
+# Simply swap library(leaflet) for library(glmap)
+library(glmap)
+library(sf)
+
+nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
+nc <- sf::st_transform(nc, 4326)
+
+bins <- c(0, 1000, 2000, 3500, 5000, 8000, 15000, Inf)
+pal <- colorBin("YlOrRd", domain = nc$BIR74, bins = bins)
+
+leaflet(nc) %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "Positron") %>%
+  addTiles(group = "OSM") %>%
+  addPolygons(
+    fillColor = ~pal(BIR74),
+    weight = 1.5,
+    opacity = 1,
+    color = "white",
+    fillOpacity = 0.75,
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "#0f172a",
+      fillOpacity = 0.85,
+      bringToFront = TRUE
+    ),
+    label = ~paste0(NAME, ": ", BIR74),
+    group = "Counties"
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~BIR74,
+    title = "Births (1974)",
+    opacity = 0.85
+  ) %>%
+  addLayersControl(
+    baseGroups = c("Positron", "OSM"),
+    overlayGroups = c("Counties"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  addMiniMap(width = 140, height = 110, position = "bottomleft") %>%
+  addMeasure(position = "bottomleft")
+```
+
+---
+
+## 2. Complete Legacy `leaflet` $\rightarrow$ `glmap` Function Call Mapping
+
+### A. Map Initialization, Camera & Basemaps
+
+| Legacy `leaflet` Call | Exported Alias in `glmap` | Idiomatic `glmap` Call | Notes |
+| :--- | :--- | :--- | :--- |
+| `leaflet(data, width, height)` | `leaflet(data, width, height)` | `glmap(data, basemap = "positron")` | `glmap()` auto-adds a default layer if no `add_*()` is piped |
+| `addTiles(urlTemplate, group)` | `addTiles(urlTemplate, group)` | `set_basemap("osm")` | Also registers `group` in the base layer switcher |
+| `addProviderTiles(provider, group, options)` | `addProviderTiles(provider, group, options)` | `add_provider_tiles(provider, api_key)` | Supports `providers$CartoDB.Positron`, `providers$Esri.WorldImagery`, etc. |
+| `addWMSTiles(baseUrl, layers, options)` | `addWMSTiles(baseUrl, layers, options)` | `add_wms_tiles(base_url, layers)` | Uses `{bbox-epsg-3857}` OGC WMS tile requests |
+| `setView(lng, lat, zoom)` | `setView(lng, lat, zoom)` | `set_view(lng, lat, zoom, pitch, bearing)` | Supports 3D camera `pitch` and `bearing` |
+| `fitBounds(lng1, lat1, lng2, lat2)` | `fitBounds(lng1, lat1, lng2, lat2)` | `fit_bounds(c(xmin, ymin, xmax, ymax))` | Accepts 4 arguments (including formulas `~min(long)`), bbox vector, `sf`, or `SpatRaster` |
+| `flyTo(lng, lat, zoom)` | `flyTo(lng, lat, zoom)` | `fly_to(lng, lat, zoom, pitch, bearing)` | Smooth WebGL camera flight |
+| `flyToBounds(lng1, lat1, lng2, lat2)` | `flyToBounds(...)` | `fly_to_bounds(bbox)` | Smooth animated bounds transition |
+| `setMaxBounds(lng1, lat1, lng2, lat2)` | `setMaxBounds(...)` | `set_max_bounds(bbox)` | Constrains camera pan bounds |
+
+### B. Markers, Icons, Clusters & Labels
+
+| Legacy `leaflet` Call | Exported Alias in `glmap` | Idiomatic `glmap` Call | Notes |
+| :--- | :--- | :--- | :--- |
+| `addCircleMarkers(lng, lat, radius, color, fillColor, fillOpacity, layerId)` | `addCircleMarkers(...)` | `add_points(lon, lat, radius, color, palette, opacity, layerId)` | Rendered via WebGL2 instanced SDF circle shader (`radius` in pixels) |
+| `addMarkers(lng, lat, icon, popup, label, clusterOptions)` | `addMarkers(...)` | `add_markers(lng, lat, icon, popup, label, clusterOptions)` | 3-mode GPU Icon Engine (`atlas`, `cluster` with spiderfy web, `lod`) |
+| `makeIcon(iconUrl, iconWidth, iconHeight)` | `makeIcon(...)` / `icons(...)` | `make_icon(iconUrl, iconWidth, iconHeight)` | Automatic `crossOrigin = "anonymous"` GPU Texture Atlas packing |
+| `iconList(...)` | `iconList(...)` | `icon_list(...)` | Supports `~oceanIcons[type]` subsetting |
+| `addAwesomeMarkers(lng, lat, icon)` | `addAwesomeMarkers(...)` | `add_markers(lng, lat, icon)` | Packs multi-color badge pins into GPU sprite sheet |
+| `makeAwesomeIcon(...)` / `awesomeIcons(...)` | `makeAwesomeIcon(...)` / `awesomeIcons(...)` | `make_awesome_icon(...)` / `awesome_icons(...)` | Supports vectorized `markerColor = c("green", "orange", "red")` |
+| `markerClusterOptions(...)` | `markerClusterOptions(...)` | `marker_cluster_options(...)` | Includes automatic spiderfy web expansion on co-located coordinates |
+| `addLabelOnlyMarkers(lng, lat, label)` | `addLabelOnlyMarkers(...)` | `add_labels(lon, lat, text)` | Crisp halo-outlined text labels |
+| `addPopups(lng, lat, popup, layerId)` | `addPopups(...)` | `add_popups(lon, lat, popup)` | Supports standalone popups and Shiny proxy click popups |
+| `clearPopups(map)` | `clearPopups(map)` | `clear_popups(map)` | Closes active floating popup card |
+
+### C. Polygons, Lines, Geodesic Circles, Rectangles & Rasters
+
+| Legacy `leaflet` Call | Exported Alias in `glmap` | Idiomatic `glmap` Call | Notes |
+| :--- | :--- | :--- | :--- |
+| `addPolygons(fillColor, fillOpacity, color, weight, fill, highlightOptions)` | `addPolygons(...)` | `add_polygons(fill_color, palette, fill_opacity, line_color, line_width, highlightOptions)` | C++17 `GLMap/earstrip` zero-copy triangulation (with CDT fallback) |
+| `addPolylines(color, weight, opacity)` | `addPolylines(...)` | `add_lines(color, palette, width, opacity)` | Multi-ring segment index buffer |
+| `addCircles(lng, lat, radius, fillColor, layerId)` | `addCircles(...)` | `add_circles(lon, lat, radius, fill_color, layerId)` | `radius` in **meters** on the ground (geodesic 24-segment polygon rings) |
+| `addRectangles(lng1, lat1, lng2, lat2)` | `addRectangles(...)` | `add_rectangles(lng1, lat1, lng2, lat2)` | Bounding-box polygons |
+| `addRasterImage(x, colors, opacity)` | `addRasterImage(...)` | `add_raster(raster, palette, opacity, hillshade, shader_controls)` | Streams raw `Float32` texture (`RGBA32F`) to GPU fragment shader |
+
+### D. Color Palettes, Legends & Interactive Controls
+
+| Legacy `leaflet` / `leaflet.extras` Call | Exported Alias in `glmap` | Idiomatic `glmap` Call | Notes |
+| :--- | :--- | :--- | :--- |
+| `colorNumeric(palette, domain)` | `colorNumeric(...)` | `color_numeric(...)` (or `color = ~col`) | Preserves `"colorType"` and `"colorArgs"` attributes for `addLegend()` |
+| `colorBin(palette, domain, bins)` | `colorBin(...)` | `color_bin(...)` | Supports numeric bin count or explicit cut vector |
+| `colorQuantile(palette, domain, n)` | `colorQuantile(...)` | `color_quantile(...)` | Equal-count quantile bins |
+| `colorFactor(palette, domain, levels)` | `colorFactor(...)` | `color_factor(...)` | Categorical level mapping |
+| `labelFormat(prefix, suffix, between, digits)` | `labelFormat(...)` | `label_format(...)` | Custom legend label formatter |
+| `addLegend(position, pal, values, title)` | `addLegend(...)` | `add_legend(...)` | Automatic in idiomatic `glmap` when `color = ~col` is used |
+| `addLayersControl(baseGroups, overlayGroups, options)` | `addLayersControl(...)` | `add_layers_control(...)` | Includes live **Marker / Icon Engine** switcher |
+| `addMiniMap(width, height, position)` | `addMiniMap(...)` | `add_minimap(...)` | Synchronized overview canvas with orange aiming rectangle |
+| `addMeasure(position, primaryLengthUnit, primaryAreaUnit)` | `addMeasure(...)` | `add_measure(...)` | Geodesic path distance & spherical-excess polygon area |
+| `addGraticule(interval)` / `addSimpleGraticule()` | `addGraticule(...)` / `addSimpleGraticule(...)` | `add_graticule(...)` / `add_simple_graticule(...)` | WebGL meridian/parallel grid |
+| `addTerminator(resolution, time)` | `addTerminator(...)` | `add_terminator(...)` | Solar day/night hemisphere polygon |
+| `addDrawToolbar(...)` / `removeDrawToolbar(...)` | `addDrawToolbar(...)` / `removeDrawToolbar(...)` | `add_draw_toolbar(...)` / `remove_draw_toolbar(...)` | Emits `_draw_new_feature`, `_draw_deleted_features`, `_draw_all_features` |
+| `addSearchOSM(options)` | `addSearchOSM(...)` | `add_search_osm(...)` | OpenStreetMap Nominatim geocoder |
+
+### E. Shiny UI, Server, Proxy & Reactive Input Events
+
+| Legacy `leaflet` Pattern | Exported Alias in `glmap` | Idiomatic `glmap` Pattern |
+| :--- | :--- | :--- |
+| `leafletOutput("map", width, height)` | `leafletOutput("map", width, height)` | `glmapOutput("map", width, height)` |
+| `renderLeaflet({ ... })` | `renderLeaflet({ ... })` | `renderGlmap({ ... })` |
+| `leafletProxy("map", session, data)` | `leafletProxy("map", session, data)` | `glmap_proxy("map", session, data)` |
+| `showGroup("g")` / `hideGroup("g")` / `clearGroup("g")` | `showGroup("g")` / `hideGroup("g")` / `clearGroup("g")` | `show_group("g")` / `hide_group("g")` / `clear_group("g")` |
+| `clearShapes()` / `clearMarkers()` / `clearControls()` | `clearShapes()` / `clearMarkers()` / `clearControls()` | `clear_shapes()` / `clear_markers()` / `clear_controls()` |
+| `removeShape(id)` / `removeMarker(id)` | `removeShape(id)` / `removeMarker(id)` | `remove_shape(id)` / `remove_marker(id)` / `clear_layer(id)` |
+| `input$map_click` | `list(lng, lat, raster_value, nonce)` | Identical |
+| `input$map_bounds` | `list(west, south, east, north)` (emitted on load & `moveend`) | Identical |
+| `input$map_zoom` / `input$map_center` | Current zoom number & `list(lng, lat)` | Identical |
+| `input$map_shape_click` / `input$map_marker_click` | `list(id, featureIndex, layerId, group, lng, lat)` | Honors vectorized `layerId = ~col` |
+| `input$map_groups` | Character vector of active base + overlay groups | Identical |

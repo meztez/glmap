@@ -44,7 +44,17 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/getting-started.html">Getting Started with glmap</a></li>
+<li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Articles</h6></li>
+    <li><a class="dropdown-item" href="articles/getting-started.html">Getting Started with glmap</a></li>
+    <li><a class="dropdown-item" href="articles/basemaps-and-projections.html">1. Map Widget, Basemaps &amp; Projections</a></li>
+    <li><a class="dropdown-item" href="articles/markers-and-clusters.html">2. Markers, GPU Icon Atlases, Clustering &amp; Spiderfy</a></li>
+    <li><a class="dropdown-item" href="articles/shapes-and-choropleths.html">3. Lines, Polygons, Choropleths &amp; Geodesic Shapes</a></li>
+    <li><a class="dropdown-item" href="articles/raster-hexbin-duckdb.html">4. GPU Rasters, Hexbins, Heatmaps &amp; Out-of-Core DuckDB</a></li>
+    <li><a class="dropdown-item" href="articles/controls-shiny-and-export.html">5. Layer Groups, 9-Zone Controls, Draw Tools &amp; Shiny</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Migration &amp; Benchmarks</h6></li>
+    <li><a class="dropdown-item" href="articles/legacy-leaflet-mapping.html">Legacy Leaflet Function Call Mapping &amp; Zero-Rewrite Reuse</a></li>
     <li><a class="dropdown-item" href="articles/leaflet-migration.html">Migrating from leaflet to glmap (For Humans &amp; AI Agents)</a></li>
     <li><a class="dropdown-item" href="articles/benchmarks-and-leaflet-parity.html">Real-Life Benchmarks &amp; Complete Leaflet Parity Matrix</a></li>
   </ul>
@@ -432,11 +442,27 @@
 <span><span class="co"># Render via: quarto render inst/examples/quarto_report.qmd</span></span></code></pre></div>
 </li>
 <li>
-<p><strong>Full Documentation &amp; Benchmarks</strong>:</p>
+<p><strong>Full Documentation &amp; Learning Path (<code>https://meztez.github.io/glmap/articles/</code>)</strong>:</p>
 <ul>
-<li><code><a href="articles/getting-started.html">vignette("getting-started", package = "glmap")</a></code></li>
-<li><code><a href="articles/leaflet-migration.html">vignette("leaflet-migration", package = "glmap")</a></code></li>
-<li><code><a href="articles/benchmarks-and-leaflet-parity.html">vignette("benchmarks-and-leaflet-parity", package = "glmap")</a></code></li>
+<li>
+<code><a href="articles/getting-started.html">vignette("getting-started", package = "glmap")</a></code> — Quick start &amp; GPU mental model</li>
+<li>
+<code><a href="articles/basemaps-and-projections.html">vignette("basemaps-and-projections", package = "glmap")</a></code> — 1. Map Widget, Basemaps &amp; Projections</li>
+<li>
+<code><a href="articles/markers-and-clusters.html">vignette("markers-and-clusters", package = "glmap")</a></code> — 2. Markers, GPU Icon Atlases, Clustering &amp; Spiderfy</li>
+<li>
+<code><a href="articles/shapes-and-choropleths.html">vignette("shapes-and-choropleths", package = "glmap")</a></code> — 3. Lines, Polygons (<code>earstrip</code>), Choropleths &amp; Geodesic Shapes</li>
+<li>
+<code><a href="articles/raster-hexbin-duckdb.html">vignette("raster-hexbin-duckdb", package = "glmap")</a></code> — 4. GPU Rasters (<code>Float32</code>), Hexbins, Heatmaps &amp; Out-of-Core DuckDB</li>
+<li>
+<code><a href="articles/controls-shiny-and-export.html">vignette("controls-shiny-and-export", package = "glmap")</a></code> — 5. Layer Groups, 9-Zone Controls, Draw Tools, Shiny &amp; Export</li>
+<li>
+<code><a href="articles/legacy-leaflet-mapping.html">vignette("legacy-leaflet-mapping", package = "glmap")</a></code> — Legacy <code>leaflet</code> Function Call Mapping &amp; Zero-Rewrite Reuse</li>
+<li>
+<code><a href="articles/leaflet-migration.html">vignette("leaflet-migration", package = "glmap")</a></code> — Migrating from <code>leaflet</code> to Idiomatic <code>glmap</code>
+</li>
+<li>
+<code><a href="articles/benchmarks-and-leaflet-parity.html">vignette("benchmarks-and-leaflet-parity", package = "glmap")</a></code> — Real-Life Benchmarks &amp; Complete Parity Matrix</li>
 </ul>
 </li>
 </ol>
@@ -477,6 +503,13 @@
 <td align="left"><code>4.7.1</code></td>
 <td align="left"><strong>BSD-3-Clause</strong></td>
 <td align="left">Copyright (c) 2020 MapLibre contributors; Copyright (c) 2014–2020 Mapbox, Inc.</td>
+</tr>
+<tr>
+<td align="left">
+<strong>GLMap <code>earstrip.hpp</code></strong> (<code>src/earstrip.h</code>)</td>
+<td align="left"><code>1.0.0</code></td>
+<td align="left"><strong>ISC License</strong></td>
+<td align="left">Copyright (c) 2026 Evgen Bodunov</td>
 </tr>
 <tr>
 <td align="left">

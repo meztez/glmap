@@ -133,9 +133,18 @@ reference:
       - gl_bbox_to_wkt
 
 articles:
-  - title: "Guides & Benchmarks"
-    navbar: ~
+  - title: "Core Learning Path (Leaflet-Style Guides)"
+    navbar: "Articles"
     contents:
       - getting-started
+      - basemaps-and-projections
+      - markers-and-clusters
+      - shapes-and-choropleths
+      - raster-hexbin-duckdb
+      - controls-shiny-and-export
+  - title: "Leaflet Migration & Benchmarks"
+    navbar: "Migration & Benchmarks"
+    contents:
+      - legacy-leaflet-mapping
       - leaflet-migration
       - benchmarks-and-leaflet-parity

@@ -1,0 +1,123 @@
+---
+title: "3. Lines, Polygons, Choropleths & Geodesic Shapes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{3. Lines, Polygons, Choropleths & Geodesic Shapes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## C++17 `earstrip` Polygon Triangulation (`add_polygons` / `addPolygons`)
+
+A GPU only fills triangles. While web mapping libraries typically triangulate polygons on the browser's single-threaded JavaScript main thread, `glmap` triangulates polygons in **C++17** using [`GLMap/earstrip`](https://github.com/GLMap/earstrip) (`src/earstrip.h`) paired with a zero-copy R `SEXP` ring adapter:
+
+- **Zero Per-Ring Heap Allocations**: Reads `sf`'s column-major `N x 2` `REALSXP` matrices directly in C++ without copying vertices into intermediate `std::vector` containers.
+- **Branchless 64-Bit Dent Bitmask & 1D Buckets**: Packs and triangulates **50,000 polygons (350,000 vertices $\rightarrow$ 200,000 triangles) in 20 milliseconds**.
+- **Hybrid Constrained Delaunay (CDT) Fallback**: Automatically resolves self-intersecting bowtie/figure-8 rings and polygons with `> 128` interior holes.
+
+---
+
+## Choropleths: Idiomatic `glmap` vs. Drop-In `leaflet`
+
+### 1. Idiomatic `glmap` Choropleth (No Palette Function Boilerplate)
+Pass `fill_color = ~column` and `palette = "YlOrRd"` (or `"viridis"`, `"plasma"`, `"magma"`, `"turbo"`, `"RdYlBu"`). `glmap` computes a 256-entry RGB lookup table and attaches a legend automatically:
+
+```{r}
+library(glmap)
+library(sf)
+
+nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
+
+glmap(nc, basemap = "positron") |>
+  add_polygons(
+    fill_color = ~BIR74,
+    palette = "YlOrRd",
+    fill_opacity = 0.75,
+    line_color = "#ffffff",
+    line_width = 1.5,
+    highlightOptions = highlight_options(weight = 3, color = "#0f172a", bringToFront = TRUE),
+    popup = gl_popup_table(nc, zcol = c("NAME", "BIR74", "SID74"))
+  )
+```
+
+### 2. Binned / Quantile / Categorical Choropleths (`color_bin`, `color_quantile`, `color_factor`)
+When you want explicit interval bins (`color_bin()` / `colorBin()`) or equal-count quantiles (`color_quantile()` / `colorQuantile()`)—exact parity with the [Posit Leaflet Choropleth Tutorial](https://rstudio.github.io/leaflet/articles/choropleths.html):
+
+```{r}
+bins <- c(0, 1000, 2000, 3500, 5000, 8000, 15000, Inf)
+pal <- color_bin("YlOrRd", domain = nc$BIR74, bins = bins)
+
+labels <- sprintf(
+  "<strong>%s County</strong><br/>%s births",
+  nc$NAME, format(nc$BIR74, big.mark = ",")
+) |> lapply(htmltools::HTML)
+
+glmap(nc, basemap = "positron") |>
+  add_polygons(
+    fill_color = ~pal(BIR74),
+    line_color = "#ffffff",
+    line_width = 1.5,
+    fill_opacity = 0.75,
+    highlightOptions = highlight_options(weight = 4, color = "#0f172a", bringToFront = TRUE),
+    label = labels
+  ) |>
+  add_legend(
+    position = "bottomright",
+    pal = pal,
+    values = ~BIR74,
+    title = "Births (1974)"
+  )
+```
+
+---
+
+## Unfilled Outlines, Polylines, Geodesic Circles & Rectangles
+
+### Polylines (`add_lines` / `addPolylines`) & Unfilled Polygon Rings (`fill = FALSE`)
+Pass `sf` lines, `maps::map()` objects, or a `data.frame` / 2-column matrix (such as a `chull()` convex hull):
+
+```{r}
+quakes_sub <- head(datasets::quakes, 100)
+hull <- quakes_sub[grDevices::chull(quakes_sub$long, quakes_sub$lat), ]
+
+glmap(quakes_sub, basemap = "dark") |>
+  add_polygons(data = hull, lng = ~long, lat = ~lat, fill = FALSE, color = "#facc15", weight = 2.5) |>
+  add_points(~long, ~lat, color = ~mag, palette = "plasma", radius = 5)
+```
+
+### Geodesic Circles (`add_circles` / `addCircles`) vs. Pixel Markers (`add_points`)
+- **`add_points()` / `addCircleMarkers()`**: `radius` is measured in **screen pixels** (stays constant size as you zoom).
+- **`add_circles()` / `addCircles()`**: `radius` is measured in **meters on the ground** (scales with the map as you zoom in/out):
+
+```{r}
+cities <- data.frame(
+  city = c("Montreal", "Quebec City", "Ottawa"),
+  lon = c(-73.5673, -71.2080, -75.6972),
+  lat = c(45.5017, 46.8139, 45.4215),
+  pop = c(1762949, 549459, 1017449)
+)
+
+glmap(cities, basemap = "positron") |>
+  add_circles(
+    lon = ~lon, lat = ~lat,
+    radius = ~sqrt(pop) * 18,
+    fill_color = "#0284c7",
+    fill_opacity = 0.35,
+    popup = ~paste0("<b>", city, "</b>: ", format(pop, big.mark = ","))
+  ) |>
+  add_rectangles(
+    lng1 = -76.0, lat1 = 45.1,
+    lng2 = -70.8, lat2 = 47.1,
+    fill = FALSE,
+    color = "#ef4444",
+    weight = 2
+  )
+```

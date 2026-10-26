@@ -1,0 +1,105 @@
+---
+title: "1. Map Widget, Basemaps & Projections"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{1. Map Widget, Basemaps & Projections}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Initializing the Map Widget
+
+In `glmap`, you initialize a map with `glmap()` (or `leaflet()` when running legacy scripts) and chain layers and camera controls using the native R pipe `|>` (or `%>%`):
+
+```{r}
+library(glmap)
+
+# Initialize a dark GPU map centered on Montreal
+glmap(basemap = "dark") |>
+  set_view(lng = -73.5673, lat = 45.5017, zoom = 11)
+```
+
+### Supported Input Data Sources
+Unlike `leaflet` (which only accepts `sf`, `sp`, `data.frame`, or 2-column matrices), `glmap()` natively accepts all modern R spatial and zero-copy columnar formats without pre-conversion:
+
+- **`sf` and `sfc` objects** (`POINT`, `MULTIPOINT`, `LINESTRING`, `MULTILINESTRING`, `POLYGON`, `MULTIPOLYGON`) — automatically transformed to `EPSG:4326` if projected.
+- **`terra::SpatRaster`**, `stars`, `RasterLayer`, or numeric `matrix` — streamed as raw `Float32` values (`GLMR` binary packet) to a WebGL2 `RGBA32F` texture.
+- **`terra::SpatVector`**, `sp::Spatial*`, and **`maps::map()`** objects.
+- **`wk::xy`**, **`wk::wkb`**, and **`wk::wkt`** geometry vectors.
+- **`nanoarrow_array`** / GeoArrow streams.
+- **`data.frame`**, `tibble`, `data.table`, or 2-column numeric `matrix` — auto-detects `lon`/`lng`/`long`/`longitude`/`x` and `lat`/`latitude`/`y` columns.
+- **`crosstalk::SharedData`** — enables linked brushing across HTML widgets.
+
+---
+
+## Basemaps & Tile Providers (`set_basemap`, `add_provider_tiles`, `gl_providers`)
+
+`glmap` ships with built-in Vector GL styles (rendered at 60 FPS by MapLibre GL) and global XYZ raster tile providers:
+
+```{r}
+# Short built-in basemap aliases
+glmap(basemap = "dark")       # CARTO DarkMatter Vector GL
+glmap(basemap = "positron")   # CARTO Positron Vector GL
+glmap(basemap = "voyager")    # CARTO Voyager Vector GL
+glmap(basemap = "osm")        # OpenStreetMap standard raster tiles
+glmap(basemap = "satellite")  # Esri World Imagery satellite tiles
+glmap(basemap = "topo")       # OpenTopoMap topographic tiles
+glmap(basemap = "none")       # Blank canvas (pure WebGL2 data)
+```
+
+### Using the `gl_providers` (or `providers`) Catalog
+Just like `leaflet::providers`, type `gl_providers$` (or `providers$`) for IDE auto-completion across 44+ vector and raster styles:
+
+```{r}
+glmap() |>
+  add_provider_tiles(gl_providers$OpenFreeMap.Liberty) |>
+  set_view(lng = 2.3522, lat = 48.8566, zoom = 12)
+
+# Inspect all built-in providers and their environment variables
+head(gl_list_providers(), 12)
+```
+
+### Configuring Optional Provider API Keys (`gl_set_api_key`)
+For commercial tile providers (MapTiler, Stadia/Stamen, Thunderforest, Jawg, Mapbox, or enterprise CARTO/Esri), configure keys once per session or via environment variables (`MAPTILER_API_KEY`, `STADIA_API_KEY`, `MAPBOX_ACCESS_TOKEN`):
+
+```{r}
+gl_set_api_key("maptiler", Sys.getenv("MAPTILER_API_KEY"))
+
+glmap() |>
+  add_provider_tiles(gl_providers$MapTiler.DatavizDark)
+```
+
+### OGC Web Map Service (WMS) & Cloud-Native PMTiles / MVT
+Stack real-time weather radar WMS layers (`add_wms_tiles()` / `addWMSTiles()`) or serverless `.pmtiles` archives (`add_pmtiles()`):
+
+```{r}
+glmap(basemap = "dark") |>
+  set_view(lng = -73.5, lat = 45.5, zoom = 6) |>
+  add_wms_tiles(
+    base_url = "https://geo.weather.gc.ca/geomet",
+    layers = "RADAR_1KM_RRAI",
+    transparent = TRUE,
+    opacity = 0.75,
+    group = "MSC Weather Radar"
+  )
+```
+
+---
+
+## Camera, 3D Terrain & Globe Projection
+
+Because `glmap` is powered by MapLibre GL + WebGL2, you can tilt (`pitch`), rotate (`bearing`), enable 3D DEM terrain extrusion (`set_terrain()`), or switch to a 3D spherical globe (`set_projection("globe")`):
+
+```{r}
+glmap(basemap = "satellite", projection = "globe") |>
+  set_terrain(exaggeration = 1.5) |>
+  fly_to(lng = -122.19, lat = 46.20, zoom = 11, pitch = 60, bearing = -25)
+```

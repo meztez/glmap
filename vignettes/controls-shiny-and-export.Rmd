@@ -1,0 +1,118 @@
+---
+title: "5. Layer Groups, 9-Zone Controls, Draw Tools & Shiny"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{5. Layer Groups, 9-Zone Controls, Draw Tools & Shiny}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## 9-Zone Directional & Ordered Control Dock (`add_control`)
+
+In `leaflet`, placing multiple controls, legends, or toolbars in the same corner often causes them to overlap. `glmap` introduces a **9-zone directional layout grid** (`x = left | center | right`, `y = top | center | bottom`) inside an isolated CSS stacking context (`isolation: isolate; z-index: 0;`):
+
+- `"top-left"`, `"top-center"`, `"top-right"`
+- `"center-left"`, `"center-center"`, `"center-right"`
+- `"bottom-left"`, `"bottom-center"`, `"bottom-right"`
+
+Each zone stacks its child widgets in a configurable `direction` (`"vertical"` or `"horizontal"`) sorted by numeric `order`, while automatically reserving space for the bottom-left scale bar and bottom-right copyright attribution:
+
+```{r}
+library(glmap)
+
+glmap(basemap = "dark") |>
+  add_search_osm(position = "top-left", order = 5) |>
+  add_layers_control(
+    baseGroups = c("Dark", "Light", "Satellite"),
+    overlayGroups = c("Risks", "Claims"),
+    position = "top-left",
+    options = layers_control_options(collapsed = TRUE),
+    order = 10
+  ) |>
+  add_draw_toolbar(position = "bottom-left", direction = "vertical", order = 15) |>
+  add_measure(position = "bottom-right", order = 15) |>
+  add_minimap(position = "bottom-right", width = 140, height = 110, order = 80)
+```
+
+---
+
+## Interactive Vector Draw Toolbar (`add_draw_toolbar`), Measure (`add_measure`) & OSM Search (`add_search_osm`)
+
+- **`add_draw_toolbar()`**: Draw **Polygons** (click vertices, double-click or click first vertex to close), **Rectangles** (click-drag), **Geodesic Circles** (click center, drag radius in meters), **Polylines**, and **Markers**. Clicking a completed shape opens a popup with a **Remove** button, or click **Clear** to remove all drawn shapes.
+- **`add_measure()`**: Click points on the map to measure geodesic path distance (`m` / `km`) and spherical-excess polygon area (`sq. m` / `sq. km`).
+- **`add_search_osm()`**: Live geocoding search bar powered by OpenStreetMap Nominatim.
+- **`add_graticule()` & `add_terminator()`**: Add coordinate meridians/parallels and the real-time solar day/night hemisphere polygon.
+
+---
+
+## Show/Hide Layer Groups & Zero-Copy Shiny Proxy (`glmap_proxy`)
+
+In Shiny applications, use `glmapOutput()`, `renderGlmap()`, and `glmap_proxy()` (or their drop-in aliases `leafletOutput()`, `renderLeaflet()`, and `leafletProxy()`) to update layers, toggle groups, or change GPU raster shader uniforms in **0 ms** without re-rendering the map widget:
+
+```{r}
+library(shiny)
+library(glmap)
+
+bench <- gl_benchmark_data(n_points = 50000L, raster_dim = c(200L, 200L))
+
+ui <- fluidPage(
+  fluidRow(
+    column(3,
+      selectInput("pal", "GPU Raster Palette", c("terrain", "viridis", "magma", "turbo", "rdylbu")),
+      checkboxInput("hill", "Real-Time GPU Hillshade", TRUE),
+      sliderInput("op", "Raster Opacity", 0, 1, 0.75, step = 0.05),
+      selectInput("mode", "Marker Engine", c("auto", "cluster", "lod", "atlas", "points"))
+    ),
+    column(9,
+      glmapOutput("map", height = "620px")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  output$map <- renderGlmap({
+    glmap(basemap = "dark") |>
+      add_raster(bench$raster_mat, id = "dem", group = "DEM", palette = "terrain", hillshade = TRUE) |>
+      add_points(bench$points_df, id = "pts", group = "Sensors", color = ~intensity, palette = "turbo") |>
+      add_draw_toolbar(position = "bottom-left") |>
+      add_measure(position = "bottom-right")
+  })
+
+  # 0ms GPU uniform update — does NOT re-transfer the Float32 raster!
+  observe({
+    glmap_proxy("map") |>
+      set_raster_style("dem", palette = input$pal, hillshade = input$hill, opacity = input$op)
+  })
+
+  # 0ms Marker rendering mode switch
+  observeEvent(input$mode, {
+    glmap_proxy("map") |>
+      set_marker_mode("pts", mode = input$mode)
+  }, ignoreInit = TRUE)
+}
+```
+
+---
+
+## Exporting Standalone HTML (`gl_save_html`) & Static PNG / PDF (`gl_save_png`)
+
+Both the MapLibre GL base canvas and the WebGL2 overlay canvas are initialized with `preserveDrawingBuffer: true`, so Quarto HTML/PDF reports and `gl_save_png()` capture crisp, full-resolution GPU renders:
+
+```{r}
+m <- glmap(bench$points_df, basemap = "dark") |>
+  add_points(color = ~intensity, palette = "turbo")
+
+# Save interactive HTML
+gl_save_html(m, "map.html", selfcontained = TRUE)
+
+# Capture high-DPI static PNG via headless Chromium (chromote)
+gl_save_png(m, "map.png", vwidth = 1200, vheight = 750)
+```

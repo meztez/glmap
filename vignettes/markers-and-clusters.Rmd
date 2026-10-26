@@ -1,0 +1,135 @@
+---
+title: "2. Markers, GPU Icon Atlases, Clustering & Spiderfy"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{2. Markers, GPU Icon Atlases, Clustering & Spiderfy}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## High-Density Point Clouds (`add_points` / `addCircleMarkers`)
+
+To render anywhere from 10 points to **1,000,000+ points at 60 FPS**, use `add_points()` (or `addCircleMarkers()`). Coordinates and attributes are packed in C++17 (`cpp_pack_points_xy`) into a `GLMP` binary buffer and drawn in a single WebGL2 instanced Signed Distance Field (SDF) draw call:
+
+```{r}
+library(glmap)
+
+df <- data.frame(
+  lon = runif(50000, -74.0, -71.0),
+  lat = runif(50000, 45.3, 47.0),
+  mag = rnorm(50000, mean = 5, sd = 1.2)
+)
+
+glmap(df, basemap = "dark") |>
+  add_points(
+    lon = ~lon,
+    lat = ~lat,
+    color = ~mag,
+    palette = "turbo",
+    radius = 4,
+    opacity = 0.85,
+    stroke = TRUE,
+    stroke_color = "#0f172a"
+  )
+```
+
+---
+
+## Custom Icon Markers (`make_icon`, `icons`, `icon_list`)
+
+Just like `leaflet::makeIcon()`, `leaflet::icons()`, and `leaflet::iconList()`, `glmap` supports per-feature custom PNG/SVG icon URLs. Under the hood, `glmap` packs all unique icons into a **horizontal WebGL2 Sprite Texture Atlas** (`N_icons x 64 px`) and renders all custom icons in **1 GPU draw call**:
+
+```{r}
+# 1. Vectorized URLs via icons()
+quakes1 <- head(datasets::quakes, 20)
+leaf_icons <- icons(
+  iconUrl = ifelse(
+    quakes1$mag < 4.6,
+    "https://raw.githubusercontent.com/R-CoderDotCom/samples/main/marker.png",
+    "https://raw.githubusercontent.com/R-CoderDotCom/chinchet/main/inst/red.png"
+  ),
+  iconWidth = 36,
+  iconHeight = 36
+)
+
+glmap(quakes1, basemap = "positron") |>
+  add_markers(~long, ~lat, icon = leaf_icons, popup = ~paste("Magnitude:", mag))
+
+# 2. Named icon sets via icon_list() / iconList()
+ocean_icons <- icon_list(
+  ship = make_icon("https://raw.githubusercontent.com/R-CoderDotCom/samples/main/marker.png", 32, 32),
+  pirate = make_icon("https://raw.githubusercontent.com/R-CoderDotCom/chinchet/main/inst/red.png", 36, 36)
+)
+quakes1$type <- factor(ifelse(quakes1$mag > 4.8, "pirate", "ship"))
+
+glmap(quakes1, basemap = "positron") |>
+  add_markers(~long, ~lat, icon = ~ocean_icons[type])
+```
+
+### Colored Badge Pins (`make_awesome_icon` / `awesomeIcons`)
+Create multi-color glyph pins without external image files:
+
+```{r}
+get_color <- function(d) {
+  ifelse(d$mag <= 4.5, "#22c55e", ifelse(d$mag <= 5.2, "#f59e0b", "#ef4444"))
+}
+
+aw_icons <- awesome_icons(
+  icon = "ios-close",
+  iconColor = "#ffffff",
+  markerColor = get_color(quakes1)
+)
+
+glmap(quakes1, basemap = "positron") |>
+  add_markers(~long, ~lat, icon = aw_icons, label = ~as.character(mag))
+```
+
+---
+
+## All 3 GPU Marker Rendering Strategies (`icon_render_options`)
+
+When plotting thousands of custom icons, `glmap` provides three rendering engines (and automatically picks the best default when `render_mode = "auto"`):
+
+1. **`"atlas"` (WebGL2 Sprite Texture Atlas)**: Renders 100% of custom icons on the GPU in 1 `gl.POINTS` draw call. Default for `<= 2,500` icons.
+2. **`"lod"` (Zoom-Level Level-of-Detail Hybrid)**: Renders fast GPU SDF circles at overview zoom levels and smoothly cross-fades into full custom Texture Atlas icons as you zoom in across `lod_zoom` (e.g. `c(8.5, 10.5)`). Default for `> 2,500` icons when clustering is not enabled.
+3. **`"cluster"` (Screen-Space Grid Clustering + Spiderfy Web)**: Groups nearby markers into color-coded count badges (`< 10` green, `< 100` amber, `100+` orange) and renders unclustered singletons via the GPU Texture Atlas.
+   - **Co-Located Coordinate Spiderfy Web**: When two or more markers share the exact same coordinates (or remain clustered at high zoom), clicking the cluster badge expands them into an interactive radial/spiral **spiderfy net** with WebGL connecting legs drawn underneath the icons and terminating at the exact center of each icon!
+
+```{r}
+glmap(datasets::quakes, basemap = "dark") |>
+  add_markers(
+    ~long, ~lat,
+    icon = make_awesome_icon(text = "Q", markerColor = "#a855f7"),
+    popup = ~paste0("<b>Magnitude:</b> ", mag, "<br/><b>Depth:</b> ", depth, " km"),
+    clusterOptions = marker_cluster_options(
+      spiderfyOnMaxZoom = TRUE,
+      disableClusteringAtZoom = 16
+    )
+  )
+```
+
+> **Interactive Browser Switcher:** Expand `☰ Layers` on any map with markers to switch live between `Auto (Dynamic)`, `Cluster + GPU Atlas`, `LOD Hybrid (Dots -> Icons)`, `GPU Sprite Atlas (All Icons)`, and `GPU Fast Dots (SDF)`.
+
+---
+
+## Popups & Labels (`add_popups`, `add_labels`, `gl_popup_table`)
+
+- **Hover & Click Popups (`popup =`, `label =`)**: Pass a column formula (`~name`), an HTML string vector, or `lapply(..., htmltools::HTML)` to any layer.
+- **Formatted HTML Tables (`gl_popup_table()`)**: Drop-in replacement for `leafpop::popupTable()`:
+  ```{r}
+  glmap(quakes1) |>
+    add_points(~long, ~lat, popup = gl_popup_table(quakes1, zcol = c("mag", "depth", "stations")))
+  ```
+- **Permanent Halo-Outlined Labels (`add_labels()` or `labelOptions(noHide = TRUE)`)**:
+  ```{r}
+  glmap(quakes1[1:5, ], basemap = "dark") |>
+    add_points(~long, ~lat, label = ~paste("Mag", mag), labelOptions = label_options(noHide = TRUE))
+  ```

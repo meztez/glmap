@@ -240,10 +240,16 @@ The package ships with three complete, runnable examples in `inst/examples/`:
    file.edit(system.file("examples/quarto_report.qmd", package = "glmap"))
    # Render via: quarto render inst/examples/quarto_report.qmd
    ```
-4. **Full Documentation & Benchmarks**:
-   - `vignette("getting-started", package = "glmap")`
-   - `vignette("leaflet-migration", package = "glmap")`
-   - `vignette("benchmarks-and-leaflet-parity", package = "glmap")`
+4. **Full Documentation & Learning Path (`https://meztez.github.io/glmap/articles/`)**:
+   - `vignette("getting-started", package = "glmap")` — Quick start & GPU mental model
+   - `vignette("basemaps-and-projections", package = "glmap")` — 1. Map Widget, Basemaps & Projections
+   - `vignette("markers-and-clusters", package = "glmap")` — 2. Markers, GPU Icon Atlases, Clustering & Spiderfy
+   - `vignette("shapes-and-choropleths", package = "glmap")` — 3. Lines, Polygons (`earstrip`), Choropleths & Geodesic Shapes
+   - `vignette("raster-hexbin-duckdb", package = "glmap")` — 4. GPU Rasters (`Float32`), Hexbins, Heatmaps & Out-of-Core DuckDB
+   - `vignette("controls-shiny-and-export", package = "glmap")` — 5. Layer Groups, 9-Zone Controls, Draw Tools, Shiny & Export
+   - `vignette("legacy-leaflet-mapping", package = "glmap")` — Legacy `leaflet` Function Call Mapping & Zero-Rewrite Reuse
+   - `vignette("leaflet-migration", package = "glmap")` — Migrating from `leaflet` to Idiomatic `glmap`
+   - `vignette("benchmarks-and-leaflet-parity", package = "glmap")` — Real-Life Benchmarks & Complete Parity Matrix
 
 ---
 
