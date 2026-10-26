@@ -2,6 +2,7 @@ url: https://meztez.github.io/glmap/
 template:
   bootstrap: 5
   bootswatch: darkly
+llm-docs: false
 
 home:
   title: "glmap: High-Performance GPU Geospatial Mapping for R"
@@ -36,8 +37,13 @@ reference:
       - add_measure
       - add_search_osm
       - search_options
+      - add_minimap
+      - add_graticule
+      - add_simple_graticule
+      - add_terminator
       - add_legend
       - gl_save_html
+      - gl_save_png
 
   - title: "GPU Vector, Raster & Out-of-Core Layers"
     desc: "Add high-density point clouds, geodesic circles, rectangles, lines, earcut-triangulated polygons, Float32 rasters, hexbins, heatmaps, WMS, PMTiles, and DuckDB layers."
@@ -46,7 +52,11 @@ reference:
       - add_points
       - add_markers
       - make_icon
+      - icons
+      - icon_list
       - make_awesome_icon
+      - awesome_icons
+      - awesome_icon_list
       - marker_cluster_options
       - icon_render_options
       - add_circles
@@ -64,6 +74,16 @@ reference:
       - add_mvt
       - add_geojson
       - add_duckdb
+      - color_numeric
+      - color_bin
+      - color_quantile
+      - color_factor
+      - label_format
+      - highlight_options
+      - label_options
+      - popup_options
+      - provider_tile_options
+      - wms_tile_options
 
   - title: "Shiny Proxy, Group Controls & Live GPU Updates"
     desc: "Update layers, groups, visibility, opacity, filters, and GPU raster shaders in 0ms without re-rendering."
@@ -76,11 +96,21 @@ reference:
       - clear_group
       - clear_layer
       - clear_layers
+      - clear_shapes
+      - clear_markers
+      - clear_controls
+      - remove_shape
+      - remove_marker
       - set_layer_visibility
       - set_layer_opacity
       - set_raster_style
       - set_marker_mode
       - set_filter
+
+  - title: "Drop-In Leaflet & Leaflet.Extras Compatibility API"
+    desc: "100% camelCase function and option aliases so existing R leaflet scripts, Quarto reports, and Shiny apps run on glmap's GPU engine without modification."
+    contents:
+      - leaflet_compat
 
   - title: "Plugins, Custom Shaders & Binary Engine"
     desc: "Extend glmap with custom JS plugins, GLSL shaders, C++17 binary packers, and spatial indices."

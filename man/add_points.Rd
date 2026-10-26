@@ -26,7 +26,12 @@ add_points(
   group = NULL,
   dynamic_viewport = FALSE,
   legend = TRUE,
-  lng = NULL
+  lng = NULL,
+  fillColor = NULL,
+  fillOpacity = NULL,
+  weight = NULL,
+  layerId = NULL,
+  labelOptions = NULL
 )
 }
 \arguments{
@@ -85,6 +90,8 @@ only the visible viewport slice via the local \code{httpuv} server.}
 \item{legend}{Logical; whether to automatically add a legend when \code{color} is mapped to data.}
 
 \item{lng}{Optional alias for \code{lon} (\code{leaflet} compatibility).}
+
+\item{fillColor, fillOpacity, weight, layerId, labelOptions}{Optional \code{leaflet::addCircleMarkers()} compatibility aliases.}
 }
 \value{
 Updated \code{glmap} map object.

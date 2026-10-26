@@ -31,7 +31,7 @@
 
     <a class="navbar-brand me-2" href="index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -149,7 +149,7 @@
 </tr>
 <tr>
 <td align="left"><strong>Color Mapping</strong></td>
-<td align="left">Manual <code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">colorNumeric()</a></code> / <code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">colorFactor()</a></code> boilerplate</td>
+<td align="left">Manual <code><a href="reference/color_numeric.html">colorNumeric()</a></code> / <code><a href="reference/color_numeric.html">colorFactor()</a></code> boilerplate</td>
 <td align="left">
 <strong>Direct <code>~column</code> formula or string</strong> with 256-entry C/R LUT &amp; automatic legend</td>
 </tr>
@@ -313,11 +313,11 @@
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://rstudio.github.io/leaflet/" class="external-link">leaflet</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">pal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">colorNumeric</a></span><span class="op">(</span>palette <span class="op">=</span> <span class="st">"viridis"</span>, domain <span class="op">=</span> <span class="va">df</span><span class="op">$</span><span class="va">intensity</span><span class="op">)</span></span>
+<span><span class="va">pal</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/color_numeric.html">colorNumeric</a></span><span class="op">(</span>palette <span class="op">=</span> <span class="st">"viridis"</span>, domain <span class="op">=</span> <span class="va">df</span><span class="op">$</span><span class="va">intensity</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rstudio.github.io/leaflet/reference/leaflet.html" class="external-link">leaflet</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rstudio.github.io/leaflet/reference/addProviderTiles.html" class="external-link">addProviderTiles</a></span><span class="op">(</span><span class="va">providers</span><span class="op">$</span><span class="va">CartoDB.DarkMatter</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">addCircleMarkers</a></span><span class="op">(</span></span>
+<span><span class="fu"><a href="reference/leaflet_compat.html">leaflet</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/leaflet_compat.html">addProviderTiles</a></span><span class="op">(</span><span class="va">providers</span><span class="op">$</span><span class="va">CartoDB.DarkMatter</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/leaflet_compat.html">addCircleMarkers</a></span><span class="op">(</span></span>
 <span>    lng <span class="op">=</span> <span class="op">~</span><span class="va">lon</span>,</span>
 <span>    lat <span class="op">=</span> <span class="op">~</span><span class="va">lat</span>,</span>
 <span>    color <span class="op">=</span> <span class="op">~</span><span class="fu">pal</span><span class="op">(</span><span class="va">intensity</span><span class="op">)</span>,</span>
@@ -325,7 +325,7 @@
 <span>    fillOpacity <span class="op">=</span> <span class="fl">0.8</span>,</span>
 <span>    stroke <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://rstudio.github.io/leaflet/reference/addLegend.html" class="external-link">addLegend</a></span><span class="op">(</span><span class="st">"bottomright"</span>, pal <span class="op">=</span> <span class="va">pal</span>, values <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, title <span class="op">=</span> <span class="st">"Intensity"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="reference/leaflet_compat.html">addLegend</a></span><span class="op">(</span><span class="st">"bottomright"</span>, pal <span class="op">=</span> <span class="va">pal</span>, values <span class="op">=</span> <span class="op">~</span><span class="va">intensity</span>, title <span class="op">=</span> <span class="st">"Intensity"</span><span class="op">)</span></span></code></pre></div>
 <p><strong>After (<code>glmap</code> — concise, automatic legend, 100x faster C++ binary -&gt; WebGL2):</strong></p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://meztez.github.io/glmap/">glmap</a></span><span class="op">)</span></span>
@@ -445,7 +445,55 @@
 <div class="section level2">
 <h2 id="id_7-instructions-for-ai-coding-agents">7. Instructions for AI Coding Agents<a class="anchor" aria-label="anchor" href="#id_7-instructions-for-ai-coding-agents"></a>
 </h2>
-<p>If you are an AI agent (Copilot, Claude, Cursor, etc.) generating or refactoring R mapping code in this workspace, read <a href="./AGENTS.html">AGENTS.md</a> for deterministic rules on replacing <code>leaflet</code> with <code>glmap</code>.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="id_8-licensing--bundled-open-source-attributions">8. Licensing &amp; Bundled Open-Source Attributions<a class="anchor" aria-label="anchor" href="#id_8-licensing--bundled-open-source-attributions"></a>
+</h2>
+<p><code>glmap</code> is released under the permissive <strong>MIT License</strong> (<code>LICENSE</code>, <code>LICENSE.md</code>). All bundled third-party libraries use permissive, commercial- and CRAN-friendly open-source licenses with zero GPL/AGPL copyleft restrictions (full texts in <a href="./inst/COPYRIGHTS"><code>inst/COPYRIGHTS</code></a>):</p>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr>
+<th align="left">Component</th>
+<th align="left">Version</th>
+<th align="left">License</th>
+<th align="left">Copyright / Attribution</th>
+</tr></thead>
+<tbody>
+<tr>
+<td align="left"><strong><code>glmap</code> R / C++17 / JS Engine</strong></td>
+<td align="left"><code>1.0.0</code></td>
+<td align="left"><strong>MIT License</strong></td>
+<td align="left">Copyright (c) 2026 Bruno Tremblay and <code>glmap</code> authors</td>
+</tr>
+<tr>
+<td align="left">
+<strong>MapLibre GL JS</strong> (<code>inst/htmlwidgets/lib/maplibre-gl/</code>)</td>
+<td align="left"><code>4.7.1</code></td>
+<td align="left"><strong>BSD-3-Clause</strong></td>
+<td align="left">Copyright (c) 2020 MapLibre contributors; Copyright (c) 2014–2020 Mapbox, Inc.</td>
+</tr>
+<tr>
+<td align="left">
+<strong>Mapbox <code>earcut.hpp</code></strong> (<code>src/earcut.h</code>)</td>
+<td align="left"><code>2.2.4</code></td>
+<td align="left"><strong>ISC License</strong></td>
+<td align="left">Copyright (c) 2015 Mapbox</td>
+</tr>
+<tr>
+<td align="left"><strong>Default Map Tiles</strong></td>
+<td align="left">—</td>
+<td align="left"><strong>ODbL / CC-BY</strong></td>
+<td align="left">
+<code>© OpenStreetMap contributors</code>, <code>© CARTO</code>, <code>© OpenFreeMap</code> (rendered automatically in the bottom-right attribution control)</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -459,9 +507,8 @@
 <div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
-<li>
-<a href="https://opensource.org/licenses/mit-license.php" class="external-link">MIT</a> + file <a href="LICENSE-text.html">LICENSE</a>
-</li>
+<li><a href="LICENSE.html">Full license</a></li>
+<li><small><a href="https://opensource.org/licenses/mit-license.php" class="external-link">MIT</a> + file <a href="LICENSE-text.html">LICENSE</a></small></li>
 </ul>
 </div>
 

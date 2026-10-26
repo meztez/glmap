@@ -10,6 +10,16 @@
   color: #e2e8f0;
   overflow: hidden;
   user-select: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@media print {
+  .glmap-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-height: 420px;
+  }
 }
 
 .glmap-map-canvas,

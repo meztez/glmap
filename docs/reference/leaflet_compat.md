@@ -1,0 +1,653 @@
+# Drop-In `leaflet` & `leaflet.extras` Compatibility Layer
+
+Provides 100% camelCase function and option aliases (`leaflet()`,
+`addTiles()`, `addProviderTiles()`, `addMarkers()`,
+`addAwesomeMarkers()`, `addCircleMarkers()`, `addLabelOnlyMarkers()`,
+`addPolygons()`, `addPolylines()`, `addCircles()`, `addRectangles()`,
+`addRasterImage()`, `addLegend()`, `addLayersControl()`, `addMiniMap()`,
+`addMeasure()`, `addGraticule()`, `addSimpleGraticule()`,
+`addTerminator()`, `addDrawToolbar()`, `addSearchOSM()`, `setView()`,
+`fitBounds()`, `flyTo()`, `flyToBounds()`, `setMaxBounds()`,
+`showGroup()`, `hideGroup()`, `clearGroup()`, `clearShapes()`,
+`clearMarkers()`, `clearControls()`, `leafletOutput()`,
+`renderLeaflet()`, `leafletProxy()`, `providers`) so existing R
+`leaflet` scripts, R Markdown / Quarto documents, and Shiny applications
+can run on `glmap`'s C++17 + WebGL2 GPU engine with zero or minimal code
+changes.
+
+## Usage
+
+``` r
+leaflet(
+  data = NULL,
+  width = NULL,
+  height = NULL,
+  padding = 0,
+  options = list(),
+  elementId = NULL,
+  sizingPolicy = NULL,
+  ...
+)
+
+leafletOptions(...)
+
+providers
+
+addTiles(
+  map,
+  urlTemplate = NULL,
+  attribution = NULL,
+  layerId = NULL,
+  group = NULL,
+  options = list()
+)
+
+addProviderTiles(map, provider, layerId = NULL, group = NULL, options = list())
+
+providerTileOptions(...)
+
+setView(map, lng, lat, zoom = 10, pitch = 0, bearing = 0)
+
+fitBounds(map, bbox, lat1 = NULL, lng2 = NULL, lat2 = NULL, padding = 40)
+
+flyTo(map, lng, lat, zoom = 12, pitch = 45, bearing = 0, duration = 1600)
+
+flyToBounds(map, bbox, padding = 40, duration = 1600)
+
+setMaxBounds(map, bbox)
+
+addMarkers(
+  map,
+  data = NULL,
+  lng = NULL,
+  lat = NULL,
+  icon = NULL,
+  popup = NULL,
+  label = NULL,
+  group = NULL,
+  clusterOptions = NULL,
+  render_mode = "auto",
+  lod_zoom = NULL,
+  id = NULL,
+  ...
+)
+
+makeIcon(
+  iconUrl = NULL,
+  iconRetinaUrl = NULL,
+  iconWidth = 28,
+  iconHeight = 28,
+  iconAnchorX = NULL,
+  iconAnchorY = NULL,
+  shadowUrl = NULL,
+  shadowRetinaUrl = NULL,
+  shadowWidth = NULL,
+  shadowHeight = NULL,
+  shadowAnchorX = NULL,
+  shadowAnchorY = NULL,
+  popupAnchorX = NULL,
+  popupAnchorY = NULL,
+  className = NULL
+)
+
+iconList(...)
+
+addAwesomeMarkers(
+  map,
+  data = NULL,
+  lng = NULL,
+  lat = NULL,
+  icon = NULL,
+  popup = NULL,
+  label = NULL,
+  group = NULL,
+  clusterOptions = NULL,
+  render_mode = "auto",
+  lod_zoom = NULL,
+  id = NULL,
+  ...
+)
+
+makeAwesomeIcon(
+  icon = "circle",
+  library = "fa",
+  markerColor = "blue",
+  iconColor = "#ffffff",
+  spin = FALSE,
+  extraClasses = NULL,
+  squareMarker = FALSE,
+  iconRotate = 0,
+  fontFamily = "monospace",
+  text = NULL
+)
+
+awesomeIcons(
+  icon = "circle",
+  library = "fa",
+  markerColor = "blue",
+  iconColor = "#ffffff",
+  spin = FALSE,
+  extraClasses = NULL,
+  squareMarker = FALSE,
+  iconRotate = 0,
+  fontFamily = "monospace",
+  text = NULL
+)
+
+awesomeIconList(...)
+
+markerClusterOptions(
+  showCoverageOnHover = TRUE,
+  zoomToBoundsOnClick = TRUE,
+  spiderfyOnMaxZoom = TRUE,
+  disableClusteringAtZoom = 21,
+  maxClusterRadius = 65,
+  freezeAtZoom = FALSE
+)
+
+addCircleMarkers(
+  map,
+  lng = NULL,
+  lat = NULL,
+  radius = 6,
+  layerId = NULL,
+  group = NULL,
+  stroke = TRUE,
+  color = "#03F",
+  weight = 1.5,
+  opacity = 0.85,
+  fill = TRUE,
+  fillColor = NULL,
+  fillOpacity = 0.8,
+  dashArray = NULL,
+  popup = NULL,
+  popupOptions = NULL,
+  label = NULL,
+  labelOptions = NULL,
+  options = list(),
+  clusterOptions = NULL,
+  clusterId = NULL,
+  data = NULL,
+  palette = "viridis",
+  ...
+)
+
+addLabelOnlyMarkers(
+  map,
+  lng = NULL,
+  lat = NULL,
+  label = NULL,
+  layerId = NULL,
+  group = NULL,
+  icon = NULL,
+  labelOptions = NULL,
+  options = list(),
+  clusterOptions = NULL,
+  clusterId = NULL,
+  data = NULL,
+  ...
+)
+
+addPolygons(
+  map,
+  data = NULL,
+  fill_color = "#3b82f6",
+  palette = "viridis",
+  fill_opacity = 0.7,
+  stroke = TRUE,
+  line_color = "#e2e8f0",
+  line_width = 1,
+  extrude = NULL,
+  popup = NULL,
+  label = NULL,
+  id = NULL,
+  group = NULL,
+  legend = TRUE,
+  lng = NULL,
+  lat = NULL,
+  fill = TRUE,
+  fillColor = NULL,
+  fillOpacity = NULL,
+  color = NULL,
+  weight = NULL,
+  opacity = NULL,
+  highlightOptions = NULL,
+  labelOptions = NULL,
+  dashArray = NULL,
+  smoothFactor = NULL,
+  layerId = NULL
+)
+
+addPolylines(
+  map,
+  data = NULL,
+  color = "#38bdf8",
+  palette = "viridis",
+  width = 2,
+  opacity = 0.85,
+  popup = NULL,
+  label = NULL,
+  id = NULL,
+  group = NULL,
+  legend = TRUE,
+  lng = NULL,
+  lat = NULL,
+  weight = NULL,
+  layerId = NULL,
+  highlightOptions = NULL,
+  labelOptions = NULL,
+  dashArray = NULL,
+  smoothFactor = NULL
+)
+
+addCircles(
+  map,
+  lng = NULL,
+  lat = NULL,
+  radius = 500,
+  layerId = NULL,
+  group = NULL,
+  stroke = TRUE,
+  color = "#03F",
+  weight = 1.5,
+  opacity = 0.8,
+  fill = TRUE,
+  fillColor = NULL,
+  fillOpacity = 0.45,
+  dashArray = NULL,
+  popup = NULL,
+  popupOptions = NULL,
+  label = NULL,
+  labelOptions = NULL,
+  options = list(),
+  highlightOptions = NULL,
+  data = NULL,
+  palette = "viridis",
+  ...
+)
+
+addRectangles(
+  map,
+  data = NULL,
+  lng1,
+  lat1,
+  lng2,
+  lat2,
+  fill_color = "#38bdf8",
+  palette = "viridis",
+  fill_opacity = 0.55,
+  stroke = TRUE,
+  line_color = "#e2e8f0",
+  line_width = 1.5,
+  popup = NULL,
+  label = NULL,
+  id = NULL,
+  group = NULL,
+  legend = FALSE,
+  fillColor = NULL,
+  fillOpacity = NULL,
+  color = NULL,
+  weight = NULL,
+  opacity = NULL,
+  layerId = NULL,
+  highlightOptions = NULL
+)
+
+addPopups(
+  map,
+  lon = NULL,
+  lat = NULL,
+  popup = NULL,
+  id = NULL,
+  group = NULL,
+  lng = NULL,
+  options = NULL,
+  data = NULL,
+  layerId = NULL
+)
+
+clearPopups(map)
+
+popupOptions(
+  maxWidth = 300,
+  minWidth = 50,
+  maxHeight = NULL,
+  autoPan = TRUE,
+  keepInView = FALSE,
+  closeButton = TRUE,
+  closeOnClick = NULL,
+  ...
+)
+
+labelOptions(
+  interactive = FALSE,
+  clickable = NULL,
+  noHide = FALSE,
+  permanent = FALSE,
+  className = "",
+  direction = "auto",
+  offset = c(0, 0),
+  opacity = 1,
+  textsize = "12px",
+  textOnly = FALSE,
+  style = NULL,
+  sticky = TRUE,
+  ...
+)
+
+highlightOptions(
+  stroke = NULL,
+  color = "#ffffff",
+  weight = 3,
+  opacity = 1,
+  fill = NULL,
+  fillColor = NULL,
+  fillOpacity = 0.75,
+  dashArray = NULL,
+  bringToFront = TRUE,
+  sendToBack = FALSE
+)
+
+addRasterImage(
+  map,
+  x,
+  colors = "Spectral",
+  opacity = 0.85,
+  attribution = NULL,
+  layerId = NULL,
+  group = NULL,
+  project = TRUE,
+  method = c("auto", "bilinear", "ngb"),
+  maxBytes = 4 * 1024 * 1024,
+  ...
+)
+
+addWMSTiles(
+  map,
+  baseUrl,
+  layerId = NULL,
+  group = NULL,
+  options = wms_tile_options(),
+  attribution = NULL,
+  layers = ""
+)
+
+WMSTileOptions(
+  styles = "",
+  format = "image/png",
+  transparent = TRUE,
+  version = "1.1.1",
+  ...
+)
+
+addLegend(
+  map,
+  title = "Legend",
+  colors = NULL,
+  labels = NULL,
+  domain = NULL,
+  position = "bottom-right",
+  direction = "vertical",
+  order = 20,
+  layer_id = NULL,
+  group = NULL,
+  pal = NULL,
+  values = NULL,
+  opacity = 1,
+  layerId = NULL,
+  labFormat = NULL,
+  data = NULL
+)
+
+addLayersControl(
+  map,
+  baseGroups = c("Light", "Dark", "Satellite"),
+  overlayGroups = character(0),
+  position = "top-left",
+  options = layers_control_options(),
+  order = 10
+)
+
+layersControlOptions(collapsed = TRUE, autoZIndex = TRUE)
+
+addMeasure(
+  map,
+  position = "bottomright",
+  primaryLengthUnit = "meters",
+  secondaryLengthUnit = "kilometers",
+  primaryAreaUnit = "sqmeters",
+  secondaryAreaUnit = NULL,
+  activeColor = "#38bdf8",
+  completedColor = "#a855f7",
+  localization = "en",
+  order = 15
+)
+
+addMiniMap(
+  map,
+  position = "bottomright",
+  width = 150,
+  height = 150,
+  zoomLevelOffset = -5,
+  toggleDisplay = TRUE,
+  aimingRectOptions = list(color = "#ff7800", weight = 2),
+  order = 80,
+  ...
+)
+
+addGraticule(
+  map,
+  interval = 20,
+  sphere = FALSE,
+  style = list(color = "#64748b", weight = 1, opacity = 0.45),
+  id = "graticule",
+  group = "Graticule",
+  ...
+)
+
+addSimpleGraticule(
+  map,
+  interval = 20,
+  id = "graticule",
+  group = "Graticule",
+  ...
+)
+
+addTerminator(
+  map,
+  resolution = 180L,
+  time = Sys.time(),
+  fill_color = "#020617",
+  fill_opacity = 0.38,
+  id = "terminator",
+  group = "Day/Night",
+  ...
+)
+
+addDrawToolbar(
+  map,
+  targetGroup = NULL,
+  position = c("topleft", "topright", "bottomleft", "bottomright", "top-left",
+    "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center",
+    "center-left", "center-right"),
+  polylineOptions = TRUE,
+  polygonOptions = TRUE,
+  circleOptions = TRUE,
+  rectangleOptions = TRUE,
+  markerOptions = TRUE,
+  circleMarkerOptions = FALSE,
+  editOptions = TRUE,
+  singleFeature = FALSE,
+  direction = c("vertical", "horizontal"),
+  order = 15,
+  toolbar = NULL
+)
+
+removeDrawToolbar(map, clearFeatures = FALSE)
+
+addSearchOSM(map, options = search_options(), position = NULL, order = 5)
+
+searchOptions(
+  url = "https://nominatim.openstreetmap.org/search?format=json&q={s}",
+  zoom = 15,
+  autoCollapse = FALSE,
+  textPlaceholder = "Search address or place...",
+  position = "topleft",
+  hideMarkerOnCollapse = TRUE,
+  ...
+)
+
+showGroup(map, group)
+
+hideGroup(map, group)
+
+clearGroup(map, group)
+
+clearShapes(map)
+
+clearMarkers(map)
+
+clearControls(map)
+
+removeShape(map, layerId)
+
+removeMarker(map, layerId)
+
+leafletOutput(outputId, width = "100%", height = "600px")
+
+lhs %>% rhs
+
+renderLeaflet(expr, env = parent.frame(), quoted = FALSE)
+
+leafletProxy(mapId, session = NULL, data = NULL, deferUntilFlush = TRUE)
+```
+
+## Arguments
+
+- data:
+
+  Optional spatial dataset (`sf`, `sfc`, `SpatRaster`, `data.frame`,
+  `matrix`, or `SharedData`).
+
+- width, height:
+
+  Optional widget dimensions.
+
+- padding:
+
+  Optional viewport padding in pixels.
+
+- options:
+
+  Optional widget or layer options list.
+
+- elementId:
+
+  Optional HTML element ID.
+
+- sizingPolicy:
+
+  Optional `htmlwidgets` sizing policy.
+
+- ...:
+
+  Additional arguments passed to the underlying `glmap` function.
+
+- map:
+
+  A `glmap` widget or `glmap_proxy`.
+
+- urlTemplate:
+
+  Optional custom XYZ tile URL template (e.g.,
+  `"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"`).
+
+- attribution:
+
+  Optional attribution HTML string.
+
+- layerId, layer_id:
+
+  Optional layer identifier.
+
+- group:
+
+  Optional layer group name.
+
+- provider:
+
+  Provider name from
+  [gl_providers](https://meztez.github.io/glmap/reference/gl_providers.md).
+
+- lng, lon, lat, lng1, lat1, lng2, lat2, bbox, zoom, pitch, bearing,
+  duration:
+
+  Camera and coordinate parameters.
+
+- icon, iconUrl, iconRetinaUrl, iconWidth, iconHeight, iconAnchorX,
+  iconAnchorY, shadowUrl, shadowRetinaUrl, shadowWidth, shadowHeight,
+  shadowAnchorX, shadowAnchorY, popupAnchorX, popupAnchorY, className:
+
+  Marker icon parameters.
+
+- popup, popupOptions, label, labelOptions, highlightOptions, maxWidth,
+  minWidth, maxHeight, autoPan, keepInView, closeButton, closeOnClick,
+  interactive, clickable, noHide, permanent, direction, offset,
+  textsize, textOnly, style, sticky, bringToFront, sendToBack:
+
+  Popup, label, and hover highlight parameters.
+
+- clusterOptions, clusterId, showCoverageOnHover, zoomToBoundsOnClick,
+  spiderfyOnMaxZoom, disableClusteringAtZoom, maxClusterRadius,
+  freezeAtZoom, render_mode, lod_zoom, id:
+
+  Clustering and GPU marker rendering parameters.
+
+- library, markerColor, iconColor, spin, extraClasses, squareMarker,
+  iconRotate, fontFamily, text:
+
+  Awesome marker parameters.
+
+- radius, stroke, color, weight, opacity, fill, fillColor, fillOpacity,
+  dashArray, smoothFactor, palette, fill_color, fill_opacity,
+  line_color, line_width, extrude, legend:
+
+  Shape and point styling parameters.
+
+- x, colors, project, method, maxBytes:
+
+  Raster parameters for `addRasterImage()`.
+
+- baseUrl, layers, styles, format, transparent, version:
+
+  WMS parameters for `addWMSTiles()`.
+
+- title, labels, domain, position, order, pal, values, labFormat:
+
+  Legend parameters for `addLegend()`.
+
+- baseGroups, overlayGroups, collapsed, autoZIndex:
+
+  Layer control parameters.
+
+- primaryLengthUnit, secondaryLengthUnit, primaryAreaUnit,
+  secondaryAreaUnit, activeColor, completedColor, localization:
+
+  Measurement control parameters.
+
+- zoomLevelOffset, toggleDisplay, aimingRectOptions, interval, sphere,
+  resolution, time:
+
+  MiniMap, Graticule, and Terminator parameters.
+
+- targetGroup, polylineOptions, polygonOptions, circleOptions,
+  rectangleOptions, markerOptions, circleMarkerOptions, editOptions,
+  singleFeature, toolbar, clearFeatures, url, autoCollapse,
+  textPlaceholder, hideMarkerOnCollapse:
+
+  Draw toolbar and OSM search parameters.
+
+- outputId, mapId, session, deferUntilFlush, expr, env, quoted, lhs,
+  rhs:
+
+  Shiny and pipe parameters.

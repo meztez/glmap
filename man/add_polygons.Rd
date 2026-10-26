@@ -18,7 +18,20 @@ add_polygons(
   label = NULL,
   id = NULL,
   group = NULL,
-  legend = TRUE
+  legend = TRUE,
+  lng = NULL,
+  lat = NULL,
+  fill = TRUE,
+  fillColor = NULL,
+  fillOpacity = NULL,
+  color = NULL,
+  weight = NULL,
+  opacity = NULL,
+  highlightOptions = NULL,
+  labelOptions = NULL,
+  dashArray = NULL,
+  smoothFactor = NULL,
+  layerId = NULL
 )
 }
 \arguments{
@@ -49,6 +62,12 @@ add_polygons(
 \item{group}{Layer group name shown in the interactive layer switcher.}
 
 \item{legend}{Logical; whether to automatically add a legend when \code{color} is mapped to data.}
+
+\item{lng, lat}{Optional coordinate vectors or formulas (\code{~long}, \code{~lat}) when \code{data} is a \code{data.frame} or \code{matrix} (such as \code{quakes[chull(...), ]}).}
+
+\item{fill}{Logical; whether to fill the interior of the polygon (default \code{TRUE}). When \code{FALSE}, renders an unfilled outline ring.}
+
+\item{fillColor, fillOpacity, color, weight, opacity, highlightOptions, labelOptions, dashArray, smoothFactor, layerId}{Optional \code{leaflet::addPolygons()} compatibility parameters.}
 }
 \description{
 Triangulates polygons in C++17 (\code{earcut}) and streams triangle index buffers

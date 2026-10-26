@@ -5,7 +5,9 @@
 ^demo_.*\.html$
 ^_pkgdown\.yml$
 ^docs$
+^pkgdown$
 ^cran-comments\.md$
 ^AGENTS\.md$
+^LICENSE\.md$
 ^\.github$
 

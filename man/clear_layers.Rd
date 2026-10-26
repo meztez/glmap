@@ -2,13 +2,30 @@
 % Please edit documentation in R/shiny.R
 \name{clear_layers}
 \alias{clear_layers}
-\title{Clear All Data Layers from a Map}
+\alias{clear_shapes}
+\alias{clear_markers}
+\alias{clear_controls}
+\alias{remove_shape}
+\alias{remove_marker}
+\title{Clear All Data Layers from a Map (\code{clear_layers}, \code{clear_shapes}, \code{clear_markers}, \code{clear_controls}, \code{remove_shape}, \code{remove_marker})}
 \usage{
 clear_layers(map)
+
+clear_shapes(map)
+
+clear_markers(map)
+
+clear_controls(map)
+
+remove_shape(map, layerId)
+
+remove_marker(map, layerId)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
+
+\item{layerId}{Character vector of layer ID(s) to remove.}
 }
 \description{
-Clear All Data Layers from a Map
+Clear All Data Layers from a Map (\code{clear_layers}, \code{clear_shapes}, \code{clear_markers}, \code{clear_controls}, \code{remove_shape}, \code{remove_marker})
 }

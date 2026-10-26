@@ -1,18 +1,21 @@
 Package: glmap
 Title: High-Performance GPU Geospatial Mapping for 'sf' and 'terra'
-Version: 0.1.0
+Version: 1.0.0
 Authors@R: c(
     person("Bruno", "Tremblay", , "meztez@gmail.com", role = c("aut", "cre")),
-    person("Mapbox", role = "cph", comment = "mapbox/earcut.hpp in src/earcut.h"))
+    person("Mapbox", role = "cph", comment = "mapbox/earcut.hpp in src/earcut.h (ISC License)"),
+    person("MapLibre contributors", role = "cph", comment = "MapLibre GL JS v4.7.1 in inst/htmlwidgets/lib/maplibre-gl (BSD-3-Clause License)"))
 Description: A compact, high-performance WebGL2 and 'MapLibre GL' interactive
-    mapping engine for R designed as a next-generation GPU alternative to 'leaflet'.
-    Bypasses 'htmlwidgets' JSON bottlenecks by streaming zero-copy 'GLMP' and
-    'GeoArrow' binary vertex/attribute buffers directly from C++17 to WebGL2 GPU
-    shaders, with C++ 'mapbox/earcut' polygon hole triangulation, in-memory spatial
-    R-tree dynamic viewport slicing, 'DuckDB' out-of-core Parquet pushdown, live
-    GPU fragment shaders for 'terra' rasters (0ms colormaps, hillshading,
-    contrast stretching, and band math), full 'Shiny' proxy diffing, 'crosstalk'
-    linked brushing, and a modular plugin architecture.
+    mapping engine for R designed as a drop-in GPU replacement for 'leaflet'
+    and 'leaflet.extras'. Bypasses 'htmlwidgets' JSON bottlenecks by streaming
+    zero-copy 'GLMP' and 'GeoArrow' binary vertex/attribute buffers directly
+    from C++17 to WebGL2 GPU shaders, with C++ 'mapbox/earcut' polygon hole
+    triangulation, WebGL2 sprite texture atlases, screen-space marker clustering
+    with spiderfy web expansion, zoom-level Level-of-Detail (LOD) cross-fading,
+    in-memory spatial R-tree dynamic viewport slicing, 'DuckDB' out-of-core
+    Parquet pushdown, live GPU fragment shaders for 'terra' rasters (0ms
+    colormaps, hillshading, contrast stretching, and band math), full 'Shiny'
+    proxy diffing, 'crosstalk' linked brushing, and a modular plugin architecture.
 URL: https://meztez.github.io/glmap/, https://github.com/meztez/glmap
 BugReports: https://github.com/meztez/glmap/issues
 License: MIT + file LICENSE
@@ -33,6 +36,7 @@ Imports:
     utils,
     viridisLite
 Suggests:
+    chromote,
     crosstalk,
     DBI,
     duckdb,

@@ -624,6 +624,7 @@ add_sf <- function(map, data = NULL, ...) {
 #'   only the visible viewport slice via the local `httpuv` server.
 #' @param legend Logical; whether to automatically add a legend when `color` is mapped to data.
 #' @param lng Optional alias for `lon` (`leaflet` compatibility).
+#' @param fillColor,fillOpacity,weight,layerId,labelOptions Optional `leaflet::addCircleMarkers()` compatibility aliases.
 #' @return Updated `glmap` map object.
 #' @export
 add_points <- function(
@@ -648,19 +649,46 @@ add_points <- function(
     group = NULL,
     dynamic_viewport = FALSE,
     legend = TRUE,
-    lng = NULL
+    lng = NULL,
+    fillColor = NULL,
+    fillOpacity = NULL,
+    weight = NULL,
+    layerId = NULL,
+    labelOptions = NULL
 ) {
+  # If called as add_points(map, ~long, ~lat) or add_points(map, -3.7, 40.4), shift `data` -> `lon` and `lon` -> `lat`
+  if (!is.null(data) && !is.data.frame(data) && !inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "wk_xy", "wk_wkb", "wk_wkt", "nanoarrow_array", "SharedData")) && !is.matrix(data)) {
+    if (inherits(data, "formula") || is.numeric(data)) {
+      if (is.null(lat) && (!is.null(lon) || !is.null(lng))) {
+        lat <- lon %||% lng
+      }
+      lon <- data
+      data <- NULL
+    }
+  }
   data <- data %||% attr(map$x, "glmap_data")
-  if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_points}.")
-  if (inherits(data, "SharedData")) data <- data$origData()
-
   lon <- lon %||% lng
-  id <- id %||% next_layer_id("points")
+  color <- fillColor %||% color
+  opacity <- fillOpacity %||% opacity
+  stroke_width <- weight %||% stroke_width
+  layer_id_vals <- eval_aesthetic(layerId, data)
+  id <- id %||% (if (length(layer_id_vals) == 1L) as.character(layer_id_vals) else NULL) %||% next_layer_id("points")
   group <- group %||% id
+
+  if (is.null(data)) {
+    if (!is.null(lon) && !is.null(lat) && !inherits(lon, "formula") && !inherits(lat, "formula")) {
+      data <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat))
+      lon <- "lon"
+      lat <- "lat"
+    } else {
+      cli::cli_abort("`data` (or numeric `lon`/`lng` and `lat` vectors) must be provided to {.fn add_points}.")
+    }
+  }
+  if (inherits(data, "SharedData")) data <- data$origData()
 
   if (inherits(lon, "formula")) lon <- rlang::as_name(rlang::f_rhs(lon))
   if (inherits(lat, "formula")) lat <- rlang::as_name(rlang::f_rhs(lat))
-  if (inherits(data, c("SpatVector", "Spatial")) && requireNamespace("sf", quietly = TRUE)) {
+  if (inherits(data, c("SpatVector", "Spatial", "map")) && requireNamespace("sf", quietly = TRUE)) {
     data <- sf::st_as_sf(data)
   }
 
@@ -719,8 +747,10 @@ add_points <- function(
       stroke_width = as.numeric(stroke_width),
       icons = icon_spec,
       cluster = cluster_spec,
-      render = render_spec
+      render = render_spec,
+      label_options = labelOptions
     ),
+    feature_ids = if (length(layer_id_vals) == n && n <= 50000L) as.character(layer_id_vals) else NULL,
     tooltips = tooltips
   )
 
@@ -730,7 +760,26 @@ add_points <- function(
     legend_spec$group <- group
   }
 
-  dispatch_layer(map, layer_spec, legend_spec, attr(raw_buf, "bbox"))
+  map <- dispatch_layer(map, layer_spec, legend_spec, attr(raw_buf, "bbox"))
+
+  # If permanent labels were requested via labelOptions(noHide = TRUE), auto-attach a GPU label layer
+  if (!is.null(label) && is.list(labelOptions) && isTRUE(labelOptions$noHide)) {
+    txt_size <- if (!is.null(labelOptions$textsize)) as.numeric(gsub("[^0-9.]", "", as.character(labelOptions$textsize))) else 12
+    if (is.na(txt_size) || txt_size <= 0) txt_size <- 12
+    txt_col <- if (is.list(labelOptions$style) && !is.null(labelOptions$style$color)) as.character(labelOptions$style$color) else "#f8fafc"
+    map <- add_labels(
+      map = map,
+      data = data,
+      text = label,
+      lon = lon,
+      lat = lat,
+      size = txt_size,
+      color = txt_col,
+      id = paste0(id, "_labels"),
+      group = group
+    )
+  }
+  map
 }
 
 #' Add Custom Icon or Awesome Markers (`add_markers`, `make_icon`, `make_awesome_icon`)
@@ -757,6 +806,15 @@ add_markers <- function(
     id = NULL,
     ...
 ) {
+  if (!is.null(data) && !is.data.frame(data) && !inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "wk_xy", "wk_wkb", "wk_wkt", "nanoarrow_array", "SharedData")) && !is.matrix(data)) {
+    if (inherits(data, "formula") || is.numeric(data)) {
+      if (is.null(lat) && !is.null(lng)) {
+        lat <- lng
+      }
+      lng <- data
+      data <- NULL
+    }
+  }
   add_points(
     map = map,
     data = data,
@@ -776,30 +834,99 @@ add_markers <- function(
 }
 
 #' @param iconUrl URL or relative path (e.g. inside Shiny `www/`) to an SVG or PNG icon.
+#' @param iconRetinaUrl Optional retina URL (`leaflet` compatibility).
 #' @param iconWidth,iconHeight Icon dimensions in pixels (default `28`).
+#' @param iconAnchorX,iconAnchorY Optional anchor coordinates (`leaflet` compatibility).
+#' @param shadowUrl,shadowRetinaUrl,shadowWidth,shadowHeight,shadowAnchorX,shadowAnchorY Optional shadow parameters (`leaflet` compatibility).
+#' @param popupAnchorX,popupAnchorY Optional popup anchor coordinates (`leaflet` compatibility).
+#' @param className Optional CSS class (`leaflet` compatibility).
 #' @rdname add_markers
 #' @export
-make_icon <- function(iconUrl, iconWidth = 28, iconHeight = 28) {
+make_icon <- function(
+    iconUrl = NULL,
+    iconRetinaUrl = NULL,
+    iconWidth = 28,
+    iconHeight = 28,
+    iconAnchorX = NULL,
+    iconAnchorY = NULL,
+    shadowUrl = NULL,
+    shadowRetinaUrl = NULL,
+    shadowWidth = NULL,
+    shadowHeight = NULL,
+    shadowAnchorX = NULL,
+    shadowAnchorY = NULL,
+    popupAnchorX = NULL,
+    popupAnchorY = NULL,
+    className = NULL
+) {
   structure(
     list(
-      iconUrl = as.character(iconUrl),
-      iconWidth = as.numeric(iconWidth[1]),
-      iconHeight = as.numeric(iconHeight[1])
+      iconUrl = as.character(iconUrl %||% iconRetinaUrl %||% ""),
+      iconWidth = as.numeric(iconWidth %||% 28),
+      iconHeight = as.numeric(iconHeight %||% 28)
     ),
     class = c("gl_icon", "leaflet_icon")
   )
 }
 
-#' @param text Optional short symbol or glyph text inside the awesome marker pin.
-#' @param markerColor Marker pin color (e.g., `"red"`, `"blue"`, `"orange"`, `"green"`, `"purple"`).
-#' @param iconColor Inner glyph color (default `"#ffffff"`).
 #' @rdname add_markers
 #' @export
-make_awesome_icon <- function(text = "*", markerColor = "blue", iconColor = "#ffffff") {
+icons <- make_icon
+
+#' @rdname add_markers
+#' @export
+icon_list <- function(...) {
+  res <- structure(list(...), class = c("gl_icon_list", "leaflet_icon_set"))
+  res
+}
+
+#' @export
+`[.gl_icon_list` <- function(x, i) {
+  if (is.factor(i)) i <- as.character(i)
+  sub_list <- unclass(x)[i]
+  urls <- vapply(sub_list, function(el) if (is.list(el) && !is.null(el$iconUrl)) as.character(el$iconUrl[1]) else "", character(1))
+  widths <- vapply(sub_list, function(el) if (is.list(el) && !is.null(el$iconWidth)) as.numeric(el$iconWidth[1]) else 28, numeric(1))
+  heights <- vapply(sub_list, function(el) if (is.list(el) && !is.null(el$iconHeight)) as.numeric(el$iconHeight[1]) else 28, numeric(1))
+  make_icon(iconUrl = urls, iconWidth = widths, iconHeight = heights)
+}
+
+#' @param text Optional short symbol or glyph text inside the awesome marker pin.
+#' @param icon Optional icon name from FontAwesome/Ionicons/Bootstrap (`leaflet` compatibility).
+#' @param library Optional icon library (`"fa"`, `"ion"`, `"glyphicon"`).
+#' @param markerColor Marker pin color (e.g., `"red"`, `"blue"`, `"orange"`, `"green"`, `"purple"`).
+#' @param iconColor Inner glyph color (default `"#ffffff"`).
+#' @param spin,extraClasses,squareMarker,iconRotate,fontFamily Optional parameters kept for `leaflet::makeAwesomeIcon()` compatibility.
+#' @rdname add_markers
+#' @export
+make_awesome_icon <- function(
+    icon = "circle",
+    library = "fa",
+    markerColor = "blue",
+    iconColor = "#ffffff",
+    spin = FALSE,
+    extraClasses = NULL,
+    squareMarker = FALSE,
+    iconRotate = 0,
+    fontFamily = "monospace",
+    text = NULL
+) {
+  glyph <- text %||% switch(
+    tolower(as.character(icon[1] %||% "")),
+    "ios-close" = , "close" = , "times" = , "remove" = "x",
+    "check" = , "ok" = "v",
+    "home" = , "house" = "H",
+    "flag" = "F",
+    "star" = "*",
+    "info" = , "info-sign" = "i",
+    "warning" = , "exclamation" = "!",
+    "*"
+  )
   structure(
     list(
       type = "awesome",
-      text = as.character(text),
+      icon = as.character(icon),
+      library = as.character(library),
+      text = as.character(glyph),
       markerColor = as.character(markerColor),
       iconColor = as.character(iconColor),
       iconWidth = 28,
@@ -807,6 +934,26 @@ make_awesome_icon <- function(text = "*", markerColor = "blue", iconColor = "#ff
     ),
     class = c("gl_awesome_icon", "leaflet_awesome_icon")
   )
+}
+
+#' @rdname add_markers
+#' @export
+awesome_icons <- make_awesome_icon
+
+#' @rdname add_markers
+#' @export
+awesome_icon_list <- function(...) {
+  structure(list(...), class = c("gl_awesome_icon_list", "leaflet_awesome_icon_set"))
+}
+
+#' @export
+`[.gl_awesome_icon_list` <- function(x, i) {
+  if (is.factor(i)) i <- as.character(i)
+  sub_list <- unclass(x)[i]
+  cols <- vapply(sub_list, function(el) if (is.list(el) && !is.null(el$markerColor)) as.character(el$markerColor[1]) else "blue", character(1))
+  icols <- vapply(sub_list, function(el) if (is.list(el) && !is.null(el$iconColor)) as.character(el$iconColor[1]) else "#ffffff", character(1))
+  txts <- vapply(sub_list, function(el) if (is.list(el) && !is.null(el$text)) as.character(el$text[1]) else "*", character(1))
+  make_awesome_icon(markerColor = cols, iconColor = icols, text = txts)
 }
 
 #' @param showCoverageOnHover Logical; highlight cluster bounds on hover.
@@ -976,11 +1123,28 @@ resolve_icon_spec <- function(icon, data, n) {
     ))
   }
   if (inherits(icon, c("gl_awesome_icon", "leaflet_awesome_icon")) || (is.list(icon) && identical(icon$type, "awesome"))) {
+    mcols <- as.character(icon$markerColor %||% "#0284c7")
+    icols <- as.character(icon$iconColor %||% "#ffffff")
+    txts <- as.character(icon$text %||% "*")
+    len <- max(length(mcols), length(icols), length(txts))
+    mcols <- rep_len(mcols, len)
+    icols <- rep_len(icols, len)
+    txts <- rep_len(txts, len)
+    keys <- paste(mcols, icols, txts, sep = "|")
+    f <- as.factor(keys)
+    lvls <- levels(f)
+    idx0 <- as.integer(f) - 1L
+    atlas_items <- lapply(lvls, function(k) {
+      parts <- strsplit(k, "\\|")[[1]]
+      list(markerColor = parts[1], iconColor = parts[2], text = parts[3])
+    })
     return(list(
       type = "awesome",
-      text = as.character(icon$text[1] %||% "*"),
-      markerColor = as.character(icon$markerColor[1] %||% "#0284c7"),
-      iconColor = as.character(icon$iconColor[1] %||% "#ffffff"),
+      atlas = atlas_items,
+      indices = if (length(idx0) == 1L) idx0 else as.integer(idx0),
+      text = txts[1],
+      markerColor = mcols[1],
+      iconColor = icols[1],
       width = as.numeric(icon$iconWidth[1] %||% 28),
       height = as.numeric(icon$iconHeight[1] %||% 34)
     ))
@@ -992,6 +1156,8 @@ resolve_icon_spec <- function(icon, data, n) {
 #'
 #' @inheritParams add_points
 #' @param width Line width in pixels (default `2.0`).
+#' @param lng,lat Optional coordinate vectors or formulas (`~long`, `~lat`) when `data` is a `data.frame` or `matrix`.
+#' @param weight,layerId,highlightOptions,labelOptions,dashArray,smoothFactor Optional `leaflet::addPolylines()` compatibility parameters.
 #' @export
 add_lines <- function(
     map,
@@ -1004,14 +1170,51 @@ add_lines <- function(
     label = NULL,
     id = NULL,
     group = NULL,
-    legend = TRUE
+    legend = TRUE,
+    lng = NULL,
+    lat = NULL,
+    weight = NULL,
+    layerId = NULL,
+    highlightOptions = NULL,
+    labelOptions = NULL,
+    dashArray = NULL,
+    smoothFactor = NULL
 ) {
+  if (!is.null(data) && !is.data.frame(data) && !inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "map", "SharedData")) && !is.matrix(data)) {
+    if (inherits(data, "formula") || is.numeric(data)) {
+      if (is.null(lat) && !is.null(lng)) lat <- lng
+      lng <- data
+      data <- NULL
+    }
+  }
   data <- data %||% attr(map$x, "glmap_data")
-  if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_lines}.")
+  width <- weight %||% width
+  id <- id %||% (if (length(layerId) == 1L) as.character(layerId) else NULL) %||% next_layer_id("lines")
+  group <- group %||% id
+
   if (inherits(data, "SharedData")) data <- data$origData()
 
-  id <- id %||% next_layer_id("lines")
-  group <- group %||% id
+  # Support passing data.frame + lng/lat or raw numeric vectors to add_lines / addPolylines
+  if (!inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "map"))) {
+    if (!is.null(lng) && !is.null(lat)) {
+      x_v <- as.numeric(eval_aesthetic(lng, data))
+      y_v <- as.numeric(eval_aesthetic(lat, data))
+    } else if (is.matrix(data) && ncol(data) >= 2L) {
+      x_v <- as.numeric(data[, 1])
+      y_v <- as.numeric(data[, 2])
+    } else if (is.data.frame(data)) {
+      nms <- names(data)
+      lon_c <- nms[match(TRUE, tolower(nms) %in% c("lon", "lng", "long", "longitude", "x"))]
+      lat_c <- nms[match(TRUE, tolower(nms) %in% c("lat", "latitude", "y"))]
+      x_v <- as.numeric(data[[lon_c]])
+      y_v <- as.numeric(data[[lat_c]])
+    } else {
+      cli::cli_abort("`data` (or `lng` and `lat`) must be provided to {.fn add_lines}.")
+    }
+    ls_geom <- structure(cbind(x_v, y_v), class = c("XY", "LINESTRING", "sfg"))
+    sfc_line <- structure(list(ls_geom), class = c("sfc_LINESTRING", "sfc"))
+    data <- sfc_line
+  }
 
   n <- if (inherits(data, "sfc")) length(data) else nrow(data)
   col_res <- resolve_rgba(color = color, data = data, n = n, opacity = opacity, palette = palette)
@@ -1038,7 +1241,8 @@ add_lines <- function(
     bbox = attr(raw_buf, "bbox"),
     buffer = buf_spec,
     style = list(
-      width = if (length(w_vec) == 1L) w_vec else 2.0
+      width = if (length(w_vec) == 1L) w_vec else 2.0,
+      highlight = highlightOptions
     ),
     tooltips = tooltips
   )
@@ -1060,6 +1264,9 @@ add_lines <- function(
 #' @param line_color Border line color string (default `"#ffffff"`).
 #' @param line_width Border line width in pixels (default `1.0`).
 #' @param extrude Optional 3D extrusion height aesthetic (formula `~height`, column name, or numeric).
+#' @param lng,lat Optional coordinate vectors or formulas (`~long`, `~lat`) when `data` is a `data.frame` or `matrix` (such as `quakes[chull(...), ]`).
+#' @param fill Logical; whether to fill the interior of the polygon (default `TRUE`). When `FALSE`, renders an unfilled outline ring.
+#' @param fillColor,fillOpacity,color,weight,opacity,highlightOptions,labelOptions,dashArray,smoothFactor,layerId Optional `leaflet::addPolygons()` compatibility parameters.
 #' @export
 add_polygons <- function(
     map,
@@ -1075,18 +1282,96 @@ add_polygons <- function(
     label = NULL,
     id = NULL,
     group = NULL,
-    legend = TRUE
+    legend = TRUE,
+    lng = NULL,
+    lat = NULL,
+    fill = TRUE,
+    fillColor = NULL,
+    fillOpacity = NULL,
+    color = NULL,
+    weight = NULL,
+    opacity = NULL,
+    highlightOptions = NULL,
+    labelOptions = NULL,
+    dashArray = NULL,
+    smoothFactor = NULL,
+    layerId = NULL
 ) {
+  if (!is.null(data) && !is.data.frame(data) && !inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "map", "SharedData")) && !is.matrix(data)) {
+    if (inherits(data, "formula") || is.numeric(data)) {
+      if (is.null(lat) && !is.null(lng)) lat <- lng
+      lng <- data
+      data <- NULL
+    }
+  }
   data <- data %||% attr(map$x, "glmap_data")
-  if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_polygons}.")
   if (inherits(data, "SharedData")) data <- data$origData()
 
-  id <- id %||% next_layer_id("polygons")
+  # Map leaflet arguments cleanly onto glmap aesthetics:
+  # - If fillColor is supplied, fill_color = fillColor; if color is also supplied, line_color = color.
+  # - If only color is supplied (e.g. `addPolygons(color = ~pal(tot_pob))` or `addPolygons(fill = FALSE, color = "#FFFFCC")`),
+  #   route color to line_color when fill = FALSE, or to both fill_color and line_color when fill = TRUE.
+  if (!is.null(fillColor)) {
+    fill_color <- fillColor
+    if (!is.null(color) && length(color) == 1L && is.character(color)) {
+      line_color <- color
+    }
+  } else if (!is.null(color)) {
+    if (identical(fill, FALSE)) {
+      line_color <- if (length(color) == 1L && is.character(color)) color else "#e2e8f0"
+    } else {
+      fill_color <- color
+      if (length(color) == 1L && is.character(color) && is_color_string(color)) {
+        line_color <- color
+      }
+    }
+  }
+  if (!is.null(fillOpacity)) fill_opacity <- fillOpacity
+  else if (!is.null(opacity) && is.null(fillColor)) fill_opacity <- opacity
+  if (identical(fill, FALSE)) fill_opacity <- 0.0
+  if (!is.null(weight)) line_width <- weight
+
+  layer_id_vals <- eval_aesthetic(layerId, data)
+  id <- id %||% (if (length(layer_id_vals) == 1L) as.character(layer_id_vals) else NULL) %||% next_layer_id("polygons")
   group <- group %||% id
 
-  if (inherits(data, c("SpatVector", "Spatial")) && requireNamespace("sf", quietly = TRUE)) {
+  if (inherits(data, c("SpatVector", "Spatial", "map")) && requireNamespace("sf", quietly = TRUE)) {
     data <- sf::st_as_sf(data)
   }
+
+  # Support passing data.frame + lng/lat or 2-col numeric matrix (e.g. `outline <- quakes[chull(...),]`)
+  if (!inherits(data, c("sf", "sfc"))) {
+    if (!is.null(lng) && !is.null(lat)) {
+      x_v <- as.numeric(eval_aesthetic(lng, data))
+      y_v <- as.numeric(eval_aesthetic(lat, data))
+    } else if (is.matrix(data) && ncol(data) >= 2L) {
+      x_v <- as.numeric(data[, 1])
+      y_v <- as.numeric(data[, 2])
+    } else if (is.data.frame(data)) {
+      nms <- names(data)
+      lon_c <- nms[match(TRUE, tolower(nms) %in% c("lon", "lng", "long", "longitude", "x"))]
+      lat_c <- nms[match(TRUE, tolower(nms) %in% c("lat", "latitude", "y"))]
+      if (is.na(lon_c) || is.na(lat_c)) {
+        cli::cli_abort("`data` must be an {.cls sf}/{.cls sfc} object or supply `lng` and `lat` to {.fn add_polygons}.")
+      }
+      x_v <- as.numeric(data[[lon_c]])
+      y_v <- as.numeric(data[[lat_c]])
+    } else {
+      cli::cli_abort("`data` must be provided to {.fn add_polygons}.")
+    }
+    valid <- is.finite(x_v) & is.finite(y_v)
+    x_v <- x_v[valid]
+    y_v <- y_v[valid]
+    if (length(x_v) >= 3L) {
+      if (x_v[1] != x_v[length(x_v)] || y_v[1] != y_v[length(y_v)]) {
+        x_v <- c(x_v, x_v[1])
+        y_v <- c(y_v, y_v[1])
+      }
+      poly_geom <- structure(list(cbind(x_v, y_v)), class = c("XY", "POLYGON", "sfg"))
+      data <- structure(list(poly_geom), class = c("sfc_POLYGON", "sfc"))
+    }
+  }
+
   n <- if (inherits(data, "sfc")) length(data) else nrow(data)
   col_res <- resolve_rgba(color = fill_color, data = data, n = n, opacity = fill_opacity, palette = palette)
   elev_vec <- if (!is.null(extrude)) resolve_numeric_aesthetic(extrude, data = data, default = 0) else numeric(0)
@@ -1099,8 +1384,21 @@ add_polygons <- function(
 
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
-  line_rgb <- as.integer(grDevices::col2rgb(line_color, alpha = FALSE)[, 1])
+  line_rgb <- as.integer(grDevices::col2rgb(line_color[1], alpha = FALSE)[, 1])
   tooltips <- build_popup_labels(popup, label, data)
+
+  hl_spec <- NULL
+  if (is.list(highlightOptions)) {
+    hl_col <- highlightOptions$color %||% "#ffffff"
+    hl_rgb <- as.integer(grDevices::col2rgb(hl_col[1], alpha = FALSE)[, 1])
+    hl_spec <- list(
+      enabled = TRUE,
+      color = hl_rgb,
+      weight = as.numeric(highlightOptions$weight %||% 3.0),
+      fillOpacity = as.numeric(highlightOptions$fillOpacity %||% fill_opacity),
+      bringToFront = isTRUE(highlightOptions$bringToFront %||% TRUE)
+    )
+  }
 
   layer_spec <- list(
     id = id,
@@ -1114,11 +1412,14 @@ add_polygons <- function(
     bbox = attr(raw_buf, "bbox"),
     buffer = buf_spec,
     style = list(
+      fill = !identical(fill, FALSE),
       stroke = isTRUE(stroke),
       line_color = line_rgb,
       line_width = as.numeric(line_width),
-      extruded = length(elev_vec) > 0L
+      extruded = length(elev_vec) > 0L,
+      highlight = hl_spec
     ),
+    feature_ids = if (length(layer_id_vals) == n && n <= 50000L) as.character(layer_id_vals) else NULL,
     tooltips = tooltips
   )
 
@@ -1620,6 +1921,8 @@ add_labels <- function(
 #' @param lat Optional latitude column name or formula (`~lat`).
 #' @param radius Circle radius in **meters** (single number, formula `~r`, or numeric vector; default `500`).
 #' @param n_segments Number of vertices per circle ring (default `24L`).
+#' @param lng Optional alias for `lon` (`leaflet` compatibility).
+#' @param fillColor,fillOpacity,color,weight,opacity,layerId,highlightOptions,labelOptions Optional `leaflet::addCircles()` compatibility parameters.
 #' @export
 add_circles <- function(
     map,
@@ -1638,10 +1941,53 @@ add_circles <- function(
     n_segments = 24L,
     id = NULL,
     group = NULL,
-    legend = TRUE
+    legend = TRUE,
+    lng = NULL,
+    fillColor = NULL,
+    fillOpacity = NULL,
+    color = NULL,
+    weight = NULL,
+    opacity = NULL,
+    layerId = NULL,
+    highlightOptions = NULL,
+    labelOptions = NULL
 ) {
+  if (!is.null(data) && !is.data.frame(data) && !inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "SharedData")) && !is.matrix(data)) {
+    if (inherits(data, "formula") || is.numeric(data)) {
+      if (inherits(lat, "formula") || (is.numeric(lat) && length(lat) == 1L && radius == 500 && !is.null(lon))) {
+        # Called as addCircles(map, ~long, ~lat, ~10^mag/5) where 3rd positional arg was bound to lat!
+        radius <- lat
+        lat <- lon
+        lon <- data
+        data <- NULL
+      } else {
+        if (is.null(lat) && (!is.null(lon) || !is.null(lng))) lat <- lon %||% lng
+        lon <- data
+        data <- NULL
+      }
+    }
+  }
   data <- data %||% attr(map$x, "glmap_data")
-  if (is.null(data)) cli::cli_abort("`data` must be provided to {.fn add_circles}.")
+  lon <- lon %||% lng
+  if (!is.null(fillColor)) {
+    fill_color <- fillColor
+    if (!is.null(color) && length(color) == 1L && is.character(color)) line_color <- color
+  } else if (!is.null(color)) {
+    fill_color <- color
+    if (length(color) == 1L && is.character(color) && is_color_string(color)) line_color <- color
+  }
+  fill_opacity <- fillOpacity %||% opacity %||% fill_opacity
+  line_width <- weight %||% line_width
+
+  if (is.null(data)) {
+    if (!is.null(lon) && !is.null(lat) && !inherits(lon, "formula") && !inherits(lat, "formula")) {
+      data <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat))
+      lon <- "lon"
+      lat <- "lat"
+    } else {
+      cli::cli_abort("`data` (or numeric `lon`/`lng` and `lat` vectors) must be provided to {.fn add_circles}.")
+    }
+  }
   if (inherits(data, "SharedData")) data <- data$origData()
 
   if (inherits(data, c("sf", "sfc", "SpatVector", "Spatial"))) {
@@ -1697,9 +2043,12 @@ add_circles <- function(
     line_width = line_width,
     popup = popup,
     label = label,
-    id = id %||% next_layer_id("circles"),
+    id = id,
     group = group,
-    legend = legend
+    legend = legend,
+    highlightOptions = highlightOptions,
+    labelOptions = labelOptions,
+    layerId = layerId
   )
 }
 
@@ -1709,6 +2058,7 @@ add_circles <- function(
 #'
 #' @inheritParams add_polygons
 #' @param lng1,lat1,lng2,lat2 Numeric vectors or formulas specifying opposite corners of each rectangle.
+#' @param fillColor,fillOpacity,color,weight,opacity,layerId,highlightOptions Optional `leaflet::addRectangles()` compatibility parameters.
 #' @export
 add_rectangles <- function(
     map,
@@ -1727,9 +2077,25 @@ add_rectangles <- function(
     label = NULL,
     id = NULL,
     group = NULL,
-    legend = FALSE
+    legend = FALSE,
+    fillColor = NULL,
+    fillOpacity = NULL,
+    color = NULL,
+    weight = NULL,
+    opacity = NULL,
+    layerId = NULL,
+    highlightOptions = NULL
 ) {
   data <- data %||% attr(map$x, "glmap_data")
+  if (!is.null(fillColor)) {
+    fill_color <- fillColor
+    if (!is.null(color) && length(color) == 1L && is.character(color)) line_color <- color
+  } else if (!is.null(color)) {
+    fill_color <- color
+  }
+  fill_opacity <- fillOpacity %||% opacity %||% fill_opacity
+  line_width <- weight %||% line_width
+
   x1 <- as.numeric(eval_aesthetic(lng1, data))
   y1 <- as.numeric(eval_aesthetic(lat1, data))
   x2 <- as.numeric(eval_aesthetic(lng2, data))
@@ -1759,9 +2125,10 @@ add_rectangles <- function(
     line_width = line_width,
     popup = popup,
     label = label,
-    id = id %||% next_layer_id("rectangles"),
+    id = id %||% (if (length(layerId) == 1L) as.character(layerId) else NULL) %||% next_layer_id("rectangles"),
     group = group,
-    legend = legend
+    legend = legend,
+    highlightOptions = highlightOptions
   )
 }
 
@@ -1779,24 +2146,49 @@ add_rectangles <- function(
 #' @param id Layer ID.
 #' @param group Layer group name.
 #' @param lng Optional alias for `lon` (`leaflet` compatibility).
+#' @param options Optional popup options list.
+#' @param layerId Optional layer ID (`leaflet` compatibility).
 #' @export
 add_popups <- function(
     map,
-    data = NULL,
     lon = NULL,
     lat = NULL,
     popup = NULL,
     id = NULL,
     group = NULL,
-    lng = NULL
+    lng = NULL,
+    options = NULL,
+    data = NULL,
+    layerId = NULL
 ) {
-  lon <- lon %||% lng
+  id <- id %||% (if (length(layerId) == 1L) as.character(layerId) else NULL)
+  # Support both add_popups(map, lng, lat, popup) and add_popups(map, data = df, lon = ~x, lat = ~y, popup = ~p)
+  if (is.data.frame(lon) || inherits(lon, c("sf", "sfc", "SharedData"))) {
+    data <- lon
+    lon <- lng
+  } else {
+    lon <- lon %||% lng
+  }
   if (inherits(map, "glmap_proxy") && is.null(data) && length(lon) == 1L && length(lat) == 1L) {
     return(invoke_proxy_method(map, "showPopup", list(
       lng = as.numeric(lon[1]),
       lat = as.numeric(lat[1]),
       html = as.character(popup[1] %||% "")
     )))
+  }
+  if (is.null(data) && length(lon) >= 1L && length(lat) >= 1L && !inherits(lon, "formula") && !inherits(lat, "formula")) {
+    if (length(lon) == 1L && length(lat) == 1L) {
+      map$x$initial_popup <- list(
+        lng = as.numeric(lon[1]),
+        lat = as.numeric(lat[1]),
+        html = as.character(popup[1] %||% "")
+      )
+      return(update_map_bounds(map, c(lon[1] - 0.02, lat[1] - 0.02, lon[1] + 0.02, lat[1] + 0.02)))
+    }
+    data <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat), popup = as.character(popup))
+    lon <- "lon"
+    lat <- "lat"
+    popup <- "popup"
   }
   add_labels(
     map = map,

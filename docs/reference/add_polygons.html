@@ -9,7 +9,7 @@ and ring outlines directly to WebGL2 vertex buffers (zero JS earcut overhead).">
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,20 @@ and ring outlines directly to WebGL2 vertex buffers (zero JS <code>earcut</code>
 <span>  label <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  legend <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  legend <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  lng <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lat <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fill <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  fillColor <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fillOpacity <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  color <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  weight <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  opacity <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  highlightOptions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  labelOptions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  dashArray <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  smoothFactor <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  layerId <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -123,6 +136,18 @@ and ring outlines directly to WebGL2 vertex buffers (zero JS <code>earcut</code>
 
 <dt id="arg-legend">legend<a class="anchor" aria-label="anchor" href="#arg-legend"></a></dt>
 <dd><p>Logical; whether to automatically add a legend when <code>color</code> is mapped to data.</p></dd>
+
+
+<dt id="arg-lng-lat">lng, lat<a class="anchor" aria-label="anchor" href="#arg-lng-lat"></a></dt>
+<dd><p>Optional coordinate vectors or formulas (<code>~long</code>, <code>~lat</code>) when <code>data</code> is a <code>data.frame</code> or <code>matrix</code> (such as <code>quakes[chull(...), ]</code>).</p></dd>
+
+
+<dt id="arg-fill">fill<a class="anchor" aria-label="anchor" href="#arg-fill"></a></dt>
+<dd><p>Logical; whether to fill the interior of the polygon (default <code>TRUE</code>). When <code>FALSE</code>, renders an unfilled outline ring.</p></dd>
+
+
+<dt id="arg-fillcolor-fillopacity-color-weight-opacity-highlightoptions-labeloptions-dasharray-smoothfactor-layerid">fillColor, fillOpacity, color, weight, opacity, highlightOptions, labelOptions, dashArray, smoothFactor, layerId<a class="anchor" aria-label="anchor" href="#arg-fillcolor-fillopacity-color-weight-opacity-highlightoptions-labeloptions-dasharray-smoothfactor-layerid"></a></dt>
+<dd><p>Optional <code><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">leaflet::addPolygons()</a></code> compatibility parameters.</p></dd>
 
 </dl></div>
 

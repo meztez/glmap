@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,41 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.0" id="glmap-100">glmap 1.0.0<a class="anchor" aria-label="anchor" href="#glmap-100"></a></h2>
+<ul><li>
+<strong>Production 1.0.0 Release</strong>: Complete C++17 + WebGL2 + MapLibre GL geospatial mapping engine for R (<code>sf</code>, <code>terra</code>, <code>wk</code>, <code>nanoarrow</code>, <code>DuckDB</code>, <code>Shiny</code>, <code>Quarto</code>) with 100% drop-in <code>leaflet</code> and <code>leaflet.extras</code> compatibility.</li>
+<li>
+<strong>Zero-Rewrite <code>leaflet</code> Compatibility Layer (<code>leaflet_compat</code>)</strong>:
+<ul><li>Added full camelCase function and option exports (<code><a href="../reference/leaflet_compat.html">leaflet()</a></code>, <code><a href="../reference/leaflet_compat.html">addTiles()</a></code>, <code><a href="../reference/leaflet_compat.html">addProviderTiles()</a></code>, <code><a href="../reference/leaflet_compat.html">addMarkers()</a></code>, <code><a href="../reference/leaflet_compat.html">addAwesomeMarkers()</a></code>, <code><a href="../reference/leaflet_compat.html">addCircleMarkers()</a></code>, <code><a href="../reference/leaflet_compat.html">addLabelOnlyMarkers()</a></code>, <code><a href="../reference/leaflet_compat.html">addPolygons()</a></code>, <code><a href="../reference/leaflet_compat.html">addPolylines()</a></code>, <code><a href="../reference/leaflet_compat.html">addCircles()</a></code>, <code><a href="../reference/leaflet_compat.html">addRectangles()</a></code>, <code><a href="../reference/leaflet_compat.html">addPopups()</a></code>, <code><a href="../reference/leaflet_compat.html">clearPopups()</a></code>, <code><a href="../reference/leaflet_compat.html">addRasterImage()</a></code>, <code><a href="../reference/leaflet_compat.html">addWMSTiles()</a></code>, <code><a href="../reference/leaflet_compat.html">addLegend()</a></code>, <code><a href="../reference/leaflet_compat.html">addLayersControl()</a></code>, <code><a href="../reference/leaflet_compat.html">addMeasure()</a></code>, <code><a href="../reference/leaflet_compat.html">addMiniMap()</a></code>, <code><a href="../reference/leaflet_compat.html">addGraticule()</a></code>, <code><a href="../reference/leaflet_compat.html">addSimpleGraticule()</a></code>, <code><a href="../reference/leaflet_compat.html">addTerminator()</a></code>, <code><a href="../reference/leaflet_compat.html">addDrawToolbar()</a></code>, <code><a href="../reference/leaflet_compat.html">removeDrawToolbar()</a></code>, <code><a href="../reference/leaflet_compat.html">addSearchOSM()</a></code>, <code><a href="../reference/leaflet_compat.html">setView()</a></code>, <code><a href="../reference/leaflet_compat.html">fitBounds()</a></code>, <code><a href="../reference/leaflet_compat.html">flyTo()</a></code>, <code><a href="../reference/leaflet_compat.html">flyToBounds()</a></code>, <code><a href="../reference/leaflet_compat.html">setMaxBounds()</a></code>, <code><a href="../reference/leaflet_compat.html">showGroup()</a></code>, <code><a href="../reference/leaflet_compat.html">hideGroup()</a></code>, <code><a href="../reference/leaflet_compat.html">clearGroup()</a></code>, <code><a href="../reference/leaflet_compat.html">clearShapes()</a></code>, <code><a href="../reference/leaflet_compat.html">clearMarkers()</a></code>, <code><a href="../reference/leaflet_compat.html">clearControls()</a></code>, <code><a href="../reference/leaflet_compat.html">removeShape()</a></code>, <code><a href="../reference/leaflet_compat.html">removeMarker()</a></code>, <code><a href="../reference/leaflet_compat.html">leafletOutput()</a></code>, <code><a href="../reference/leaflet_compat.html">renderLeaflet()</a></code>, <code><a href="../reference/leaflet_compat.html">leafletProxy()</a></code>, <code>providers</code>, and <code>%&gt;%</code>).</li>
+<li>Added palette &amp; formatting functions (<code><a href="../reference/color_numeric.html">color_numeric()</a></code> / <code><a href="../reference/color_numeric.html">colorNumeric()</a></code>, <code><a href="../reference/color_numeric.html">color_bin()</a></code> / <code><a href="../reference/color_numeric.html">colorBin()</a></code>, <code><a href="../reference/color_numeric.html">color_quantile()</a></code> / <code><a href="../reference/color_numeric.html">colorQuantile()</a></code>, <code><a href="../reference/color_numeric.html">color_factor()</a></code> / <code><a href="../reference/color_numeric.html">colorFactor()</a></code>, <code><a href="../reference/color_numeric.html">label_format()</a></code> / <code><a href="../reference/color_numeric.html">labelFormat()</a></code>) and option builders (<code><a href="../reference/highlight_options.html">highlight_options()</a></code> / <code><a href="../reference/leaflet_compat.html">highlightOptions()</a></code>, <code><a href="../reference/highlight_options.html">label_options()</a></code> / <code><a href="../reference/leaflet_compat.html">labelOptions()</a></code>, <code><a href="../reference/highlight_options.html">popup_options()</a></code> / <code><a href="../reference/leaflet_compat.html">popupOptions()</a></code>, <code><a href="../reference/add_markers.html">icons()</a></code>, <code><a href="../reference/add_markers.html">icon_list()</a></code> / <code><a href="../reference/leaflet_compat.html">iconList()</a></code>, <code><a href="../reference/add_markers.html">awesome_icons()</a></code> / <code><a href="../reference/leaflet_compat.html">awesomeIcons()</a></code>, <code><a href="../reference/add_markers.html">awesome_icon_list()</a></code> / <code><a href="../reference/leaflet_compat.html">awesomeIconList()</a></code>).</li>
+<li>Added hover polygon/line border highlighting (<code>highlightOptions</code>), permanent label layers (<code>labelOptions(noHide = TRUE)</code>), unfilled polygon rings (<code>fill = FALSE</code>), 2-column matrix and <code>maps::map</code> geometry support, and vectorized per-feature <code>layerId = ~col</code> propagation to Shiny <code>_shape_click</code> / <code>_marker_click</code> events.</li>
+</ul></li>
+<li>
+<strong>Three-Mode GPU Custom Icon &amp; Marker Engine (<code>atlas</code>, <code>cluster</code>, <code>lod</code>)</strong>:
+<ul><li>WebGL2 Sprite Texture Atlas shader (<code>progIcons</code>) with automatic <code>crossOrigin = "anonymous"</code> CORS handling and multi-color <code><a href="../reference/leaflet_compat.html">awesomeIcons()</a></code> sprite sheets.</li>
+<li>Screen-space marker clustering (<code><a href="../reference/add_markers.html">marker_cluster_options()</a></code>) with automatic <strong>Spiderfy Web Expansion</strong> (radial/spiral WebGL legs drawn underneath icons and terminating at exact icon centers) when overlapping points share identical coordinates.</li>
+<li>Zoom-level Level-of-Detail (<code>"lod"</code>) cross-fade between GPU SDF points and custom icons, plus an interactive <strong>Marker / Icon Engine</strong> switcher in <code>☰ Layers</code>.</li>
+</ul></li>
+<li>
+<strong>4-Channel <code>RGBA</code> Raster LUT, Web Mercator Latitude Unprojection &amp; Shader Controls</strong>:
+<ul><li>Preserves per-stop alpha (<code>#RRGGBBAA</code>) in 1D GPU LUT textures so transparent <code>0 mm</code> precipitation / nodata ranges are discarded cleanly on the GPU.</li>
+<li>Unprojects Web Mercator fragments back to geographic latitude in <code>fsRaster</code> so <code>EPSG:4326</code> rasters align tightly with vector borders across wide latitude spans.</li>
+<li>Added interactive <strong>Layer Opacity</strong> slider and <code>shader_controls = TRUE/FALSE</code> toggle on <code><a href="../reference/add_raster.html">add_raster()</a></code> and <code><a href="../reference/set_raster_style.html">set_raster_style()</a></code>.</li>
+</ul></li>
+<li>
+<strong>9-Zone Directional Control Dock &amp; Built-in Widgets</strong>:
+<ul><li>Added <code><a href="../reference/add_minimap.html">add_minimap()</a></code>, <code><a href="../reference/add_graticule.html">add_graticule()</a></code>, <code><a href="../reference/add_graticule.html">add_simple_graticule()</a></code>, <code><a href="../reference/add_terminator.html">add_terminator()</a></code>, <code><a href="../reference/add_measure.html">add_measure()</a></code>, <code><a href="../reference/add_search_osm.html">add_search_osm()</a></code>, and <code><a href="../reference/add_draw_toolbar.html">add_draw_toolbar()</a></code> inside an isolated CSS stacking context (<code>isolation: isolate; z-index: 0;</code>).</li>
+</ul></li>
+<li>
+<strong>Quarto HTML / PDF &amp; Static Export (<code>gl_save_png</code>)</strong>:
+<ul><li>Enabled <code>preserveDrawingBuffer: true</code> on both the MapLibre GL base canvas and the WebGL2 overlay canvas, added <code>@media print</code> rules, and exported <code><a href="../reference/gl_save_png.html">gl_save_png()</a></code> for headless Chromium PNG/PDF snapshot capture.</li>
+</ul></li>
+<li>
+<strong>Licensing &amp; Attributions</strong>:
+<ul><li>Documented permissive MIT package license alongside bundled <code>MapLibre GL JS v4.7.1</code> (<code>BSD-3-Clause</code>) and <code>mapbox/earcut.hpp v2.2.4</code> (<code>ISC</code>) notices in <code>LICENSE.md</code> and <code>inst/COPYRIGHTS</code>.</li>
+</ul></li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="glmap-010">glmap 0.1.0<a class="anchor" aria-label="anchor" href="#glmap-010"></a></h2>
 <ul><li>Initial release of <code>glmap</code>: High-Performance GPU Geospatial Mapping for <code>sf</code> and <code>terra</code> in R.</li>
 <li>Added C++17 <code>GLMP</code> (vector) and <code>GLMR</code> (<code>Float32</code> raster) binary encoders (<code><a href="../reference/gl_pack_sf_binary.html">gl_pack_sf_binary()</a></code>, <code><a href="../reference/gl_pack_raster_binary.html">gl_pack_raster_binary()</a></code>) with <code>mapbox/earcut.h</code> polygon hole triangulation.</li>
@@ -47,7 +82,8 @@
 <li>Added <code><a href="../reference/glmap_proxy.html">glmap_proxy()</a></code>, <code><a href="../reference/glmapOutput.html">glmapOutput()</a></code>, and <code><a href="../reference/renderGlmap.html">renderGlmap()</a></code> with <code>leaflet</code>-compatible Shiny events (<code>_click</code>, <code>_bounds</code>, <code>_zoom</code>, <code>_center</code>, <code>_marker_click</code>, <code>_shape_click</code>, <code>_selected</code>) and <code>crosstalk</code> linked brushing.</li>
 <li>Added optional out-of-core <code>DuckDB</code> / <code>.parquet</code> viewport streaming (<code><a href="../reference/add_duckdb.html">add_duckdb()</a></code>) and C++17 spatial grid/R-tree indexing (<code><a href="../reference/gl_spatial_index.html">gl_spatial_index()</a></code>).</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

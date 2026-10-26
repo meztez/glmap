@@ -15,7 +15,15 @@ add_lines(
   label = NULL,
   id = NULL,
   group = NULL,
-  legend = TRUE
+  legend = TRUE,
+  lng = NULL,
+  lat = NULL,
+  weight = NULL,
+  layerId = NULL,
+  highlightOptions = NULL,
+  labelOptions = NULL,
+  dashArray = NULL,
+  smoothFactor = NULL
 )
 }
 \arguments{
@@ -40,6 +48,10 @@ add_lines(
 \item{group}{Layer group name shown in the interactive layer switcher.}
 
 \item{legend}{Logical; whether to automatically add a legend when \code{color} is mapped to data.}
+
+\item{lng, lat}{Optional coordinate vectors or formulas (\code{~long}, \code{~lat}) when \code{data} is a \code{data.frame} or \code{matrix}.}
+
+\item{weight, layerId, highlightOptions, labelOptions, dashArray, smoothFactor}{Optional \code{leaflet::addPolylines()} compatibility parameters.}
 }
 \description{
 Add a GPU LineString / MultiLineString Layer

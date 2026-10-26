@@ -7,4 +7,4 @@
 
 ## Notes for CRAN maintainers
 * `SystemRequirements: C++17` is declared for structured bindings and `std::clamp` in `src/glmap_cpp.cpp` and `src/earcut.h`.
-* `src/earcut.h` is the MIT-licensed `mapbox/earcut.hpp` library; Mapbox is credited in `Authors@R` with `role = "cph"`.
+* `src/earcut.h` is the ISC-licensed `mapbox/earcut.hpp` library and `inst/htmlwidgets/lib/maplibre-gl/` is the BSD-3-Clause-licensed `MapLibre GL JS` library; both copyright holders are credited in `Authors@R` with `role = "cph"` and full license texts are included in `inst/COPYRIGHTS`.

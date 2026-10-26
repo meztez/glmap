@@ -407,4 +407,100 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_null(m_meas$x$controls$toolbar)
 })
 
+test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API works end-to-end", {
+  df <- data.frame(
+    long = c(-73.56, -71.20, -72.54, -71.89),
+    lat = c(45.50, 46.81, 46.34, 45.40),
+    mag = c(4.1, 5.2, 4.7, 5.8),
+    group = c("A", "B", "A", "B"),
+    zip = c("H1A", "G1R", "G9A", "J1H"),
+    stringsAsFactors = FALSE
+  )
+
+  pal_num <- colorNumeric("viridis", domain = df$mag)
+  pal_bin <- colorBin("YlOrRd", domain = df$mag, bins = c(4, 4.5, 5.0, 6.0))
+  pal_qnt <- colorQuantile("Blues", domain = df$mag, n = 2)
+  pal_fac <- colorFactor(c("#22c55e", "#ef4444"), domain = df$group)
+
+  expect_length(pal_num(df$mag), 4L)
+  expect_length(pal_bin(df$mag), 4L)
+  expect_length(pal_qnt(df$mag), 4L)
+  expect_equal(pal_fac(c("A", "B")), c("#22c55e", "#ef4444"))
+
+  lf_fmt <- labelFormat(prefix = "$", suffix = "k")
+  expect_equal(lf_fmt("numeric", c(10, 20)), c("$10k", "$20k"))
+
+  ic_set <- iconList(
+    A = makeIcon("a.png", iconWidth = 24, iconHeight = 24),
+    B = makeIcon("b.png", iconWidth = 32, iconHeight = 32)
+  )
+  sub_ic <- ic_set[df$group]
+  expect_s3_class(sub_ic, "gl_icon")
+  expect_equal(sub_ic$iconUrl, c("a.png", "b.png", "a.png", "b.png"))
+
+  aw_ic <- awesomeIcons(icon = "ios-close", markerColor = c("green", "red", "green", "orange"))
+  expect_s3_class(aw_ic, "gl_awesome_icon")
+
+  outline <- df[chull(df$long, df$lat), ]
+
+  m_compat <- leaflet(df) %>%
+    addTiles(group = "OSM") %>%
+    addProviderTiles(providers$CartoDB.Positron, group = "Positron") %>%
+    setView(lng = -72.5, lat = 46.0, zoom = 7) %>%
+    fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat)) %>%
+    addCircles(
+      ~long, ~lat, ~10^mag / 5,
+      layerId = ~zip,
+      fillColor = ~pal_bin(mag),
+      group = "Circles"
+    ) %>%
+    addCircleMarkers(
+      ~long, ~lat,
+      radius = 6,
+      color = ~pal_fac(group),
+      label = ~zip,
+      labelOptions = labelOptions(noHide = TRUE, textsize = "13px"),
+      group = "Markers"
+    ) %>%
+    addAwesomeMarkers(~long, ~lat, icon = aw_ic, group = "Awesome") %>%
+    addPolygons(
+      data = outline,
+      lng = ~long, lat = ~lat,
+      fill = FALSE,
+      weight = 2,
+      color = "#facc15",
+      highlightOptions = highlightOptions(weight = 4, color = "#ffffff", bringToFront = TRUE),
+      group = "Hull"
+    ) %>%
+    addSimpleGraticule(interval = 20) %>%
+    addTerminator() %>%
+    addMiniMap(width = 120, height = 120, position = "bottomright") %>%
+    addLegend("bottomright", pal = pal_bin, values = ~mag, title = "Magnitude") %>%
+    addLayersControl(
+      baseGroups = c("OSM", "Positron"),
+      overlayGroups = c("Circles", "Markers", "Awesome", "Hull"),
+      options = layersControlOptions(collapsed = FALSE)
+    )
+
+  expect_s3_class(m_compat, "glmap")
+  expect_true(m_compat$x$controls$minimap$enabled)
+  expect_false(m_compat$x$controls$layer_switcher$collapsed)
+  expect_equal(m_compat$x$layers[[1]]$feature_ids, df$zip)
+  expect_false(m_compat$x$layers[[5]]$style$fill)
+  expect_true(m_compat$x$layers[[5]]$style$highlight$enabled)
+
+  # Proxy clearShapes / clearMarkers / clearControls
+  prx <- leafletProxy("map", data = df) %>%
+    clearShapes() %>%
+    clearMarkers() %>%
+    clearControls() %>%
+    removeShape("H1A")
+  expect_s3_class(prx, "glmap_proxy")
+  expect_equal(prx$calls[[1]]$method, "clearShapes")
+  expect_equal(prx$calls[[2]]$method, "clearMarkers")
+  expect_equal(prx$calls[[3]]$method, "clearControls")
+  expect_equal(prx$calls[[4]]$method, "clearLayer")
+})
+
+
 

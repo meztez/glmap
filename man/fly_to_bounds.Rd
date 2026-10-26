@@ -9,7 +9,7 @@ fly_to_bounds(map, bbox, padding = 40, duration = 1600)
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
 
-\item{bbox}{Numeric vector \code{c(xmin, ymin, xmax, ymax)} or an \code{sf}/\code{SpatRaster} object.}
+\item{bbox}{Numeric vector \code{c(xmin, ymin, xmax, ymax)}, \code{sf}/\code{SpatRaster} object, or \code{lng1}.}
 
 \item{padding}{Viewport padding in pixels (default \code{40}).}
 

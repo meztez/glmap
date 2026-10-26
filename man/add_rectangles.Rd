@@ -21,7 +21,14 @@ add_rectangles(
   label = NULL,
   id = NULL,
   group = NULL,
-  legend = FALSE
+  legend = FALSE,
+  fillColor = NULL,
+  fillOpacity = NULL,
+  color = NULL,
+  weight = NULL,
+  opacity = NULL,
+  layerId = NULL,
+  highlightOptions = NULL
 )
 }
 \arguments{
@@ -52,6 +59,8 @@ add_rectangles(
 \item{group}{Layer group name shown in the interactive layer switcher.}
 
 \item{legend}{Logical; whether to automatically add a legend when \code{color} is mapped to data.}
+
+\item{fillColor, fillOpacity, color, weight, opacity, layerId, highlightOptions}{Optional \code{leaflet::addRectangles()} compatibility parameters.}
 }
 \description{
 Drop-in equivalent of \code{leaflet::addRectangles()}.

@@ -19,13 +19,14 @@ add_legend(
   values = NULL,
   opacity = 1,
   layerId = NULL,
-  labFormat = NULL
+  labFormat = NULL,
+  data = NULL
 )
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
 
-\item{title}{Legend title.}
+\item{title}{Legend title (or \code{position} string when called positionally like \code{addLegend(map, "bottomright", ...)}).}
 
 \item{colors}{Character vector of hex/CSS colors (or a palette function when \code{pal} is used).}
 
@@ -43,16 +44,20 @@ add_legend(
 
 \item{group}{Optional associated layer group name (legend hides automatically when group is hidden).}
 
-\item{pal}{Optional \code{leaflet::colorNumeric} palette function for drop-in \code{leaflet::addLegend()} compatibility.}
+\item{pal}{Optional \code{color_numeric} / \code{leaflet::colorNumeric} palette function for drop-in \code{leaflet::addLegend()} compatibility.}
 
-\item{values}{Optional numeric values vector when using \code{pal}.}
+\item{values}{Optional numeric/categorical values vector or formula (\code{~val}) when using \code{pal}.}
 
 \item{opacity}{Optional numeric opacity.}
 
 \item{layerId}{Optional alias for \code{layer_id} (\code{leaflet} compatibility).}
 
 \item{labFormat}{Optional label format function (\code{leaflet} compatibility).}
+
+\item{data}{Optional dataset used to evaluate \code{values = ~col} formulas (defaults to map data).}
 }
 \description{
-Add a Custom Map Legend (\code{add_legend})
+Supports both \code{glmap} native arguments (\code{title}, \code{colors}, \code{labels}, \code{domain}, \code{position})
+and \code{leaflet::addLegend(map, position = "bottomright", pal = pal, values = ~val, title = ...)}
+positional and formula arguments.
 }

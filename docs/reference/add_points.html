@@ -11,7 +11,7 @@ outlines, variable radius, and interactive picking)."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,7 +72,12 @@ outlines, variable radius, and interactive picking).</p>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dynamic_viewport <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  legend <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  lng <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  lng <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fillColor <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fillOpacity <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  weight <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  layerId <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  labelOptions <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -178,6 +183,10 @@ only the visible viewport slice via the local <code>httpuv</code> server.</p></d
 
 <dt id="arg-lng">lng<a class="anchor" aria-label="anchor" href="#arg-lng"></a></dt>
 <dd><p>Optional alias for <code>lon</code> (<code>leaflet</code> compatibility).</p></dd>
+
+
+<dt id="arg-fillcolor-fillopacity-weight-layerid-labeloptions">fillColor, fillOpacity, weight, layerId, labelOptions<a class="anchor" aria-label="anchor" href="#arg-fillcolor-fillopacity-weight-layerid-labeloptions"></a></dt>
+<dd><p>Optional <code><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">leaflet::addCircleMarkers()</a></code> compatibility aliases.</p></dd>
 
 </dl></div>
     <div class="section level2">

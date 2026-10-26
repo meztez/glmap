@@ -21,7 +21,16 @@ add_circles(
   n_segments = 24L,
   id = NULL,
   group = NULL,
-  legend = TRUE
+  legend = TRUE,
+  lng = NULL,
+  fillColor = NULL,
+  fillOpacity = NULL,
+  color = NULL,
+  weight = NULL,
+  opacity = NULL,
+  layerId = NULL,
+  highlightOptions = NULL,
+  labelOptions = NULL
 )
 }
 \arguments{
@@ -58,6 +67,10 @@ add_circles(
 \item{group}{Layer group name shown in the interactive layer switcher.}
 
 \item{legend}{Logical; whether to automatically add a legend when \code{color} is mapped to data.}
+
+\item{lng}{Optional alias for \code{lon} (\code{leaflet} compatibility).}
+
+\item{fillColor, fillOpacity, color, weight, opacity, layerId, highlightOptions, labelOptions}{Optional \code{leaflet::addCircles()} compatibility parameters.}
 }
 \description{
 Drop-in equivalent of \code{leaflet::addCircles()}. Unlike \code{\link[=add_points]{add_points()}} (where

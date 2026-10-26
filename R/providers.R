@@ -354,6 +354,7 @@ gl_list_providers <- function() {
 #' @param api_key Optional API key string for the provider (or set globally via [gl_set_api_key()] / env vars).
 #' @param key_param Optional query parameter name when appending `api_key` to a URL without placeholders (default auto-detected per provider, e.g., `"key"` or `"api_key"`).
 #' @param attribution Optional custom attribution string when passing a custom `{z}/{x}/{y}` URL.
+#' @param layerId,group,options Optional arguments kept for `leaflet::addProviderTiles()` compatibility.
 #' @return Updated `glmap` object.
 #' @export
 add_provider_tiles <- function(
@@ -361,8 +362,19 @@ add_provider_tiles <- function(
     provider = gl_providers$CartoDB.DarkMatter,
     api_key = NULL,
     key_param = NULL,
-    attribution = ""
+    attribution = "",
+    layerId = NULL,
+    group = NULL,
+    options = list()
 ) {
+  if (is.list(options) && !is.null(options$id) && tolower(as.character(provider[1])) == "mapbox") {
+    provider <- as.character(options$id[1])
+  }
+  api_key <- api_key %||% (if (is.list(options)) (options$accessToken %||% options$apikey %||% options$key) else NULL)
+  if (!is.null(group) && nzchar(group)) {
+    cur_bg <- map$x$controls$layer_switcher$baseGroups %||% character(0)
+    map$x$controls$layer_switcher$baseGroups <- unique(c(cur_bg, as.character(group)))
+  }
   spec <- resolve_basemap_spec(provider, api_key = api_key, key_param = key_param, attribution = attribution)
   if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "setBasemap", list(basemap = spec, name = as.character(provider[1]))))

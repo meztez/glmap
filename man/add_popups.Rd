@@ -7,21 +7,21 @@
 \usage{
 add_popups(
   map,
-  data = NULL,
   lon = NULL,
   lat = NULL,
   popup = NULL,
   id = NULL,
   group = NULL,
-  lng = NULL
+  lng = NULL,
+  options = NULL,
+  data = NULL,
+  layerId = NULL
 )
 
 clear_popups(map)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
-
-\item{data}{Optional \code{sf} or \code{data.frame} object.}
 
 \item{lon, lat}{Longitude and latitude coordinates or formulas (\code{~lon}, \code{~lat}).}
 
@@ -32,6 +32,12 @@ clear_popups(map)
 \item{group}{Layer group name.}
 
 \item{lng}{Optional alias for \code{lon} (\code{leaflet} compatibility).}
+
+\item{options}{Optional popup options list.}
+
+\item{data}{Optional \code{sf} or \code{data.frame} object.}
+
+\item{layerId}{Optional layer ID (\code{leaflet} compatibility).}
 }
 \description{
 Drop-in equivalents of \code{leaflet::addPopups()} and \code{leaflet::clearPopups()}.

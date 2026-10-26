@@ -12,8 +12,183 @@ eval_aesthetic <- function(val, data) {
   if (is.character(val) && length(val) == 1L && !is.null(data) && is.data.frame(data) && val %in% names(data)) {
     return(data[[val]])
   }
+  if (inherits(val, "html")) {
+    return(as.character(val))
+  }
+  if (is.list(val) && !is.data.frame(val) && all(vapply(val, function(x) is.character(x) || inherits(x, c("html", "shiny.tag", "shiny.tag.list")), logical(1)))) {
+    return(vapply(val, as.character, character(1)))
+  }
   val
 }
+
+#' Leaflet-Compatible Color Palette Functions (`color_numeric`, `color_bin`, `color_quantile`, `color_factor`, `label_format`)
+#'
+#' Drop-in equivalents of `leaflet::colorNumeric()`, `leaflet::colorBin()`,
+#' `leaflet::colorQuantile()`, `leaflet::colorFactor()`, and `leaflet::labelFormat()`.
+#' While `glmap` natively supports passing `color = ~col, palette = "viridis"` directly
+#' to layer functions without creating manual palette functions, these functions allow
+#' existing `leaflet` scripts and Shiny apps that construct `pal <- colorNumeric(...)`
+#' and call `addPolygons(fillColor = ~pal(val)) |> addLegend(pal = pal, values = ~val)`
+#' to run with zero code modifications.
+#'
+#' @param palette Color palette name (`"viridis"`, `"YlOrRd"`, `"Blues"`, `"RdYlBu"`, etc.),
+#'   character vector of hex/named colors, or palette function.
+#' @param domain Numeric or categorical vector (or range) defining the input domain.
+#' @param na.color Color string used for `NA` values (default `"#808080"`).
+#' @param alpha Logical; whether to preserve alpha channel (default `FALSE`).
+#' @param reverse Logical; whether to reverse the color ramp (default `FALSE`).
+#' @return A palette function carrying `"paletteType"`, `"colorArgs"`, and `"domain"` attributes
+#'   compatible with both `glmap::add_legend()` and `leaflet::addLegend()`.
+#' @export
+color_numeric <- function(palette, domain, na.color = "#808080", alpha = FALSE, reverse = FALSE) {
+  rng <- if (!is.null(domain)) range(as.numeric(domain), na.rm = TRUE, finite = TRUE) else NULL
+  pal_cols <- resolve_palette_colors(palette, 256L)
+  if (isTRUE(reverse)) pal_cols <- rev(pal_cols)
+  if (!isTRUE(alpha)) pal_cols <- substr(pal_cols, 1L, 7L)
+
+  fn <- function(x) {
+    x_num <- as.numeric(x)
+    r <- rng %||% range(x_num, na.rm = TRUE, finite = TRUE)
+    if (!all(is.finite(r)) || r[1] == r[2]) {
+      idx <- ifelse(is.na(x_num), NA_integer_, 128L)
+    } else {
+      idx <- as.integer(floor(((x_num - r[1]) / (r[2] - r[1])) * 255)) + 1L
+      idx <- pmax(1L, pmin(256L, idx))
+    }
+    out <- pal_cols[idx]
+    out[is.na(x_num) | x_num < r[1] | x_num > r[2]] <- na.color
+    out
+  }
+  attr(fn, "colorType") <- "numeric"
+  attr(fn, "colorArgs") <- list(palette = palette, domain = rng, na.color = na.color)
+  fn
+}
+
+#' @param bins Numeric vector of explicit cut breaks or single integer number of bins (default `7`).
+#' @param pretty Logical; whether to use `pretty()` breaks when `bins` is a single number (default `TRUE`).
+#' @param right Logical; whether intervals are closed on the right (default `FALSE`).
+#' @rdname color_numeric
+#' @export
+color_bin <- function(palette, domain, bins = 7, pretty = TRUE, na.color = "#808080", alpha = FALSE, reverse = FALSE, right = FALSE) {
+  calc_breaks <- function(d) {
+    if (length(bins) > 1L) return(sort(as.numeric(bins)))
+    rng <- range(as.numeric(d), na.rm = TRUE, finite = TRUE)
+    if (!all(is.finite(rng))) rng <- c(0, 1)
+    if (isTRUE(pretty)) pretty(rng, n = as.integer(bins)) else seq(rng[1], rng[2], length.out = as.integer(bins) + 1L)
+  }
+  brks <- if (!is.null(domain)) calc_breaks(domain) else NULL
+
+  fn <- function(x) {
+    x_num <- as.numeric(x)
+    b <- brks %||% calc_breaks(x_num)
+    n_bins <- max(1L, length(b) - 1L)
+    pal_cols <- resolve_palette_colors(palette, max(3L, n_bins))[seq_len(n_bins)]
+    if (isTRUE(reverse)) pal_cols <- rev(pal_cols)
+    if (!isTRUE(alpha)) pal_cols <- substr(pal_cols, 1L, 7L)
+    idx <- findInterval(x_num, b, rightmost.closed = TRUE, left.open = isTRUE(right))
+    idx[idx < 1L | idx > n_bins] <- NA_integer_
+    out <- pal_cols[idx]
+    out[is.na(out)] <- na.color
+    out
+  }
+  attr(fn, "colorType") <- "bin"
+  attr(fn, "colorArgs") <- list(palette = palette, bins = brks %||% bins, na.color = na.color)
+  fn
+}
+
+#' @param n Number of equal-count quantile bins (default `4`).
+#' @param probs Optional numeric vector of quantile probabilities in `[0, 1]`.
+#' @rdname color_numeric
+#' @export
+color_quantile <- function(palette, domain, n = 4, probs = seq(0, 1, length.out = n + 1), na.color = "#808080", alpha = FALSE, reverse = FALSE, right = FALSE) {
+  calc_q <- function(d) {
+    unique(stats::quantile(as.numeric(d), probs = probs, na.rm = TRUE, names = FALSE))
+  }
+  brks <- if (!is.null(domain)) calc_q(domain) else NULL
+
+  fn <- function(x) {
+    x_num <- as.numeric(x)
+    b <- brks %||% calc_q(x_num)
+    if (length(b) < 2L) b <- c(min(x_num, na.rm = TRUE), max(x_num, na.rm = TRUE) + 1e-6)
+    n_bins <- max(1L, length(b) - 1L)
+    pal_cols <- resolve_palette_colors(palette, max(3L, n_bins))[seq_len(n_bins)]
+    if (isTRUE(reverse)) pal_cols <- rev(pal_cols)
+    if (!isTRUE(alpha)) pal_cols <- substr(pal_cols, 1L, 7L)
+    idx <- findInterval(x_num, b, rightmost.closed = TRUE, left.open = isTRUE(right))
+    idx[idx < 1L | idx > n_bins] <- NA_integer_
+    out <- pal_cols[idx]
+    out[is.na(out)] <- na.color
+    out
+  }
+  attr(fn, "colorType") <- "quantile"
+  attr(fn, "colorArgs") <- list(palette = palette, probs = probs, bins = brks, na.color = na.color)
+  fn
+}
+
+#' @param levels Optional character vector of factor levels.
+#' @param ordered Logical; whether levels are ordered (default `FALSE`).
+#' @rdname color_numeric
+#' @export
+color_factor <- function(palette, domain = NULL, levels = NULL, ordered = FALSE, na.color = "#808080", alpha = FALSE, reverse = FALSE) {
+  lvls <- if (!is.null(levels)) as.character(levels) else if (!is.null(domain)) levels(as.factor(domain)) else NULL
+
+  fn <- function(x) {
+    l <- lvls %||% levels(as.factor(x))
+    n_lvls <- max(1L, length(l))
+    pal_cols <- if (is.character(palette) && length(palette) == n_lvls && all(vapply(palette, is_color_string, logical(1)))) {
+      palette
+    } else {
+      resolve_palette_colors(palette, max(3L, n_lvls))[seq_len(n_lvls)]
+    }
+    if (isTRUE(reverse)) pal_cols <- rev(pal_cols)
+    if (!isTRUE(alpha)) pal_cols <- substr(pal_cols, 1L, 7L)
+    idx <- match(as.character(x), l)
+    out <- pal_cols[idx]
+    out[is.na(out)] <- na.color
+    out
+  }
+  attr(fn, "colorType") <- "factor"
+  attr(fn, "colorArgs") <- list(palette = palette, levels = lvls, na.color = na.color)
+  fn
+}
+
+#' @param prefix,suffix Optional string prefix/suffix for legend labels.
+#' @param between Separator string between bin bounds (default `" - "`).
+#' @param digits Number of significant digits for numeric legend formatting.
+#' @param big.mark Thousands separator (default `","`).
+#' @param transform Optional function applied to numeric values before formatting.
+#' @rdname color_numeric
+#' @export
+label_format <- function(prefix = "", suffix = "", between = " - ", digits = 3, big.mark = ",", transform = identity) {
+  function(type = "numeric", cuts) {
+    vals <- transform(cuts)
+    if (identical(type, "bin") && length(vals) >= 2L) {
+      f <- formatC(vals, digits = digits, big.mark = big.mark, format = "fg")
+      return(paste0(prefix, f[-length(f)], between, f[-1L], suffix))
+    }
+    paste0(prefix, format(vals, digits = digits, big.mark = big.mark, trim = TRUE), suffix)
+  }
+}
+
+#' @rdname color_numeric
+#' @export
+colorNumeric <- color_numeric
+
+#' @rdname color_numeric
+#' @export
+colorBin <- color_bin
+
+#' @rdname color_numeric
+#' @export
+colorQuantile <- color_quantile
+
+#' @rdname color_numeric
+#' @export
+colorFactor <- color_factor
+
+#' @rdname color_numeric
+#' @export
+labelFormat <- label_format
 
 is_color_string <- function(x) {
   if (!is.character(x) || length(x) == 0L) return(FALSE)

@@ -265,7 +265,19 @@ gl_pack_sf_binary <- function(
     }
   }
 
-  # Fast path 0d: terra::SpatVector or legacy sp::Spatial* objects
+  # Fast path 0e: two-column numeric matrix (lon, lat) or maps::map object
+  if (is.matrix(data) && is.numeric(data) && ncol(data) >= 2L) {
+    raw_buf <- cpp_pack_points_xy(as.numeric(data[, 1]), as.numeric(data[, 2]), rgba, radius, elevation)
+    hdr <- read_glmp_header(raw_buf)
+    attr(raw_buf, "bbox") <- hdr$bbox
+    attr(raw_buf, "geom_type") <- "POINT"
+    attr(raw_buf, "n_features") <- hdr$n_features
+    attr(raw_buf, "n_vertices") <- hdr$n_vertices
+    return(raw_buf)
+  }
+  if (inherits(data, "map") && requireNamespace("sf", quietly = TRUE)) {
+    data <- sf::st_as_sf(data)
+  }
   if (inherits(data, "SpatVector") && requireNamespace("sf", quietly = TRUE)) {
     data <- sf::st_as_sf(data)
   } else if (inherits(data, "Spatial") && requireNamespace("sf", quietly = TRUE)) {

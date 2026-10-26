@@ -70,18 +70,32 @@ set_max_bounds <- function(map, bbox) {
 
 #' Fit Map Camera to a Bounding Box `[xmin, ymin, xmax, ymax]` (`fit_bounds`)
 #'
+#' Supports both `fit_bounds(map, c(xmin, ymin, xmax, ymax))` (or an `sf`/`SpatRaster` object)
+#' and `leaflet::fitBounds(map, lng1, lat1, lng2, lat2)` 4-argument calls (including formulas `~min(long)`).
+#'
 #' @param map A `glmap` widget or `glmap_proxy`.
-#' @param bbox Numeric vector `c(xmin, ymin, xmax, ymax)` or an `sf`/`SpatRaster` object.
+#' @param bbox Numeric vector `c(xmin, ymin, xmax, ymax)`, `sf`/`SpatRaster` object, or `lng1`.
+#' @param lat1 Optional `lat1` when called with 4 coordinate arguments (`lng1, lat1, lng2, lat2`).
+#' @param lng2 Optional `lng2` when called with 4 coordinate arguments.
+#' @param lat2 Optional `lat2` when called with 4 coordinate arguments.
 #' @param padding Viewport padding in pixels (default `40`).
 #' @export
-fit_bounds <- function(map, bbox, padding = 40) {
-  if (inherits(bbox, c("sf", "sfc"))) {
+fit_bounds <- function(map, bbox, lat1 = NULL, lng2 = NULL, lat2 = NULL, padding = 40) {
+  data <- attr(map$x, "glmap_data")
+  if (!is.null(lat1) && !is.null(lng2) && !is.null(lat2)) {
+    x1 <- as.numeric(eval_aesthetic(bbox, data))[1]
+    y1 <- as.numeric(eval_aesthetic(lat1, data))[1]
+    x2 <- as.numeric(eval_aesthetic(lng2, data))[1]
+    y2 <- as.numeric(eval_aesthetic(lat2, data))[1]
+    bbox <- c(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+  } else if (inherits(bbox, c("sf", "sfc"))) {
     bbox <- as.numeric(sf::st_bbox(bbox))
   } else if (inherits(bbox, "SpatRaster")) {
     ext <- as.vector(terra::ext(bbox))
     bbox <- c(unname(ext[1]), unname(ext[3]), unname(ext[2]), unname(ext[4]))
+  } else {
+    bbox <- as.numeric(bbox)[1:4]
   }
-  bbox <- as.numeric(bbox)[1:4]
   if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "fitBounds", list(bounds = bbox, padding = padding)))
   }
@@ -279,8 +293,12 @@ layers_control_options <- function(collapsed = TRUE, autoZIndex = TRUE) {
 
 #' Add a Custom Map Legend (`add_legend`)
 #'
+#' Supports both `glmap` native arguments (`title`, `colors`, `labels`, `domain`, `position`)
+#' and `leaflet::addLegend(map, position = "bottomright", pal = pal, values = ~val, title = ...)`
+#' positional and formula arguments.
+#'
 #' @param map A `glmap` widget or `glmap_proxy`.
-#' @param title Legend title.
+#' @param title Legend title (or `position` string when called positionally like `addLegend(map, "bottomright", ...)`).
 #' @param colors Character vector of hex/CSS colors (or a palette function when `pal` is used).
 #' @param labels Character vector of category labels (for categorical legends).
 #' @param domain Numeric vector `c(min, max)` (for continuous legends).
@@ -289,11 +307,12 @@ layers_control_options <- function(collapsed = TRUE, autoZIndex = TRUE) {
 #' @param order Numeric draw order within the anchor zone (default `20`).
 #' @param layer_id Optional associated layer ID.
 #' @param group Optional associated layer group name (legend hides automatically when group is hidden).
-#' @param pal Optional `leaflet::colorNumeric` palette function for drop-in `leaflet::addLegend()` compatibility.
-#' @param values Optional numeric values vector when using `pal`.
+#' @param pal Optional `color_numeric` / `leaflet::colorNumeric` palette function for drop-in `leaflet::addLegend()` compatibility.
+#' @param values Optional numeric/categorical values vector or formula (`~val`) when using `pal`.
 #' @param opacity Optional numeric opacity.
 #' @param layerId Optional alias for `layer_id` (`leaflet` compatibility).
 #' @param labFormat Optional label format function (`leaflet` compatibility).
+#' @param data Optional dataset used to evaluate `values = ~col` formulas (defaults to map data).
 #' @export
 add_legend <- function(
     map,
@@ -310,16 +329,55 @@ add_legend <- function(
     values = NULL,
     opacity = 1.0,
     layerId = NULL,
-    labFormat = NULL
+    labFormat = NULL,
+    data = NULL
 ) {
+  # Detect positional `add_legend(map, "bottomright", pal = ..., values = ...)`
+  pos_tokens <- c("topleft", "topright", "bottomleft", "bottomright", "top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "center-left", "center-right")
+  if (is.character(title) && length(title) == 1L && tolower(title) %in% pos_tokens && identical(position, "bottom-right")) {
+    position <- title
+    title <- if (inherits(values, "formula")) rlang::as_label(rlang::f_rhs(values)) else "Legend"
+  }
+  if (is.null(title)) title <- ""
+
+  data <- data %||% attr(map$x, "glmap_data")
+  if (!is.null(values)) {
+    values <- eval_aesthetic(values, data)
+  }
+
   layer_id <- layer_id %||% layerId %||% group %||% next_layer_id("legend")
   pos_norm <- normalize_anchor_position(position)
 
   if (!is.null(pal) && is.function(pal) && !is.null(values)) {
-    rng <- range(values, na.rm = TRUE, finite = TRUE)
-    if (!all(is.finite(rng))) rng <- c(0, 1)
-    domain <- domain %||% rng
-    colors <- pal(seq(rng[1], rng[2], length.out = 7L))
+    col_type <- attr(pal, "colorType") %||% "numeric"
+    col_args <- attr(pal, "colorArgs") %||% list()
+    if (identical(col_type, "factor") || is.factor(values) || is.character(values)) {
+      lvls <- col_args$levels %||% levels(as.factor(values))
+      colors <- pal(lvls)
+      labels <- if (is.function(labFormat)) labFormat(type = "factor", lvls) else lvls
+    } else if (identical(col_type, "bin")) {
+      b <- col_args$bins
+      if (length(b) <= 1L) b <- pretty(range(as.numeric(values), na.rm = TRUE, finite = TRUE), n = as.integer(b %||% 7L))
+      mids <- 0.5 * (b[-length(b)] + b[-1L])
+      colors <- pal(mids)
+      labels <- if (is.function(labFormat)) {
+        labFormat(type = "bin", b)
+      } else {
+        paste0(format(b[-length(b)], trim = TRUE), " - ", format(b[-1L], trim = TRUE))
+      }
+    } else if (identical(col_type, "quantile")) {
+      probs <- col_args$probs %||% seq(0, 1, length.out = 5L)
+      q_cuts <- stats::quantile(as.numeric(values), probs = probs, na.rm = TRUE, names = FALSE)
+      mids <- 0.5 * (q_cuts[-length(q_cuts)] + q_cuts[-1L])
+      colors <- pal(mids)
+      pcts <- paste0(round(probs * 100), "%")
+      labels <- paste0(pcts[-length(pcts)], " - ", pcts[-1L])
+    } else {
+      rng <- range(as.numeric(values), na.rm = TRUE, finite = TRUE)
+      if (!all(is.finite(rng))) rng <- c(0, 1)
+      domain <- domain %||% rng
+      colors <- pal(seq(rng[1], rng[2], length.out = 7L))
+    }
   }
   colors <- as.character(colors %||% c("#440154", "#21918c", "#fde725"))
 
@@ -580,6 +638,295 @@ search_options <- function(
   )
 }
 
+#' Add an Interactive Overview MiniMap (`add_minimap`)
+#'
+#' Drop-in GPU/Canvas equivalent of `leaflet::addMiniMap()`. Adds a synchronized
+#' inset overview map with an interactive aiming rectangle showing the current
+#' viewport extent and click-to-pan navigation.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param position Anchor position in the 9-zone layout grid (default `"bottomright"`).
+#' @param width,height MiniMap dimensions in pixels (default `150`).
+#' @param zoomLevelOffset Numeric zoom offset relative to the main map (default `-5`).
+#' @param toggleDisplay Logical; whether to show a collapse/expand button on the MiniMap (default `TRUE`).
+#' @param aimingRectOptions Optional styling list for the viewport aiming rectangle.
+#' @param order Numeric draw order within the anchor zone (default `80`).
+#' @param ... Additional arguments kept for `leaflet::addMiniMap()` compatibility.
+#' @return Updated `glmap` widget or `glmap_proxy`.
+#' @export
+add_minimap <- function(
+    map,
+    position = "bottomright",
+    width = 150,
+    height = 150,
+    zoomLevelOffset = -5,
+    toggleDisplay = TRUE,
+    aimingRectOptions = list(color = "#ff7800", weight = 2),
+    order = 80,
+    ...
+) {
+  pos_norm <- normalize_anchor_position(position[1])
+  spec <- list(
+    enabled = TRUE,
+    position = pos_norm,
+    width = as.numeric(width[1] %||% 150),
+    height = as.numeric(height[1] %||% 150),
+    zoomLevelOffset = as.numeric(zoomLevelOffset[1] %||% -5),
+    toggleDisplay = isTRUE(toggleDisplay),
+    aimingColor = as.character((if (is.list(aimingRectOptions)) aimingRectOptions$color else NULL) %||% "#38bdf8"),
+    order = as.numeric(order[1])
+  )
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "addMiniMap", spec))
+  }
+  map$x$controls$minimap <- spec
+  map
+}
+
+#' Add a Coordinate Graticule Grid (`add_graticule`, `add_simple_graticule`)
+#'
+#' Drop-in GPU equivalent of `leaflet::addGraticule()` and `leaflet::addSimpleGraticule()`.
+#' Generates latitude/longitude meridian and parallel lines at the specified `interval`
+#' (in degrees) and renders them as a fast WebGL line layer.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param interval Spacing between graticule lines in degrees (default `20`).
+#' @param sphere Logical; kept for `leaflet::addGraticule()` compatibility.
+#' @param style Styling list (`list(color = "#333", weight = 1, opacity = 0.45)`).
+#' @param id Layer ID (default `"graticule"`).
+#' @param group Layer group name (default `"Graticule"`).
+#' @param ... Additional arguments kept for compatibility.
+#' @return Updated `glmap` widget or `glmap_proxy`.
+#' @export
+add_graticule <- function(
+    map,
+    interval = 20,
+    sphere = FALSE,
+    style = list(color = "#64748b", weight = 1, opacity = 0.45),
+    id = "graticule",
+    group = "Graticule",
+    ...
+) {
+  step <- max(1, as.numeric(interval[1] %||% 20))
+  lons <- seq(-180, 180, by = step)
+  lats <- seq(-80, 80, by = step)
+  lat_seq <- seq(-80, 80, length.out = 65L)
+  lon_seq <- seq(-180, 180, length.out = 91L)
+
+  meridians <- lapply(lons, function(x0) {
+    structure(cbind(rep(x0, length(lat_seq)), lat_seq), class = c("XY", "LINESTRING", "sfg"))
+  })
+  parallels <- lapply(lats, function(y0) {
+    structure(cbind(lon_seq, rep(y0, length(lon_seq))), class = c("XY", "LINESTRING", "sfg"))
+  })
+  sfc_grat <- structure(c(meridians, parallels), class = c("sfc_LINESTRING", "sfc"))
+  if (requireNamespace("sf", quietly = TRUE)) {
+    sf::st_crs(sfc_grat) <- 4326
+  }
+
+  col <- (if (is.list(style)) style$color else NULL) %||% "#64748b"
+  w <- as.numeric((if (is.list(style)) style$weight else NULL) %||% 1.0)
+  op <- as.numeric((if (is.list(style)) style$opacity else NULL) %||% 0.45)
+
+  # Preserve current view bounds so adding a global graticule doesn't override data bounds
+  prev_bounds <- map$x$view$bounds
+  map <- add_lines(
+    map = map,
+    data = sfc_grat,
+    color = col,
+    width = w,
+    opacity = op,
+    id = id,
+    group = group,
+    legend = FALSE
+  )
+  map$x$view$bounds <- prev_bounds
+  map
+}
+
+#' @rdname add_graticule
+#' @export
+add_simple_graticule <- function(map, interval = 20, id = "graticule", group = "Graticule", ...) {
+  add_graticule(map = map, interval = interval, id = id, group = group, ...)
+}
+
+#' Add a Solar Day/Night Terminator Polygon Layer (`add_terminator`)
+#'
+#' Drop-in GPU equivalent of `leaflet::addTerminator()`. Computes the solar
+#' declination and hour angle for `time` (defaults to current UTC time) and
+#' renders the night-time hemisphere polygon on the GPU.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param resolution Number of longitude vertices along the terminator curve (default `180L`).
+#' @param time POSIXct timestamp or ISO string (defaults to `Sys.time()`).
+#' @param fill_color Night polygon fill color (default `"#020617"`).
+#' @param fill_opacity Night polygon fill opacity (default `0.38`).
+#' @param id Layer ID (default `"terminator"`).
+#' @param group Layer group name (default `"Day/Night"`).
+#' @param ... Additional arguments kept for compatibility.
+#' @return Updated `glmap` widget or `glmap_proxy`.
+#' @export
+add_terminator <- function(
+    map,
+    resolution = 180L,
+    time = Sys.time(),
+    fill_color = "#020617",
+    fill_opacity = 0.38,
+    id = "terminator",
+    group = "Day/Night",
+    ...
+) {
+  t_utc <- as.POSIXlt(time, tz = "UTC")
+  doy <- as.numeric(t_utc$yday) + 1.0
+  utc_hours <- as.numeric(t_utc$hour) + as.numeric(t_utc$min) / 60.0 + as.numeric(t_utc$sec) / 3600.0
+
+  # Solar declination in radians
+  gamma <- 2.0 * pi * (doy - 1.0 + (utc_hours - 12.0) / 24.0) / 365.0
+  decl <- 0.006918 - 0.399912 * cos(gamma) + 0.070257 * sin(gamma) -
+    0.006758 * cos(2 * gamma) + 0.000907 * sin(2 * gamma)
+  if (abs(decl) < 1e-4) decl <- 1e-4
+
+  # Subsolar longitude
+  sun_lon <- (12.0 - utc_hours) * 15.0
+  lons <- seq(-180, 180, length.out = max(36L, as.integer(resolution)))
+  ha <- (lons - sun_lon) * (pi / 180.0)
+  term_lats <- atan(-cos(ha) / tan(decl)) * (180.0 / pi)
+  term_lats <- pmax(-84.5, pmin(84.5, term_lats))
+
+  # Close polygon over whichever pole is currently in darkness
+  dark_pole_lat <- if (decl > 0) -85.0 else 85.0
+  ring <- rbind(
+    c(-180.0, dark_pole_lat),
+    cbind(lons, term_lats),
+    c(180.0, dark_pole_lat),
+    c(-180.0, dark_pole_lat)
+  )
+  poly_sfg <- structure(list(ring), class = c("XY", "POLYGON", "sfg"))
+  sfc_term <- structure(list(poly_sfg), class = c("sfc_POLYGON", "sfc"))
+  if (requireNamespace("sf", quietly = TRUE)) {
+    sf::st_crs(sfc_term) <- 4326
+  }
+
+  prev_bounds <- map$x$view$bounds
+  map <- add_polygons(
+    map = map,
+    data = sfc_term,
+    fill_color = fill_color,
+    fill_opacity = fill_opacity,
+    stroke = TRUE,
+    line_color = "#38bdf8",
+    line_width = 1.2,
+    id = id,
+    group = group,
+    legend = FALSE
+  )
+  map$x$view$bounds <- prev_bounds
+  map
+}
+
+#' Leaflet Option Helpers (`highlight_options`, `label_options`, `popup_options`, `provider_tile_options`, `wms_tile_options`)
+#'
+#' Drop-in equivalents of `leaflet::highlightOptions()`, `leaflet::labelOptions()`,
+#' `leaflet::popupOptions()`, `leaflet::providerTileOptions()`, and `leaflet::WMSTileOptions()`.
+#'
+#' @param stroke,color,weight,opacity,fill,fillColor,fillOpacity,dashArray,bringToFront,sendToBack Hover highlight styling options.
+#' @export
+highlight_options <- function(
+    stroke = NULL,
+    color = "#ffffff",
+    weight = 3,
+    opacity = 1.0,
+    fill = NULL,
+    fillColor = NULL,
+    fillOpacity = 0.75,
+    dashArray = NULL,
+    bringToFront = TRUE,
+    sendToBack = FALSE
+) {
+  list(
+    stroke = stroke,
+    color = color,
+    weight = weight,
+    opacity = opacity,
+    fill = fill,
+    fillColor = fillColor,
+    fillOpacity = fillOpacity,
+    dashArray = dashArray,
+    bringToFront = isTRUE(bringToFront),
+    sendToBack = isTRUE(sendToBack)
+  )
+}
+
+#' @param interactive,clickable,noHide,permanent,className,direction,offset,textsize,textOnly,style,sticky Label display options.
+#' @param ... Additional options kept for `leaflet` compatibility.
+#' @rdname highlight_options
+#' @export
+label_options <- function(
+    interactive = FALSE,
+    clickable = NULL,
+    noHide = FALSE,
+    permanent = FALSE,
+    className = "",
+    direction = "auto",
+    offset = c(0, 0),
+    opacity = 1,
+    textsize = "12px",
+    textOnly = FALSE,
+    style = NULL,
+    sticky = TRUE,
+    ...
+) {
+  list(
+    interactive = isTRUE(interactive),
+    noHide = isTRUE(noHide) || isTRUE(permanent),
+    className = className,
+    direction = direction,
+    offset = offset,
+    opacity = opacity,
+    textsize = textsize,
+    textOnly = isTRUE(textOnly),
+    style = style,
+    sticky = isTRUE(sticky)
+  )
+}
+
+#' @param maxWidth,minWidth,maxHeight,autoPan,keepInView,closeButton,closeOnClick Popup options.
+#' @rdname highlight_options
+#' @export
+popup_options <- function(
+    maxWidth = 300,
+    minWidth = 50,
+    maxHeight = NULL,
+    autoPan = TRUE,
+    keepInView = FALSE,
+    closeButton = TRUE,
+    closeOnClick = NULL,
+    ...
+) {
+  list(
+    maxWidth = maxWidth,
+    minWidth = minWidth,
+    maxHeight = maxHeight,
+    autoPan = isTRUE(autoPan),
+    keepInView = isTRUE(keepInView),
+    closeButton = isTRUE(closeButton),
+    closeOnClick = closeOnClick
+  )
+}
+
+#' @rdname highlight_options
+#' @export
+provider_tile_options <- function(...) {
+  list(...)
+}
+
+#' @param styles,format,transparent,version WMS tile option parameters.
+#' @rdname highlight_options
+#' @export
+wms_tile_options <- function(styles = "", format = "image/png", transparent = TRUE, version = "1.1.1", ...) {
+  list(styles = styles, format = format, transparent = isTRUE(transparent), version = version, ...)
+}
+
 #' Save a `glmap` Map to a Standalone HTML File (`gl_save_html`)
 #'
 #' @param map A `glmap` widget.
@@ -595,6 +942,41 @@ gl_save_html <- function(map, file, selfcontained = FALSE, title = "glmap GPU Ma
     selfcontained = selfcontained,
     title = title
   )
+  invisible(normalizePath(file, mustWork = FALSE))
+}
+
+#' Capture a High-Resolution Static PNG Screenshot of a `glmap` Widget (`gl_save_png`)
+#'
+#' Renders a `glmap` widget in headless Chromium (`chromote`) with WebGL2
+#' `preserveDrawingBuffer = TRUE` and captures a crisp static `.png` snapshot
+#' suitable for Quarto PDF / LaTeX / Word reports, slides, and automated visual testing.
+#'
+#' @param map A `glmap` widget.
+#' @param file Output `.png` file path.
+#' @param vwidth,vheight Viewport width and height in pixels (default `1000` x `650`).
+#' @param delay Seconds to wait after page load for basemap tiles and GPU textures to settle (default `1.5`).
+#' @return Normalized path to the saved `.png` file (invisibly).
+#' @export
+gl_save_png <- function(map, file, vwidth = 1000, vheight = 650, delay = 1.5) {
+  if (!requireNamespace("chromote", quietly = TRUE)) {
+    cli::cli_abort("Package {.pkg chromote} is required for {.fn gl_save_png}.")
+  }
+  tmp_dir <- tempfile("glmap_snap_")
+  dir.create(tmp_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
+
+  tmp_html <- file.path(tmp_dir, "index.html")
+  map$width <- "100%"
+  map$height <- paste0(as.integer(vheight), "px")
+  htmlwidgets::saveWidget(map, file = tmp_html, selfcontained = FALSE)
+
+  b <- chromote::ChromoteSession$new(width = as.integer(vwidth), height = as.integer(vheight))
+  on.exit(try(b$close(), silent = TRUE), add = TRUE)
+
+  url <- paste0("file:///", gsub("\\\\", "/", normalizePath(tmp_html, mustWork = TRUE)))
+  b$Page$navigate(url, wait_ = TRUE)
+  Sys.sleep(as.numeric(delay))
+  b$screenshot(filename = file, wait_ = TRUE)
   invisible(normalizePath(file, mustWork = FALSE))
 }
 

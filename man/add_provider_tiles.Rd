@@ -9,7 +9,10 @@ add_provider_tiles(
   provider = gl_providers$CartoDB.DarkMatter,
   api_key = NULL,
   key_param = NULL,
-  attribution = ""
+  attribution = "",
+  layerId = NULL,
+  group = NULL,
+  options = list()
 )
 }
 \arguments{
@@ -22,6 +25,8 @@ add_provider_tiles(
 \item{key_param}{Optional query parameter name when appending \code{api_key} to a URL without placeholders (default auto-detected per provider, e.g., \code{"key"} or \code{"api_key"}).}
 
 \item{attribution}{Optional custom attribution string when passing a custom \code{{z}/{x}/{y}} URL.}
+
+\item{layerId, group, options}{Optional arguments kept for \code{leaflet::addProviderTiles()} compatibility.}
 }
 \value{
 Updated \code{glmap} object.

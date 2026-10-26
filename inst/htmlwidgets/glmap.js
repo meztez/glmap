@@ -406,6 +406,11 @@
       this.measureControlEl.className = "glmap-panel glmap-measure-control";
       this.measureControlEl.style.display = "none";
 
+      // Overview MiniMap Control (leaflet::addMiniMap equivalent)
+      this.miniMapEl = document.createElement("div");
+      this.miniMapEl.className = "glmap-panel glmap-minimap-control";
+      this.miniMapEl.style.display = "none";
+
       // Bottom-center HUD (FPS, feature count, cursor lon/lat/raster value)
       this.hudEl = document.createElement("div");
       this.hudEl.className = "glmap-panel glmap-hud";
@@ -466,6 +471,9 @@
       }
       if (ctrls.measure && ctrls.measure.enabled) {
         this.addMeasureControl(ctrls.measure);
+      }
+      if (ctrls.minimap && ctrls.minimap.enabled) {
+        this.addMiniMapControl(ctrls.minimap);
       }
       this.scaleEl.style.display = (scCfg && scCfg.enabled === false) ? "none" : "block";
       this.hudEl.style.display = (hdCfg && hdCfg.enabled === false) ? "none" : "flex";
@@ -742,9 +750,13 @@
       this._rebuildLegends();
       this._updateHUD();
       this._emitActiveGroups();
+      this._onViewportChanged();
       this._initCrosstalk(x.crosstalk);
       if (x.draw_toolbar && x.draw_toolbar.enabled) {
         this.addDrawToolbar(x.draw_toolbar);
+      }
+      if (x.initial_popup) {
+        setTimeout(() => this.showPopup(x.initial_popup), 120);
       }
       this._runPlugins(x.plugins);
       this.requestRender();
@@ -809,7 +821,8 @@
             zoom: this.camera.zoom,
             pitch: 0,
             bearing: 0,
-            attributionControl: false
+            attributionControl: false,
+            preserveDrawingBuffer: true
           });
 
           if (x.controls && x.controls.navigation && x.controls.navigation.enabled) {
@@ -836,7 +849,7 @@
             syncMove();
             this._onViewportChanged();
           });
-          this.map.on("resize", () => this.resize());
+          this.map.on("resize", () => this.requestRender());
         } catch (err) {
           console.warn("MapLibre fallback to standalone WebGL2 pan/zoom controller:", err);
           this._bindStandalonePanZoom();
@@ -1175,29 +1188,38 @@
             paintSlot(img);
           } else {
             img = new Image();
+            img.crossOrigin = "anonymous";
             img.onload = () => paintSlot(img);
             img.src = url;
             this._iconCache.set(url, img);
           }
         });
       } else if (iconSpec.type === "awesome") {
-        entry.atlasCount = 1;
+        const items = Array.isArray(iconSpec.atlas) && iconSpec.atlas.length > 0
+          ? iconSpec.atlas
+          : [{ markerColor: iconSpec.markerColor || "#0284c7", iconColor: iconSpec.iconColor || "#ffffff", text: iconSpec.text || "●" }];
+        const count = items.length;
+        entry.atlasCount = count;
         const atlasCanvas = document.createElement("canvas");
-        atlasCanvas.width = cellPx;
+        atlasCanvas.width = count * cellPx;
         atlasCanvas.height = cellPx;
         const actx = atlasCanvas.getContext("2d");
-        actx.fillStyle = iconSpec.markerColor || "#0284c7";
-        actx.strokeStyle = "#ffffff";
-        actx.lineWidth = 3;
-        actx.beginPath();
-        actx.arc(cellPx * 0.5, cellPx * 0.5, cellPx * 0.38, 0, Math.PI * 2);
-        actx.fill();
-        actx.stroke();
-        actx.fillStyle = iconSpec.iconColor || "#ffffff";
-        actx.font = "bold 22px sans-serif";
-        actx.textAlign = "center";
-        actx.textBaseline = "middle";
-        actx.fillText(iconSpec.text || "●", cellPx * 0.5, cellPx * 0.5);
+        for (let i = 0; i < count; i++) {
+          const it = items[i];
+          const cxSlot = i * cellPx + cellPx * 0.5;
+          actx.fillStyle = it.markerColor || "#0284c7";
+          actx.strokeStyle = "#ffffff";
+          actx.lineWidth = 3;
+          actx.beginPath();
+          actx.arc(cxSlot, cellPx * 0.5, cellPx * 0.38, 0, Math.PI * 2);
+          actx.fill();
+          actx.stroke();
+          actx.fillStyle = it.iconColor || "#ffffff";
+          actx.font = "bold 20px sans-serif";
+          actx.textAlign = "center";
+          actx.textBaseline = "middle";
+          actx.fillText(it.text || "●", cxSlot, cellPx * 0.5);
+        }
 
         entry.atlasTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, entry.atlasTex);
@@ -1295,6 +1317,7 @@
       if (ctx2d) {
         this._renderDrawnFeatures2D(ctx2d, centerMercX, centerMercY, scale, w, h);
       }
+      this._updateMiniMap(centerMercX, centerMercY, scale, w, h);
 
       // Track frame time & effective FPS
       this._frameCount++;
@@ -1830,7 +1853,7 @@
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
       gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 0.0);
 
-      if (layer.iboTri && layer.parsed.nIndices > 0) {
+      if (layer.iboTri && layer.parsed.nIndices > 0 && (!layer.style || layer.style.fill !== false) && layer.opacity > 0.001) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboTri);
         gl.drawElements(gl.TRIANGLES, layer.parsed.nIndices, gl.UNSIGNED_INT, 0);
       }
@@ -1838,7 +1861,8 @@
       if (layer.style && layer.style.stroke && layer.iboLine) {
         const lc = layer.style.line_color || [226, 232, 240];
         gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 1.0);
-        gl.uniform4f(gl.getUniformLocation(prog, "u_uniform_color"), lc[0] / 255, lc[1] / 255, lc[2] / 255, Math.min(1.0, layer.opacity + 0.15));
+        const lineAlpha = (layer.style && layer.style.fill === false) ? 0.92 : Math.min(1.0, layer.opacity + 0.15);
+        gl.uniform4f(gl.getUniformLocation(prog, "u_uniform_color"), lc[0] / 255, lc[1] / 255, lc[2] / 255, lineAlpha);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboLine);
         gl.drawElements(gl.LINES, layer.parsed.lineIndices.length, gl.UNSIGNED_INT, 0);
       }
@@ -2023,8 +2047,12 @@
           if (Math.hypot(px - leg.sx, py - leg.sy) <= 15) {
             const layer = this.layers.get(leg.layerId);
             const fid = layer && layer.parsed ? layer.parsed.vertexFeatureIds[leg.idx] : leg.idx;
+            const customId = (layer && Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
+              ? layer.feature_ids[fid]
+              : (fid + 1);
             hitFeature = {
-              id: fid + 1,
+              id: customId,
+              featureIndex: fid + 1,
               layerId: leg.layerId,
               group: leg.group,
               type: "points",
@@ -2055,8 +2083,12 @@
             const dy = mc[2 * v + 1] - my;
             if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
               const fid = layer.parsed.vertexFeatureIds[v];
+              const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
+                ? layer.feature_ids[fid]
+                : (fid + 1);
               hitFeature = {
-                id: fid + 1,
+                id: customId,
+                featureIndex: fid + 1,
                 layerId: layer.id,
                 group: layer.group || layer.id,
                 type: layer.type,
@@ -2073,7 +2105,17 @@
         }
       }
 
+      const prevHovered = this._hoveredFeature;
       this._hoveredFeature = hitFeature;
+      const changedHover = (prevHovered ? prevHovered.id + ":" + prevHovered.layerId : "") !==
+                           (hitFeature ? hitFeature.id + ":" + hitFeature.layerId : "");
+      if (changedHover) {
+        const hitLayer = hitFeature ? this.layers.get(hitFeature.layerId) : null;
+        const prevLayer = prevHovered ? this.layers.get(prevHovered.layerId) : null;
+        if ((hitLayer && hitLayer.style && hitLayer.style.highlight) || (prevLayer && prevLayer.style && prevLayer.style.highlight)) {
+          this.requestRender();
+        }
+      }
       if (hitFeature && typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
         const evtSuffix = hitFeature.type === "points" ? "_marker_mouseover" : "_shape_mouseover";
         window.Shiny.setInputValue(this.el.id + evtSuffix, hitFeature);
@@ -2273,7 +2315,7 @@
       }
 
       this.switcherEl.style.display = "block";
-      const curBase = this._activeBaseGroup || "Dark";
+      const curBase = this._activeBaseGroup || (baseGroups.includes("Dark") ? "Dark" : baseGroups[0]);
 
       let html = `
         <div class="glmap-panel-title">
@@ -2650,6 +2692,36 @@
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
       this._updateHUD();
+      this.requestRender();
+    }
+
+    clearShapes() {
+      const toRemove = [];
+      for (const [id, l] of this.layers.entries()) {
+        if (l.type === "polygons" || l.type === "lines" || l.type === "hexbin") {
+          toRemove.push(id);
+        }
+      }
+      for (const id of toRemove) {
+        this.clearLayer(id);
+      }
+    }
+
+    clearMarkers() {
+      const toRemove = [];
+      for (const [id, l] of this.layers.entries()) {
+        if (l.type === "points" || l.type === "labels") {
+          toRemove.push(id);
+        }
+      }
+      for (const id of toRemove) {
+        this.clearLayer(id);
+      }
+    }
+
+    clearControls() {
+      this.legends = [];
+      this._rebuildLegends();
       this.requestRender();
     }
 
@@ -3250,6 +3322,115 @@
       };
     }
 
+    addMiniMapControl(spec) {
+      if (!spec || spec.enabled === false) {
+        this.miniMapEl.style.display = "none";
+        return;
+      }
+      this.miniMapSpec = spec;
+      const w = Number(spec.width || 150);
+      const h = Number(spec.height || 150);
+      const pos = spec.position || "bottom-right";
+      const ord = spec.order !== undefined ? spec.order : 80;
+      this.miniMapEl.style.display = "block";
+      this.miniMapEl.style.padding = "4px";
+      this._mountInSlot(this.miniMapEl, pos, ord);
+
+      this.miniMapEl.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:3px;padding:0 2px">
+          <span>Overview</span>
+          ${spec.toggleDisplay !== false ? `<button type="button" class="gl-mini-toggle" style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:10px;padding:0">▾</button>` : ""}
+        </div>
+        <canvas class="gl-minimap-canvas" width="${w}" height="${h}" style="width:${w}px;height:${h}px;display:block;border-radius:6px;cursor:crosshair;background:#0f172a;border:1px solid rgba(148,163,184,0.28)"></canvas>
+      `;
+      const cvs = this.miniMapEl.querySelector(".gl-minimap-canvas");
+      const tgl = this.miniMapEl.querySelector(".gl-mini-toggle");
+      if (tgl && cvs) {
+        tgl.onclick = (e) => {
+          e.stopPropagation();
+          const hidden = cvs.style.display === "none";
+          cvs.style.display = hidden ? "block" : "none";
+          tgl.textContent = hidden ? "▾" : "▸";
+        };
+      }
+      if (cvs) {
+        cvs.onclick = (e) => {
+          e.stopPropagation();
+          const r = cvs.getBoundingClientRect();
+          const px = e.clientX - r.left;
+          const py = e.clientY - r.top;
+          const zOff = Number(spec.zoomLevelOffset !== undefined ? spec.zoomLevelOffset : -5);
+          const miniZoom = Math.max(0.5, this.camera.zoom + zOff);
+          const miniScale = 128.0 * Math.pow(2.0, miniZoom);
+          const cx = lonToMercX(this.camera.centerLon);
+          const cy = latToMercY(this.camera.centerLat);
+          const targetMx = cx + (px - w * 0.5) / miniScale;
+          const targetMy = cy + (py - h * 0.5) / miniScale;
+          this.flyTo({ center: [mercXToLon(targetMx), mercYToLat(targetMy)], zoom: this.camera.zoom, duration: 500 });
+        };
+      }
+      this.requestRender();
+    }
+
+    _updateMiniMap(cx, cy, mainScale, mainW, mainH) {
+      if (!this.miniMapEl || this.miniMapEl.style.display === "none") return;
+      const cvs = this.miniMapEl.querySelector(".gl-minimap-canvas");
+      if (!cvs || cvs.style.display === "none") return;
+      const ctx = cvs.getContext("2d");
+      const spec = this.miniMapSpec || {};
+      const w = cvs.width;
+      const h = cvs.height;
+      const zOff = Number(spec.zoomLevelOffset !== undefined ? spec.zoomLevelOffset : -5);
+      const miniZoom = Math.max(0.5, this.camera.zoom + zOff);
+      const miniScale = 128.0 * Math.pow(2.0, miniZoom);
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, w, h);
+
+      // Subtle graticule lines inside minimap
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.16)";
+      ctx.lineWidth = 1;
+      for (let lon = -180; lon <= 180; lon += 30) {
+        const sx = w * 0.5 + (lonToMercX(lon) - cx) * miniScale;
+        if (sx >= 0 && sx <= w) {
+          ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, h); ctx.stroke();
+        }
+      }
+      for (let lat = -60; lat <= 60; lat += 20) {
+        const sy = h * 0.5 + (latToMercY(lat) - cy) * miniScale;
+        if (sy >= 0 && sy <= h) {
+          ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(w, sy); ctx.stroke();
+        }
+      }
+
+      // Render overview of active vector layers inside MiniMap
+      for (const l of this.layers.values()) {
+        if (!l.visible || !l.parsed || !l.parsed.mercCoords) continue;
+        const mc = l.parsed.mercCoords;
+        const nV = l.parsed.nVertices;
+        const stride = Math.max(1, Math.ceil(nV / 800));
+        ctx.fillStyle = "rgba(56, 189, 248, 0.7)";
+        for (let v = 0; v < nV; v += stride) {
+          const sx = w * 0.5 + (mc[2 * v] - cx) * miniScale;
+          const sy = h * 0.5 + (mc[2 * v + 1] - cy) * miniScale;
+          if (sx >= 0 && sx <= w && sy >= 0 && sy <= h) {
+            ctx.fillRect(sx - 1, sy - 1, 2, 2);
+          }
+        }
+      }
+
+      // Draw aiming rectangle representing current main viewport bounds
+      const aimW = Math.max(10, Math.min(w - 4, (mainW / mainScale) * miniScale));
+      const aimH = Math.max(8, Math.min(h - 4, (mainH / mainScale) * miniScale));
+      const aimCol = spec.aimingColor || "#ff7800";
+      ctx.strokeStyle = aimCol;
+      ctx.fillStyle = "rgba(255, 120, 0, 0.16)";
+      ctx.lineWidth = 1.8;
+      ctx.fillRect((w - aimW) * 0.5, (h - aimH) * 0.5, aimW, aimH);
+      ctx.strokeRect((w - aimW) * 0.5, (h - aimH) * 0.5, aimW, aimH);
+    }
+
     _finishActiveVertexShape() {
       const pts = this._activeDrawVertices.slice();
       if (this.drawMode === "polygon" && pts.length >= 3) {
@@ -3343,6 +3524,37 @@
             ctx.arc(sx, sy, 6, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
+          }
+        }
+      }
+
+      // 1a. Render hovered polygon/line highlight outline if highlightOptions is configured on the hovered layer
+      if (this._hoveredFeature && (this._hoveredFeature.type === "polygons" || this._hoveredFeature.type === "lines")) {
+        const hLayer = this.layers.get(this._hoveredFeature.layerId);
+        if (hLayer && hLayer.visible && hLayer.parsed && hLayer.style && hLayer.style.highlight && hLayer.style.highlight.enabled) {
+          const hl = hLayer.style.highlight;
+          const targetFid = (this._hoveredFeature.featureIndex !== undefined ? this._hoveredFeature.featureIndex : this._hoveredFeature.id) - 1;
+          const mc = hLayer.parsed.mercCoords;
+          const fids = hLayer.parsed.vertexFeatureIds;
+          const rs = hLayer.parsed.ringStarts;
+          const col = Array.isArray(hl.color) ? `rgb(${hl.color[0]},${hl.color[1]},${hl.color[2]})` : "#ffffff";
+          ctx.strokeStyle = col;
+          ctx.lineWidth = Number(hl.weight || 3.0);
+          ctx.setLineDash([]);
+          if (rs && rs.length >= 2) {
+            for (let r = 0; r < rs.length - 1; r++) {
+              const s = rs[r], e = rs[r + 1];
+              if (s < e && fids[s] === targetFid) {
+                ctx.beginPath();
+                for (let v = s; v < e; v++) {
+                  const sx = w * 0.5 + (mc[2 * v] - cx) * scale;
+                  const sy = h * 0.5 + (mc[2 * v + 1] - cy) * scale;
+                  if (v === s) ctx.moveTo(sx, sy);
+                  else ctx.lineTo(sx, sy);
+                }
+                ctx.stroke();
+              }
+            }
           }
         }
       }
@@ -3575,9 +3787,12 @@
     }
 
     resize() {
+      if (this._isResizing) return;
+      this._isResizing = true;
       if (this.map) {
         try { this.map.resize(); } catch (e) {}
       }
+      this._isResizing = false;
       this.requestRender();
     }
   }
@@ -3646,6 +3861,9 @@
         if (m === "addLayer") inst.addLayer(args.layer, args.legend);
         else if (m === "clearLayer") inst.clearLayer(args.id);
         else if (m === "clearLayers") inst.clearLayers();
+        else if (m === "clearShapes") inst.clearShapes();
+        else if (m === "clearMarkers") inst.clearMarkers();
+        else if (m === "clearControls") inst.clearControls();
         else if (m === "setLayerVisibility") inst.setLayerVisibility(args.id, args.visible);
         else if (m === "setGroupVisibility") inst.setGroupVisibility(args.group, args.visible);
         else if (m === "clearGroup") inst.clearGroup(args.group);
@@ -3654,6 +3872,7 @@
         else if (m === "setMarkerMode") inst.setMarkerMode(args);
         else if (m === "addMeasureControl") inst.addMeasureControl(args);
         else if (m === "addSearchControl") inst.addSearchControl(args);
+        else if (m === "addMiniMap") inst.addMiniMapControl(args);
         else if (m === "showPopup") inst.showPopup(args);
         else if (m === "clearPopups") inst.clearPopups();
         else if (m === "setBasemap") inst.setBasemap(args);

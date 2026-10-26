@@ -249,4 +249,16 @@ The package ships with three complete, runnable examples in `inst/examples/`:
 
 ## 7. Instructions for AI Coding Agents
 
-If you are an AI agent (Copilot, Claude, Cursor, etc.) generating or refactoring R mapping code in this workspace, read [AGENTS.md](./AGENTS.md) for deterministic rules on replacing `leaflet` with `glmap`.
+---
+
+## 8. Licensing & Bundled Open-Source Attributions
+
+`glmap` is released under the permissive **MIT License** (`LICENSE`, `LICENSE.md`). All bundled third-party libraries use permissive, commercial- and CRAN-friendly open-source licenses with zero GPL/AGPL copyleft restrictions (full texts in [`inst/COPYRIGHTS`](./inst/COPYRIGHTS)):
+
+| Component | Version | License | Copyright / Attribution |
+| :--- | :--- | :--- | :--- |
+| **`glmap` R / C++17 / JS Engine** | `1.0.0` | **MIT License** | Copyright (c) 2026 Bruno Tremblay and `glmap` authors |
+| **MapLibre GL JS** (`inst/htmlwidgets/lib/maplibre-gl/`) | `4.7.1` | **BSD-3-Clause** | Copyright (c) 2020 MapLibre contributors; Copyright (c) 2014–2020 Mapbox, Inc. |
+| **Mapbox `earcut.hpp`** (`src/earcut.h`) | `2.2.4` | **ISC License** | Copyright (c) 2015 Mapbox |
+| **Default Map Tiles** | — | **ODbL / CC-BY** | `© OpenStreetMap contributors`, `© CARTO`, `© OpenFreeMap` (rendered automatically in the bottom-right attribution control) |
+

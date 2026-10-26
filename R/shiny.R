@@ -98,7 +98,7 @@ clear_layer <- function(map, id) {
   map
 }
 
-#' Clear All Data Layers from a Map
+#' Clear All Data Layers from a Map (`clear_layers`, `clear_shapes`, `clear_markers`, `clear_controls`, `remove_shape`, `remove_marker`)
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.
 #' @export
@@ -110,6 +110,62 @@ clear_layers <- function(map) {
   map$x$legends <- list()
   map
 }
+
+#' @rdname clear_layers
+#' @export
+clear_shapes <- function(map) {
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "clearShapes", list()))
+  }
+  shape_ids <- vapply(
+    Filter(function(l) l$type %in% c("polygons", "lines", "hexbin"), map$x$layers),
+    function(l) l$id,
+    character(1)
+  )
+  map$x$layers <- Filter(function(l) !(l$type %in% c("polygons", "lines", "hexbin")), map$x$layers)
+  map$x$legends <- Filter(function(lg) !(lg$layer_id %in% shape_ids), map$x$legends)
+  map
+}
+
+#' @rdname clear_layers
+#' @export
+clear_markers <- function(map) {
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "clearMarkers", list()))
+  }
+  pt_ids <- vapply(
+    Filter(function(l) l$type %in% c("points", "labels"), map$x$layers),
+    function(l) l$id,
+    character(1)
+  )
+  map$x$layers <- Filter(function(l) !(l$type %in% c("points", "labels")), map$x$layers)
+  map$x$legends <- Filter(function(lg) !(lg$layer_id %in% pt_ids), map$x$legends)
+  map
+}
+
+#' @rdname clear_layers
+#' @export
+clear_controls <- function(map) {
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "clearControls", list()))
+  }
+  map$x$legends <- list()
+  map
+}
+
+#' @param layerId Character vector of layer ID(s) to remove.
+#' @rdname clear_layers
+#' @export
+remove_shape <- function(map, layerId) {
+  for (id in as.character(layerId)) {
+    map <- clear_layer(map, id)
+  }
+  map
+}
+
+#' @rdname clear_layers
+#' @export
+remove_marker <- remove_shape
 
 #' Toggle Layer Visibility
 #'

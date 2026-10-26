@@ -17,7 +17,7 @@ template with optional {apikey} / {key} / {access_token} placeholders!'><meta pr
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,10 @@ template with optional <code>{apikey}</code> / <code>{key}</code> / <code>{acces
 <span>  provider <span class="op">=</span> <span class="va">gl_providers</span><span class="op">$</span><span class="va">CartoDB.DarkMatter</span>,</span>
 <span>  api_key <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  key_param <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  attribution <span class="op">=</span> <span class="st">""</span></span>
+<span>  attribution <span class="op">=</span> <span class="st">""</span>,</span>
+<span>  layerId <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -90,6 +93,10 @@ template with optional <code>{apikey}</code> / <code>{key}</code> / <code>{acces
 
 <dt id="arg-attribution">attribution<a class="anchor" aria-label="anchor" href="#arg-attribution"></a></dt>
 <dd><p>Optional custom attribution string when passing a custom <code>{z}/{x}/{y}</code> URL.</p></dd>
+
+
+<dt id="arg-layerid-group-options">layerId, group, options<a class="anchor" aria-label="anchor" href="#arg-layerid-group-options"></a></dt>
+<dd><p>Optional arguments kept for <code><a href="https://rstudio.github.io/leaflet/reference/addProviderTiles.html" class="external-link">leaflet::addProviderTiles()</a></code> compatibility.</p></dd>
 
 </dl></div>
     <div class="section level2">

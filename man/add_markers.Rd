@@ -3,7 +3,11 @@
 \name{add_markers}
 \alias{add_markers}
 \alias{make_icon}
+\alias{icons}
+\alias{icon_list}
 \alias{make_awesome_icon}
+\alias{awesome_icons}
+\alias{awesome_icon_list}
 \alias{marker_cluster_options}
 \alias{icon_render_options}
 \title{Add Custom Icon or Awesome Markers (\code{add_markers}, \code{make_icon}, \code{make_awesome_icon})}
@@ -24,9 +28,71 @@ add_markers(
   ...
 )
 
-make_icon(iconUrl, iconWidth = 28, iconHeight = 28)
+make_icon(
+  iconUrl = NULL,
+  iconRetinaUrl = NULL,
+  iconWidth = 28,
+  iconHeight = 28,
+  iconAnchorX = NULL,
+  iconAnchorY = NULL,
+  shadowUrl = NULL,
+  shadowRetinaUrl = NULL,
+  shadowWidth = NULL,
+  shadowHeight = NULL,
+  shadowAnchorX = NULL,
+  shadowAnchorY = NULL,
+  popupAnchorX = NULL,
+  popupAnchorY = NULL,
+  className = NULL
+)
 
-make_awesome_icon(text = "*", markerColor = "blue", iconColor = "#ffffff")
+icons(
+  iconUrl = NULL,
+  iconRetinaUrl = NULL,
+  iconWidth = 28,
+  iconHeight = 28,
+  iconAnchorX = NULL,
+  iconAnchorY = NULL,
+  shadowUrl = NULL,
+  shadowRetinaUrl = NULL,
+  shadowWidth = NULL,
+  shadowHeight = NULL,
+  shadowAnchorX = NULL,
+  shadowAnchorY = NULL,
+  popupAnchorX = NULL,
+  popupAnchorY = NULL,
+  className = NULL
+)
+
+icon_list(...)
+
+make_awesome_icon(
+  icon = "circle",
+  library = "fa",
+  markerColor = "blue",
+  iconColor = "#ffffff",
+  spin = FALSE,
+  extraClasses = NULL,
+  squareMarker = FALSE,
+  iconRotate = 0,
+  fontFamily = "monospace",
+  text = NULL
+)
+
+awesome_icons(
+  icon = "circle",
+  library = "fa",
+  markerColor = "blue",
+  iconColor = "#ffffff",
+  spin = FALSE,
+  extraClasses = NULL,
+  squareMarker = FALSE,
+  iconRotate = 0,
+  fontFamily = "monospace",
+  text = NULL
+)
+
+awesome_icon_list(...)
 
 marker_cluster_options(
   showCoverageOnHover = TRUE,
@@ -53,8 +119,7 @@ icon_render_options(
 
 \item{lat}{Optional latitude column name or formula (\code{~lat}) for \code{data.frame}.}
 
-\item{icon}{Optional marker icon specification created by \code{\link[=make_icon]{make_icon()}}, \code{\link[=make_awesome_icon]{make_awesome_icon()}},
-\code{leaflet::makeIcon()}, or a character vector / formula (\code{~icon_url}) of SVG/PNG URLs.}
+\item{icon}{Optional icon name from FontAwesome/Ionicons/Bootstrap (\code{leaflet} compatibility).}
 
 \item{popup}{Optional formula (\code{~name}), column name, or character vector for click/hover tooltips.}
 
@@ -83,13 +148,27 @@ If \code{NULL}, computed dynamically from feature count (\verb{<= 2,500}: \code{
 
 \item{iconUrl}{URL or relative path (e.g. inside Shiny \verb{www/}) to an SVG or PNG icon.}
 
+\item{iconRetinaUrl}{Optional retina URL (\code{leaflet} compatibility).}
+
 \item{iconWidth, iconHeight}{Icon dimensions in pixels (default \code{28}).}
 
-\item{text}{Optional short symbol or glyph text inside the awesome marker pin.}
+\item{iconAnchorX, iconAnchorY}{Optional anchor coordinates (\code{leaflet} compatibility).}
+
+\item{shadowUrl, shadowRetinaUrl, shadowWidth, shadowHeight, shadowAnchorX, shadowAnchorY}{Optional shadow parameters (\code{leaflet} compatibility).}
+
+\item{popupAnchorX, popupAnchorY}{Optional popup anchor coordinates (\code{leaflet} compatibility).}
+
+\item{className}{Optional CSS class (\code{leaflet} compatibility).}
+
+\item{library}{Optional icon library (\code{"fa"}, \code{"ion"}, \code{"glyphicon"}).}
 
 \item{markerColor}{Marker pin color (e.g., \code{"red"}, \code{"blue"}, \code{"orange"}, \code{"green"}, \code{"purple"}).}
 
 \item{iconColor}{Inner glyph color (default \code{"#ffffff"}).}
+
+\item{spin, extraClasses, squareMarker, iconRotate, fontFamily}{Optional parameters kept for \code{leaflet::makeAwesomeIcon()} compatibility.}
+
+\item{text}{Optional short symbol or glyph text inside the awesome marker pin.}
 
 \item{showCoverageOnHover}{Logical; highlight cluster bounds on hover.}
 

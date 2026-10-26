@@ -13,7 +13,7 @@ card at that exact geographic coordinate."><meta property="og:image" content="ht
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,13 +55,15 @@ card at that exact geographic coordinate.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_popups</span><span class="op">(</span></span>
 <span>  <span class="va">map</span>,</span>
-<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  lon <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  lat <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  popup <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  lng <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  lng <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  options <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  layerId <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">clear_popups</span><span class="op">(</span><span class="va">map</span><span class="op">)</span></span></code></pre></div>
@@ -73,10 +75,6 @@ card at that exact geographic coordinate.</p>
 
 <dl><dt id="arg-map">map<a class="anchor" aria-label="anchor" href="#arg-map"></a></dt>
 <dd><p>A <code>glmap</code> widget or <code>glmap_proxy</code>.</p></dd>
-
-
-<dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Optional <code>sf</code> or <code>data.frame</code> object.</p></dd>
 
 
 <dt id="arg-lon-lat">lon, lat<a class="anchor" aria-label="anchor" href="#arg-lon-lat"></a></dt>
@@ -97,6 +95,18 @@ card at that exact geographic coordinate.</p>
 
 <dt id="arg-lng">lng<a class="anchor" aria-label="anchor" href="#arg-lng"></a></dt>
 <dd><p>Optional alias for <code>lon</code> (<code>leaflet</code> compatibility).</p></dd>
+
+
+<dt id="arg-options">options<a class="anchor" aria-label="anchor" href="#arg-options"></a></dt>
+<dd><p>Optional popup options list.</p></dd>
+
+
+<dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
+<dd><p>Optional <code>sf</code> or <code>data.frame</code> object.</p></dd>
+
+
+<dt id="arg-layerid">layerId<a class="anchor" aria-label="anchor" href="#arg-layerid"></a></dt>
+<dd><p>Optional layer ID (<code>leaflet</code> compatibility).</p></dd>
 
 </dl></div>
 

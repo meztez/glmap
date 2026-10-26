@@ -4,15 +4,22 @@
 \alias{fit_bounds}
 \title{Fit Map Camera to a Bounding Box \verb{[xmin, ymin, xmax, ymax]} (\code{fit_bounds})}
 \usage{
-fit_bounds(map, bbox, padding = 40)
+fit_bounds(map, bbox, lat1 = NULL, lng2 = NULL, lat2 = NULL, padding = 40)
 }
 \arguments{
 \item{map}{A \code{glmap} widget or \code{glmap_proxy}.}
 
-\item{bbox}{Numeric vector \code{c(xmin, ymin, xmax, ymax)} or an \code{sf}/\code{SpatRaster} object.}
+\item{bbox}{Numeric vector \code{c(xmin, ymin, xmax, ymax)}, \code{sf}/\code{SpatRaster} object, or \code{lng1}.}
+
+\item{lat1}{Optional \code{lat1} when called with 4 coordinate arguments (\verb{lng1, lat1, lng2, lat2}).}
+
+\item{lng2}{Optional \code{lng2} when called with 4 coordinate arguments.}
+
+\item{lat2}{Optional \code{lat2} when called with 4 coordinate arguments.}
 
 \item{padding}{Viewport padding in pixels (default \code{40}).}
 }
 \description{
-Fit Map Camera to a Bounding Box \verb{[xmin, ymin, xmax, ymax]} (\code{fit_bounds})
+Supports both \code{fit_bounds(map, c(xmin, ymin, xmax, ymax))} (or an \code{sf}/\code{SpatRaster} object)
+and \code{leaflet::fitBounds(map, lng1, lat1, lng2, lat2)} 4-argument calls (including formulas \code{~min(long)}).
 }
