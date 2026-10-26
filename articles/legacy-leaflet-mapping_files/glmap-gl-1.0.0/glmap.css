@@ -1,0 +1,376 @@
+.glmap-container {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  background: #0b0f19;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  color: #e2e8f0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@media print {
+  .glmap-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-height: 420px;
+  }
+}
+
+.glmap-map-canvas,
+.glmap-gl-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glmap-gl-overlay {
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 9-Zone Directional & Ordered Layout Dock System */
+.glmap-dock-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.glmap-slot {
+  position: absolute;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+  max-height: calc(100% - 24px);
+  max-width: calc(100% - 24px);
+}
+
+.glmap-slot > * {
+  pointer-events: auto;
+}
+
+.glmap-slot[data-dir="vertical"] { flex-direction: column; }
+.glmap-slot[data-dir="horizontal"] { flex-direction: row; flex-wrap: wrap; }
+
+/* 9 Positional Anchors (x = left | center | right, y = top | center | bottom) */
+.glmap-slot-top-left      { top: 12px; left: 12px; align-items: flex-start; justify-content: flex-start; }
+.glmap-slot-top-center    { top: 12px; left: 50%; transform: translateX(-50%); align-items: center; justify-content: center; }
+.glmap-slot-top-right     { top: 12px; right: 12px; align-items: flex-end; justify-content: flex-start; }
+.glmap-slot-center-left   { top: 50%; left: 12px; transform: translateY(-50%); align-items: flex-start; justify-content: center; }
+.glmap-slot-center-center { top: 50%; left: 50%; transform: translate(-50%, -50%); align-items: center; justify-content: center; }
+.glmap-slot-center-right  { top: 50%; right: 12px; transform: translateY(-50%); align-items: flex-end; justify-content: center; }
+.glmap-slot-bottom-left   { bottom: 12px; left: 12px; align-items: flex-start; justify-content: flex-end; }
+.glmap-slot-bottom-center { bottom: 12px; left: 50%; transform: translateX(-50%); align-items: center; justify-content: flex-end; }
+.glmap-slot-bottom-right  { bottom: 12px; right: 12px; align-items: flex-end; justify-content: flex-end; }
+
+.glmap-panel {
+  position: relative;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+  font-size: 12px;
+  line-height: 1.45;
+  color: #f1f5f9;
+  max-width: 280px;
+}
+
+/* Collapsible Layer + Basemap Switcher */
+.glmap-layer-switcher.collapsed {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.glmap-layer-switcher.collapsed .glmap-switcher-body {
+  display: none;
+}
+
+.glmap-layer-switcher:hover .glmap-switcher-body,
+.glmap-layer-switcher.expanded .glmap-switcher-body {
+  display: block;
+  margin-top: 6px;
+}
+
+.glmap-panel-title {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.glmap-layer-section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 6px 0 3px 0;
+}
+
+.glmap-layer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.10);
+}
+
+.glmap-layer-item:last-child {
+  border-bottom: none;
+}
+
+.glmap-layer-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+.glmap-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  color: #38bdf8;
+  font-variant-numeric: tabular-nums;
+}
+
+.glmap-legends-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.glmap-hud {
+  padding: 5px 11px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.glmap-toolbar {
+  display: flex;
+  gap: 6px;
+}
+
+.glmap-scale-box {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-top: none;
+  color: #e2e8f0;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 0 0 4px 4px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.glmap-attribution-box {
+  background: rgba(15, 23, 42, 0.75);
+  color: #cbd5e1;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.glmap-attribution-box a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.glmap-legends-wrap .glmap-panel {
+  padding: 7px 10px;
+  max-width: 210px;
+}
+
+.glmap-gradient-bar {
+  height: 10px;
+  width: 180px;
+  border-radius: 5px;
+  margin: 4px 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.glmap-domain-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.glmap-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+  font-size: 11px;
+}
+
+.glmap-cat-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.glmap-raster-controls {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.glmap-raster-controls select,
+.glmap-raster-controls input[type="range"] {
+  width: 100%;
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+.glmap-tooltip {
+  position: absolute;
+  z-index: 25;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  display: none;
+  max-width: 280px;
+}
+
+.glmap-popup {
+  position: absolute;
+  z-index: 30;
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  color: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.6);
+  display: none;
+  max-width: 320px;
+}
+
+.glmap-popup-close {
+  position: absolute;
+  top: 4px;
+  right: 7px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.glmap-hud-fps {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.glmap-btn {
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.glmap-btn:hover,
+.glmap-btn.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.glmap-draw-toolbar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.90);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.glmap-draw-toolbar[data-dir="horizontal"] {
+  flex-direction: row;
+}
+
+.glmap-draw-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.glmap-draw-btn:hover,
+.glmap-draw-btn.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.glmap-draw-btn.glmap-draw-clear:hover {
+  background: #dc2626;
+  border-color: #f87171;
+}
+
+.glmap-draw-icon {
+  font-size: 13px;
+  line-height: 1;
+}
