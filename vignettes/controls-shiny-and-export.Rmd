@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -57,7 +59,7 @@ glmap(basemap = "dark") |>
 
 In Shiny applications, use `glmapOutput()`, `renderGlmap()`, and `glmap_proxy()` (or their drop-in aliases `leafletOutput()`, `renderLeaflet()`, and `leafletProxy()`) to update layers, toggle groups, or change GPU raster shader uniforms in **0 ms** without re-rendering the map widget:
 
-```{r}
+```{r, eval = FALSE}
 library(shiny)
 library(glmap)
 
@@ -106,7 +108,7 @@ server <- function(input, output, session) {
 
 Both the MapLibre GL base canvas and the WebGL2 overlay canvas are initialized with `preserveDrawingBuffer: true`, so Quarto HTML/PDF reports and `gl_save_png()` capture crisp, full-resolution GPU renders:
 
-```{r}
+```{r, eval = FALSE}
 m <- glmap(bench$points_df, basemap = "dark") |>
   add_points(color = ~intensity, palette = "turbo")
 

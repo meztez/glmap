@@ -2058,6 +2058,7 @@ add_circles <- function(
 #'
 #' @inheritParams add_polygons
 #' @param lng1,lat1,lng2,lat2 Numeric vectors or formulas specifying opposite corners of each rectangle.
+#' @param fill Logical; whether to fill the rectangle interior (default `TRUE`).
 #' @param fillColor,fillOpacity,color,weight,opacity,layerId,highlightOptions Optional `leaflet::addRectangles()` compatibility parameters.
 #' @export
 add_rectangles <- function(
@@ -2078,6 +2079,7 @@ add_rectangles <- function(
     id = NULL,
     group = NULL,
     legend = FALSE,
+    fill = TRUE,
     fillColor = NULL,
     fillOpacity = NULL,
     color = NULL,
@@ -2091,9 +2093,14 @@ add_rectangles <- function(
     fill_color <- fillColor
     if (!is.null(color) && length(color) == 1L && is.character(color)) line_color <- color
   } else if (!is.null(color)) {
-    fill_color <- color
+    if (identical(fill, FALSE)) {
+      line_color <- color
+    } else {
+      fill_color <- color
+    }
   }
   fill_opacity <- fillOpacity %||% opacity %||% fill_opacity
+  if (identical(fill, FALSE)) fill_opacity <- 0.0
   line_width <- weight %||% line_width
 
   x1 <- as.numeric(eval_aesthetic(lng1, data))
@@ -2117,6 +2124,7 @@ add_rectangles <- function(
   add_polygons(
     map = map,
     data = sfc_rect,
+    fill = fill,
     fill_color = fill_color,
     palette = palette,
     fill_opacity = fill_opacity,

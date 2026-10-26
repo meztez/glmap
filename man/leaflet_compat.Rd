@@ -327,6 +327,7 @@ addRectangles(
   id = NULL,
   group = NULL,
   legend = FALSE,
+  fill = TRUE,
   fillColor = NULL,
   fillOpacity = NULL,
   color = NULL,

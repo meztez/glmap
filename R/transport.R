@@ -160,6 +160,9 @@ register_binary_buffer <- function(id, raw_buf, mode = c("auto", "inline", "serv
   # - "server": streamed over localhost httpuv (zero base64 overhead in interactive sessions for giant buffers)
   # - "auto": inline gzip+base64 up to 25 MB raw (so saveWidget & static viewers always work seamlessly),
   #           also registers on local httpuv server if active
+  if (identical(Sys.info()[["sysname"]], "Emscripten")) {
+    mode <- "inline"
+  }
   use_server <- identical(mode, "server")
   if (use_server) {
     base_url <- gl_serve_start()

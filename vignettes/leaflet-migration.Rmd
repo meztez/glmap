@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -80,8 +82,11 @@ leaflet(nc) |>
 #### `glmap`
 ```{r}
 library(glmap)
+library(sf)
 
-glmap(nc, basemap = "positron") |>
+nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
+
+glmap(nc, basemap = "positron", height = "400px") |>
   add_polygons(
     fill_color = ~BIR74,
     palette = "viridis",
@@ -108,6 +113,8 @@ leaflet() |>
 #### `glmap`
 ```{r}
 # Uploads raw Float32 values to GPU texture; user can switch palettes & toggle hillshade at 0ms in browser
-glmap(basemap = "dark") |>
-  add_raster(dem, palette = "terrain", hillshade = TRUE, opacity = 0.8)
+bench <- gl_benchmark_data(raster_dim = c(180L, 180L))
+
+glmap(basemap = "dark", height = "400px") |>
+  add_raster(bench$raster_mat, bbox = bench$bbox, palette = "terrain", hillshade = TRUE, opacity = 0.8)
 ```

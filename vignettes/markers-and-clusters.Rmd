@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -23,12 +25,12 @@ To render anywhere from 10 points to **1,000,000+ points at 60 FPS**, use `add_p
 library(glmap)
 
 df <- data.frame(
-  lon = runif(50000, -74.0, -71.0),
-  lat = runif(50000, 45.3, 47.0),
-  mag = rnorm(50000, mean = 5, sd = 1.2)
+  lon = runif(15000, -74.0, -71.0),
+  lat = runif(15000, 45.3, 47.0),
+  mag = rnorm(15000, mean = 5, sd = 1.2)
 )
 
-glmap(df, basemap = "dark") |>
+glmap(df, basemap = "dark", height = "420px") |>
   add_points(
     lon = ~lon,
     lat = ~lat,

@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -29,7 +31,7 @@ In `glmap`, `add_raster()` packs the raw `Float32` cell values in C++17 (`GLMR` 
 ```{r}
 library(glmap)
 
-bench <- gl_benchmark_data(raster_dim = c(300L, 300L))
+bench <- gl_benchmark_data(n_points = 15000L, raster_dim = c(200L, 200L))
 
 # Show all interactive shader controls (palette dropdown, hillshade checkbox, opacity slider)
 glmap(basemap = "dark") |>
@@ -100,7 +102,7 @@ glmap(basemap = "dark") |>
 
 When your dataset has **10,000,000 to 100,000,000+ rows** stored in a `.parquet` file or `DuckDB` database, `add_duckdb()` pushes bounding-box and SQL `WHERE` filters directly into DuckDB's vectorized engine as the user pans and zooms—without loading the full table into R memory:
 
-```{r}
+```{r, eval = FALSE}
 library(DBI)
 library(duckdb)
 

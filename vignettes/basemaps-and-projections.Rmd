@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -44,7 +46,7 @@ Unlike `leaflet` (which only accepts `sf`, `sp`, `data.frame`, or 2-column matri
 
 `glmap` ships with built-in Vector GL styles (rendered at 60 FPS by MapLibre GL) and global XYZ raster tile providers:
 
-```{r}
+```{r, eval = FALSE}
 # Short built-in basemap aliases
 glmap(basemap = "dark")       # CARTO DarkMatter Vector GL
 glmap(basemap = "positron")   # CARTO Positron Vector GL
@@ -70,7 +72,7 @@ head(gl_list_providers(), 12)
 ### Configuring Optional Provider API Keys (`gl_set_api_key`)
 For commercial tile providers (MapTiler, Stadia/Stamen, Thunderforest, Jawg, Mapbox, or enterprise CARTO/Esri), configure keys once per session or via environment variables (`MAPTILER_API_KEY`, `STADIA_API_KEY`, `MAPBOX_ACCESS_TOKEN`):
 
-```{r}
+```{r, eval = FALSE}
 gl_set_api_key("maptiler", Sys.getenv("MAPTILER_API_KEY"))
 
 glmap() |>

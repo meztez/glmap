@@ -11,7 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -42,13 +44,13 @@ Traditional R mapping packages built on <code>Leaflet.js</code> serialize spatia
 library(glmap)
 
 # Generate synthetic benchmark data
-bench <- gl_benchmark_data(n_points = 100000L, n_polygons = 2000L)
+bench <- gl_benchmark_data(n_points = 15000L, n_polygons = 600L)
 
-# Instant GPU map of 100,000 points
-glmap(bench$points_df, color = ~intensity, palette = "turbo", radius = 3)
+# Instant GPU map of 15,000 points
+glmap(bench$points_df, color = ~intensity, palette = "turbo", radius = 3.5, height = "420px")
 
 # Instant GPU map of a Float32 DEM raster with real-time hillshading
-glmap(bench$raster_mat, palette = "terrain", hillshade = TRUE)
+glmap(bench$raster_mat, palette = "terrain", hillshade = TRUE, height = "420px")
 ```
 
 ---
@@ -58,7 +60,7 @@ glmap(bench$raster_mat, palette = "terrain", hillshade = TRUE)
 Use `glmap()` with `add_raster()`, `add_polygons()`, `add_lines()`, `add_points()`, `add_hexbin()`, `add_heatmap()`, and `add_labels()`:
 
 ```{r}
-glmap(basemap = "dark") |>
+glmap(basemap = "dark", height = "460px") |>
   add_raster(
     bench$raster_mat,
     palette = "terrain",
@@ -97,7 +99,7 @@ glmap(basemap = "dark") |>
 
 For massive datasets in interactive R or Shiny sessions, enable `dynamic_viewport = TRUE`, `transport = "server"`, or `add_duckdb()`. `glmap` builds an in-memory C++ spatial index (`gl_spatial_index()`) or queries DuckDB to stream only the features inside the current viewport with automatic Level-of-Detail (LOD) stride sampling:
 
-```{r}
+```{r, eval = FALSE}
 big_df <- data.frame(
   lon = runif(1e6, -75, -71),
   lat = runif(1e6, 45, 48),
