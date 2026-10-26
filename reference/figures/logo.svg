@@ -1,85 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 924" width="100%" height="100%">
   <defs>
-    <!-- Deep nocturnal slate background -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bg7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#060a12"/>
-      <stop offset="55%" stop-color="#0d1526"/>
+      <stop offset="55%" stop-color="#0d1527"/>
       <stop offset="100%" stop-color="#050811"/>
     </linearGradient>
 
-    <!-- Crisp Viridis-to-Indigo hex border gradient -->
-    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="rim7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#2dd4bf"/>
       <stop offset="50%" stop-color="#38bdf8"/>
       <stop offset="100%" stop-color="#6366f1"/>
     </linearGradient>
 
-    <!-- 4 Low-Poly GPU Terrain Mesh Facets -->
-    <linearGradient id="facetBackLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#5eead4"/>
+    <linearGradient id="state1_7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+    <linearGradient id="state2_7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc"/>
       <stop offset="100%" stop-color="#0ea5e9"/>
     </linearGradient>
-
-    <linearGradient id="facetBackRight" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="state3_7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="state4_7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
       <stop offset="100%" stop-color="#4f46e5"/>
     </linearGradient>
 
-    <linearGradient id="facetFrontLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0284c7"/>
-      <stop offset="100%" stop-color="#1e3a8a"/>
+    <linearGradient id="midTile7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.78"/>
     </linearGradient>
 
-    <linearGradient id="facetFrontRight" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4f46e5"/>
-      <stop offset="100%" stop-color="#1e1b4b"/>
+    <linearGradient id="botTile7AFix" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.42"/>
     </linearGradient>
 
-    <!-- Soft ambient radial glow -->
-    <radialGradient id="ambientGlow" cx="50%" cy="37%" r="44%">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.26"/>
+    <radialGradient id="glow7AFix" cx="50%" cy="38%" r="44%">
+      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.25"/>
       <stop offset="65%" stop-color="#6366f1" stop-opacity="0.07"/>
       <stop offset="100%" stop-color="#060a12" stop-opacity="0"/>
     </radialGradient>
 
-    <clipPath id="hexClip">
+    <clipPath id="clip7AFix">
       <polygon points="400,26 760,234 760,690 400,898 40,690 40,234"/>
     </clipPath>
   </defs>
 
-  <!-- Outer Hex Border & Deep Slate Canvas -->
-  <polygon points="400,12 774,227 774,697 400,912 26,697 26,227" fill="url(#rimGrad)"/>
-  <polygon points="400,26 760,234 760,690 400,898 40,690 40,234" fill="url(#bgGrad)"/>
+  <polygon points="400,12 774,227 774,697 400,912 26,697 26,227" fill="url(#rim7AFix)"/>
+  <polygon points="400,26 760,234 760,690 400,898 40,690 40,234" fill="url(#bg7AFix)"/>
 
-  <g clip-path="url(#hexClip)">
-    <!-- Subtle Ambient Shader Glow -->
-    <circle cx="400" cy="345" r="350" fill="url(#ambientGlow)"/>
+  <g clip-path="url(#clip7AFix)">
+    <circle cx="400" cy="355" r="350" fill="url(#glow7AFix)"/>
 
-    <!-- Stacked Isometric Map Planes (Clean Vector Layers Below Peak) -->
-    <polyline points="175,415 400,535 625,415" fill="none" stroke="#38bdf8" stroke-width="6.5" stroke-opacity="0.60" stroke-linecap="round" stroke-linejoin="round"/>
-    <polyline points="205,460 400,565 595,460" fill="none" stroke="#818cf8" stroke-width="5" stroke-opacity="0.35" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="400,325 600,425 400,525 200,425" fill="url(#botTile7AFix)" stroke="#818cf8" stroke-width="5.5" stroke-linejoin="round"/>
+    <polygon points="400,245 600,345 400,445 200,345" fill="url(#midTile7AFix)" stroke="#7dd3fc" stroke-width="5.5" stroke-linejoin="round"/>
 
-    <!-- Minimal 4-Facet Isometric GPU Terrain Peak (C++ Earcut Mesh + Map Tile) -->
-    <g stroke="#f8fafc" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
-      <polygon points="400,140 185,365 400,315" fill="url(#facetBackLeft)"/>
-      <polygon points="400,140 615,365 400,315" fill="url(#facetBackRight)"/>
-      <polygon points="185,365 400,485 400,315" fill="url(#facetFrontLeft)"/>
-      <polygon points="615,365 400,485 400,315" fill="url(#facetFrontRight)"/>
+    <g stroke="#ffffff" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round">
+      <polygon points="400,165 480,205 390,250 310,210" fill="url(#state1_7AFix)"/>
+      <polygon points="310,210 390,250 280,305 200,265" fill="url(#state2_7AFix)"/>
+      <polygon points="480,205 600,265 470,330 350,270" fill="url(#state3_7AFix)"/>
+      <polygon points="280,305 350,270 470,330 400,365" fill="url(#state4_7AFix)"/>
     </g>
 
-    <!-- 5 Crisp Instanced SDF Vertex Nodes -->
-    <circle cx="400" cy="140" r="13" fill="#060a12" stroke="#5eead4" stroke-width="6.5"/>
-    <circle cx="185" cy="365" r="9.5" fill="#ffffff"/>
-    <circle cx="615" cy="365" r="9.5" fill="#ffffff"/>
-    <circle cx="400" cy="315" r="10.5" fill="#060a12" stroke="#ffffff" stroke-width="6"/>
-    <circle cx="400" cy="485" r="9.5" fill="#ffffff"/>
-
-    <!-- Clean Modern Wordmark -->
-    <text x="400" y="705" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Inter, Roboto, sans-serif" font-size="120" font-weight="800" fill="#f8fafc" letter-spacing="2">
+    <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Inter, Roboto, sans-serif" font-size="118" font-weight="800" fill="#f8fafc" letter-spacing="2">
       gl<tspan fill="#2dd4bf">map</tspan>
     </text>
   </g>
 
-  <!-- Subtle Inner Hex Frame Line -->
   <polygon points="400,36 750,239 750,685 400,888 50,685 50,239" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.28"/>
 </svg>
