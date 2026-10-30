@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,6 +47,14 @@
       <small>Source: <a href="https://github.com/meztez/glmap/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.2" id="glmap-102">glmap 1.0.2<a class="anchor" aria-label="anchor" href="#glmap-102"></a></h2>
+<ul><li>
+<strong>Interactive Layer Opacity Slider in Categorical &amp; Group Legends (<code>add_legend</code>, <code>glmap.js</code>)</strong>:
+<ul><li>Added <code>opacity_slider</code> argument to <code><a href="../reference/add_legend.html">add_legend()</a></code> (defaulting to <code>TRUE</code> whenever <code>group</code> is supplied) and rendered a real-time <strong>Layer Opacity</strong> slider (<code>0%–100%</code>) at the bottom of group/layer-bound legend cards (including categorical choropleth legends).</li>
+<li>Updated <code>setLayerOpacity()</code> in <code>glmap.js</code> to match both <code>layer.id</code> and <code>layer.group</code> so adjusting the legend opacity slider dynamically updates the GPU opacity uniform (<code>u_opacity</code>) of all layers belonging to that group.</li>
+</ul></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.1" id="glmap-101">glmap 1.0.1<a class="anchor" aria-label="anchor" href="#glmap-101"></a></h2>
 <ul><li>

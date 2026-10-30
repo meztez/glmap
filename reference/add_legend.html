@@ -11,7 +11,7 @@ positional and formula arguments.'><meta property="og:image" content="https://me
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,8 @@ positional and formula arguments.</p>
 <span>  opacity <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  layerId <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  labFormat <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  data <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  opacity_slider <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -146,6 +147,10 @@ positional and formula arguments.</p>
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Optional dataset used to evaluate <code>values = ~col</code> formulas (defaults to map data).</p></dd>
+
+
+<dt id="arg-opacity-slider">opacity_slider<a class="anchor" aria-label="anchor" href="#arg-opacity-slider"></a></dt>
+<dd><p>Optional logical; if <code>TRUE</code> (or by default when <code>group</code> / <code>layer_id</code> points to a map layer and <code>opacity_slider</code> is not <code>FALSE</code>), renders an interactive layer opacity slider in the legend card.</p></dd>
 
 </dl></div>
 
