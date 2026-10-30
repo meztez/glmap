@@ -2332,8 +2332,11 @@
 
     _showPopupAt(px, py, htmlContent) {
       this.popupEl.innerHTML = `<button type="button" class="glmap-popup-close">&times;</button><div class="glmap-popup-content leaflet-popup-content">${htmlContent}</div>`;
-      this.popupEl.style.left = Math.min((this.el.clientWidth || 800) - 240, Math.max(12, px)) + "px";
-      this.popupEl.style.top = Math.min((this.el.clientHeight || 600) - 120, Math.max(12, py)) + "px";
+      const mapW = this.el.clientWidth || 800;
+      const mapH = this.el.clientHeight || 600;
+      const rightReserve = mapW > 640 ? 540 : 280;
+      this.popupEl.style.left = Math.min(mapW - rightReserve, Math.max(12, px)) + "px";
+      this.popupEl.style.top = Math.min(mapH - 220, Math.max(12, py)) + "px";
       this.popupEl.style.display = "block";
       const closeBtn = this.popupEl.querySelector(".glmap-popup-close");
       if (closeBtn) {
