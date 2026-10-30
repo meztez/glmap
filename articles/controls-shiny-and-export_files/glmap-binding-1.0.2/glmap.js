@@ -1014,13 +1014,17 @@
         this.layerOrder.push(entry.id);
       }
       this.layers.set(entry.id, entry);
+      let addedUserGroup = false;
       if (entry.visible && entry.group && entry.group !== "sg_shape" && entry.group !== "js_single_call" && entry.group !== "cat_claims_overlay") {
         if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
-        this._selectedOverlayGroups.add(entry.group);
+        if (!this._selectedOverlayGroups.has(entry.group)) {
+          this._selectedOverlayGroups.add(entry.group);
+          addedUserGroup = true;
+        }
       }
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
-      this._emitActiveGroups();
+      if (addedUserGroup) this._emitActiveGroups();
       this.requestRender();
     }
 
@@ -2876,11 +2880,20 @@
     }
 
     setGroupVisibility(groups, visible) {
+      const INTERNAL_GROUPS = new Set(["sg_shape", "js_single_call", "cat_claims_overlay"]);
       const grpSet = new Set(Array.isArray(groups) ? groups : [groups]);
       if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
+      let changedUserGroup = false;
       for (const g of grpSet) {
-        if (visible) this._selectedOverlayGroups.add(g);
-        else this._selectedOverlayGroups.delete(g);
+        if (INTERNAL_GROUPS.has(g)) continue;
+        const had = this._selectedOverlayGroups.has(g);
+        if (visible && !had) {
+          this._selectedOverlayGroups.add(g);
+          changedUserGroup = true;
+        } else if (!visible && had) {
+          this._selectedOverlayGroups.delete(g);
+          changedUserGroup = true;
+        }
       }
       for (const l of this.layers.values()) {
         if (grpSet.has(l.group) || grpSet.has(l.id)) {
@@ -2890,14 +2903,21 @@
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
       this._updateHUD();
-      this._emitActiveGroups();
+      if (changedUserGroup) this._emitActiveGroups();
       this.requestRender();
     }
 
     clearGroup(groups) {
+      const INTERNAL_GROUPS = new Set(["sg_shape", "js_single_call", "cat_claims_overlay"]);
       const grpSet = new Set(Array.isArray(groups) ? groups : [groups]);
+      let changedUserGroup = false;
       if (this._selectedOverlayGroups) {
-        for (const g of grpSet) this._selectedOverlayGroups.delete(g);
+        for (const g of grpSet) {
+          if (!INTERNAL_GROUPS.has(g) && this._selectedOverlayGroups.has(g)) {
+            this._selectedOverlayGroups.delete(g);
+            changedUserGroup = true;
+          }
+        }
       }
       this.legends = this.legends.filter((l) => !grpSet.has(l.group) && !grpSet.has(l.layer_id));
       const toRemove = [];
@@ -2911,7 +2931,7 @@
       }
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
-      this._emitActiveGroups();
+      if (changedUserGroup) this._emitActiveGroups();
     }
 
     flyToBounds(opts) {
