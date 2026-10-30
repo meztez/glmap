@@ -35,7 +35,7 @@ zoom in across lod_zoom.
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,8 +77,8 @@ zoom in across lod_zoom.
     </div>
 
     <div class="ref-description section level2">
-    <p>Drop-in GPU/Canvas equivalents of <code><a href="https://rstudio.github.io/leaflet/reference/map-layers.html" class="external-link">leaflet::addMarkers()</a></code>, <code><a href="https://rstudio.github.io/leaflet/reference/makeIcon.html" class="external-link">leaflet::makeIcon()</a></code>,
-and <code><a href="https://rstudio.github.io/leaflet/reference/makeAwesomeIcon.html" class="external-link">leaflet::makeAwesomeIcon()</a></code>. Supports per-feature SVG/PNG icon URLs as well as
+    <p>Drop-in GPU/Canvas equivalents of <code>leaflet::addMarkers()</code>, <code>leaflet::makeIcon()</code>,
+and <code>leaflet::makeAwesomeIcon()</code>. Supports per-feature SVG/PNG icon URLs as well as
 colored pin/badge markers.</p>
 <p>Configures how <code>glmap</code> balances visual fidelity and 60 FPS GPU throughput across
 the three marker rendering engines:</p><ol><li><p><strong>WebGL2 Texture Atlas (<code>"atlas"</code>)</strong>: Packs all unique SVG/PNG icons into a single
@@ -229,7 +229,7 @@ zoom in across <code>lod_zoom</code>.</p></li>
 
 
 <dt id="arg-clusteroptions">clusterOptions<a class="anchor" aria-label="anchor" href="#arg-clusteroptions"></a></dt>
-<dd><p>Optional clustering specification (<code><a href="https://rstudio.github.io/leaflet/reference/map-options.html" class="external-link">leaflet::markerClusterOptions()</a></code> or
+<dd><p>Optional clustering specification (<code>leaflet::markerClusterOptions()</code> or
 <code>marker_cluster_options()</code> compatibility).</p></dd>
 
 
@@ -298,7 +298,7 @@ If <code>NULL</code>, computed dynamically from feature count (<code>&lt;= 2,500
 
 
 <dt id="arg-spin-extraclasses-squaremarker-iconrotate-fontfamily">spin, extraClasses, squareMarker, iconRotate, fontFamily<a class="anchor" aria-label="anchor" href="#arg-spin-extraclasses-squaremarker-iconrotate-fontfamily"></a></dt>
-<dd><p>Optional parameters kept for <code><a href="https://rstudio.github.io/leaflet/reference/makeAwesomeIcon.html" class="external-link">leaflet::makeAwesomeIcon()</a></code> compatibility.</p></dd>
+<dd><p>Optional parameters kept for <code>leaflet::makeAwesomeIcon()</code> compatibility.</p></dd>
 
 
 <dt id="arg-text">text<a class="anchor" aria-label="anchor" href="#arg-text"></a></dt>

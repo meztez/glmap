@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,6 +47,22 @@
       <small>Source: <a href="https://github.com/meztez/glmap/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.1" id="glmap-101">glmap 1.0.1<a class="anchor" aria-label="anchor" href="#glmap-101"></a></h2>
+<ul><li>
+<strong>Triangulated Polygon Interior Hit-Testing &amp; Picking (<code>glmap.js</code>)</strong>:
+<ul><li>Added exact Mercator triangle point-in-polygon hit-testing (<code>_pickFeatureAt</code> using <code>parsed.indices</code> and <code>parsed.mercCoords</code>) in both <code>_handleHover()</code> and <code>_handleClick()</code> in reverse layer draw order (<code>points</code>/<code>labels</code> prioritized before <code>polygons</code>/<code>lines</code>). Hovering or clicking anywhere inside a filled polygon or hexagon now reliably triggers tooltips, hover highlights (<code>highlightOptions</code>), popups, and Shiny <code>_shape_mouseover</code> / <code>_shape_click</code> events instead of requiring cursor proximity to a boundary vertex.</li>
+</ul></li>
+<li>
+<strong>Popup vs. Hover Tooltip Separation (<code>add_points</code>, <code>add_polygons</code>, <code>add_lines</code>)</strong>:
+<ul><li>Separated hover <code>tooltips</code> (<code>label</code>) from click <code>popups</code> (<code>popup</code>) in layer specifications so hovering displays <code>label</code> while clicking opens <code>popup</code> when both are provided, and raised the default <code>max_items</code> cap in <code>build_popup_labels()</code> and <code>feature_ids</code> to <code>250,000</code> features for high-density GPU layers.</li>
+</ul></li>
+<li>
+<strong>Layer Switcher &amp; Legend Group Synchronization</strong>:
+<ul><li>Excluded internal helper layer groups (<code>cat_claims_overlay</code>, <code>sg_shape</code>, <code>js_single_call</code>) from the user-facing <code>☰ Layers</code> switcher list.</li>
+<li>Updated <code>addLayer()</code> and <code><a href="../reference/leaflet_compat.html">clearGroup()</a></code> in <code>glmap.js</code> to synchronize <code>_selectedOverlayGroups</code>, remove group-bound legends when a group is cleared, and emit <code>&lt;mapId&gt;_groups</code> to Shiny when visible overlay groups change.</li>
+</ul></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.0" id="glmap-100">glmap 1.0.0<a class="anchor" aria-label="anchor" href="#glmap-100"></a></h2>
 <ul><li>

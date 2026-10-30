@@ -19,7 +19,7 @@ to run with zero code modifications.'><meta property="og:image" content="https:/
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,8 +61,8 @@ to run with zero code modifications.'><meta property="og:image" content="https:/
     </div>
 
     <div class="ref-description section level2">
-    <p>Drop-in equivalents of <code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">leaflet::colorNumeric()</a></code>, <code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">leaflet::colorBin()</a></code>,
-<code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">leaflet::colorQuantile()</a></code>, <code><a href="https://rstudio.github.io/leaflet/reference/colorNumeric.html" class="external-link">leaflet::colorFactor()</a></code>, and <code><a href="https://rstudio.github.io/leaflet/reference/addLegend.html" class="external-link">leaflet::labelFormat()</a></code>.
+    <p>Drop-in equivalents of <code>leaflet::colorNumeric()</code>, <code>leaflet::colorBin()</code>,
+<code>leaflet::colorQuantile()</code>, <code>leaflet::colorFactor()</code>, and <code>leaflet::labelFormat()</code>.
 While <code>glmap</code> natively supports passing <code>color = ~col, palette = "viridis"</code> directly
 to layer functions without creating manual palette functions, these functions allow
 existing <code>leaflet</code> scripts and Shiny apps that construct <code>pal &lt;- colorNumeric(...)</code>
@@ -247,7 +247,7 @@ character vector of hex/named colors, or palette function.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A palette function carrying <code>"paletteType"</code>, <code>"colorArgs"</code>, and <code>"domain"</code> attributes
-compatible with both <code><a href="add_legend.html">glmap::add_legend()</a></code> and <code><a href="https://rstudio.github.io/leaflet/reference/addLegend.html" class="external-link">leaflet::addLegend()</a></code>.</p>
+compatible with both <code><a href="add_legend.html">glmap::add_legend()</a></code> and <code>leaflet::addLegend()</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
