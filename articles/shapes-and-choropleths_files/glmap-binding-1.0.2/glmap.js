@@ -3117,7 +3117,7 @@
       this._stopDrawMode();
       this.drawToolbarEl.style.display = "none";
       if (opts && opts.clearFeatures) {
-        this._clearDrawnFeatures();
+        this._clearDrawnFeatures(false);
       }
     }
 
@@ -3176,26 +3176,28 @@
       this.requestRender();
     }
 
-    _clearDrawnFeatures() {
+    _clearDrawnFeatures(emitServerEvents = true) {
       const deleted = this.drawnFeatures.slice();
       this.drawnFeatures = [];
       this._stopDrawMode();
       if (this.popupEl) this.popupEl.style.display = "none";
       if (this.tooltipEl) this.tooltipEl.style.display = "none";
 
-      // Also clear any server-pushed `sg_shape` AOI layer and notify `sg_remove`
+      // Also clear any server-pushed `sg_shape` AOI layer and notify `sg_remove` when triggered by user clicking Clear
       const sgIdsToRemove = [];
-      for (const [id, l] of this.layers.entries()) {
-        if (l.group === "sg_shape" || id === "sg_shape") {
-          sgIdsToRemove.push(id);
+      if (emitServerEvents) {
+        for (const [id, l] of this.layers.entries()) {
+          if (l.group === "sg_shape" || id === "sg_shape") {
+            sgIdsToRemove.push(id);
+          }
+        }
+        for (const id of sgIdsToRemove) {
+          this.layers.delete(id);
+          this.layerOrder = this.layerOrder.filter((x) => x !== id);
         }
       }
-      for (const id of sgIdsToRemove) {
-        this.layers.delete(id);
-        this.layerOrder = this.layerOrder.filter((x) => x !== id);
-      }
 
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+      if (emitServerEvents && typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
         if (sgIdsToRemove.length > 0 || deleted.length > 0) {
           // Emit sg_remove with 1..25 so server-side reactive AOI handlers clear all stored polygons
           const allIds = Array.from({ length: Math.max(25, this._drawSeq + 5) }, (_, i) => i + 1);
