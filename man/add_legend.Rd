@@ -20,7 +20,8 @@ add_legend(
   opacity = 1,
   layerId = NULL,
   labFormat = NULL,
-  data = NULL
+  data = NULL,
+  opacity_slider = NULL
 )
 }
 \arguments{
@@ -55,6 +56,8 @@ add_legend(
 \item{labFormat}{Optional label format function (\code{leaflet} compatibility).}
 
 \item{data}{Optional dataset used to evaluate \code{values = ~col} formulas (defaults to map data).}
+
+\item{opacity_slider}{Optional logical; if \code{TRUE} (or by default when \code{group} / \code{layer_id} points to a map layer and \code{opacity_slider} is not \code{FALSE}), renders an interactive layer opacity slider in the legend card.}
 }
 \description{
 Supports both \code{glmap} native arguments (\code{title}, \code{colors}, \code{labels}, \code{domain}, \code{position})

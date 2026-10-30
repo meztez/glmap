@@ -440,7 +440,8 @@ addLegend(
   opacity = 1,
   layerId = NULL,
   labFormat = NULL,
-  data = NULL
+  data = NULL,
+  opacity_slider = NULL
 )
 
 addLayersControl(

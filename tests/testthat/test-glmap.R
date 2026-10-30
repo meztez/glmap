@@ -411,6 +411,16 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_true(m_meas$x$controls$search$enabled)
   expect_equal(m_meas$x$controls$search$position, "top-left")
   expect_null(m_meas$x$controls$toolbar)
+
+  # Test add_legend opacity_slider option
+  m_leg <- glmap() |>
+    add_legend(
+      title = "Concentration",
+      colors = c("#eef9ea", "#26004e"),
+      labels = c("Low", "High"),
+      group = "Concentration & Perils"
+    )
+  expect_true(m_leg$x$legends[[1]]$opacity_slider)
 })
 
 test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API works end-to-end", {

@@ -2562,19 +2562,25 @@
     _rebuildLegends() {
       this.legendsEl.innerHTML = "";
       for (const leg of this.legends) {
+        let targetLayer = null;
         if (leg.layer_id && this.layers.has(leg.layer_id)) {
           const lyr = this.layers.get(leg.layer_id);
           if (!lyr.visible) continue;
+          targetLayer = lyr;
         } else if (leg.group) {
           let anyVis = false;
           for (const l of this.layers.values()) {
-            if (l.group === leg.group && l.visible) anyVis = true;
+            if (l.group === leg.group && l.visible) {
+              anyVis = true;
+              if (!targetLayer) targetLayer = l;
+            }
           }
           if (!anyVis) continue;
         }
         const card = document.createElement("div");
         card.className = "glmap-panel";
         let html = `<div class="glmap-panel-title"><span>${leg.title || "Legend"}</span></div>`;
+        let hasRasterOpacity = false;
         if (leg.type === "continuous" && Array.isArray(leg.colors)) {
           const grad = `linear-gradient(to right, ${leg.colors.join(", ")})`;
           const d0 = leg.domain ? Number(leg.domain[0]).toFixed(1) : "0";
@@ -2609,6 +2615,7 @@
                 `;
               }
               if (sc.opacity !== false) {
+                hasRasterOpacity = true;
                 html += `
                   <label style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;margin-top:4px">
                     <span>Layer Opacity</span>
@@ -2629,6 +2636,19 @@
               </div>
             `;
           }
+        }
+        if (!hasRasterOpacity && leg.opacity_slider !== false && targetLayer) {
+          const opTarget = leg.group || targetLayer.id;
+          const curOp = targetLayer.opacity !== undefined ? Number(targetLayer.opacity) : 0.65;
+          html += `
+            <div class="glmap-layer-opacity-ctrl" data-target-id="${opTarget}" style="margin-top:6px;padding-top:4px;border-top:1px solid rgba(148,163,184,0.2)">
+              <label style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">
+                <span>Layer Opacity</span>
+                <span class="gl-op-val">${Math.round(curOp * 100)}%</span>
+              </label>
+              <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:#38bdf8;cursor:pointer;margin-top:2px"/>
+            </div>
+          `;
         }
         card.innerHTML = html;
         this.legendsEl.appendChild(card);
@@ -2655,6 +2675,20 @@
               const v = Number(e.target.value);
               if (opVal) opVal.textContent = `${Math.round(v * 100)}%`;
               this.setLayerOpacity(rid, v);
+            });
+          }
+        }
+
+        const lyrOpCtrl = card.querySelector(".glmap-layer-opacity-ctrl");
+        if (lyrOpCtrl) {
+          const tid = lyrOpCtrl.getAttribute("data-target-id");
+          const opSlider = lyrOpCtrl.querySelector(".gl-op-slider");
+          const opVal = lyrOpCtrl.querySelector(".gl-op-val");
+          if (opSlider && tid) {
+            opSlider.addEventListener("input", (e) => {
+              const v = Number(e.target.value);
+              if (opVal) opVal.textContent = `${Math.round(v * 100)}%`;
+              this.setLayerOpacity(tid, v);
             });
           }
         }
@@ -2902,11 +2936,17 @@
     }
 
     setLayerOpacity(id, opacity) {
+      const v = Number(opacity);
       const l = this.layers.get(id);
       if (l) {
-        l.opacity = Number(opacity);
-        this.requestRender();
+        l.opacity = v;
       }
+      for (const lyr of this.layers.values()) {
+        if (lyr.group === id) {
+          lyr.opacity = v;
+        }
+      }
+      this.requestRender();
     }
 
     setRasterStyle(patch) {

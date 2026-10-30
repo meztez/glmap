@@ -1,3 +1,9 @@
+# glmap 1.0.2
+
+* **Interactive Layer Opacity Slider in Categorical & Group Legends (`add_legend`, `glmap.js`)**:
+  * Added `opacity_slider` argument to `add_legend()` (defaulting to `TRUE` whenever `group` is supplied) and rendered a real-time **Layer Opacity** slider (`0%–100%`) at the bottom of group/layer-bound legend cards (including categorical choropleth legends).
+  * Updated `setLayerOpacity()` in `glmap.js` to match both `layer.id` and `layer.group` so adjusting the legend opacity slider dynamically updates the GPU opacity uniform (`u_opacity`) of all layers belonging to that group.
+
 # glmap 1.0.1
 
 * **Triangulated Polygon Interior Hit-Testing & Picking (`glmap.js`)**:

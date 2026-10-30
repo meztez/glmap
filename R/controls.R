@@ -313,6 +313,7 @@ layers_control_options <- function(collapsed = TRUE, autoZIndex = TRUE) {
 #' @param layerId Optional alias for `layer_id` (`leaflet` compatibility).
 #' @param labFormat Optional label format function (`leaflet` compatibility).
 #' @param data Optional dataset used to evaluate `values = ~col` formulas (defaults to map data).
+#' @param opacity_slider Optional logical; if `TRUE` (or by default when `group` / `layer_id` points to a map layer and `opacity_slider` is not `FALSE`), renders an interactive layer opacity slider in the legend card.
 #' @export
 add_legend <- function(
     map,
@@ -330,7 +331,8 @@ add_legend <- function(
     opacity = 1.0,
     layerId = NULL,
     labFormat = NULL,
-    data = NULL
+    data = NULL,
+    opacity_slider = NULL
 ) {
   # Detect positional `add_legend(map, "bottomright", pal = ..., values = ...)`
   pos_tokens <- c("topleft", "topright", "bottomleft", "bottomright", "top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "center-left", "center-right")
@@ -391,7 +393,8 @@ add_legend <- function(
     domain = if (!is.null(domain)) as.numeric(domain) else c(0, 1),
     position = pos_norm,
     direction = direction,
-    order = as.numeric(order[1])
+    order = as.numeric(order[1]),
+    opacity_slider = if (is.null(opacity_slider)) !is.null(group) else isTRUE(opacity_slider)
   )
   if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "addLegend", leg))
