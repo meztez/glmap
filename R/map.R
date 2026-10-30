@@ -718,7 +718,8 @@ add_points <- function(
   }
 
   stroke_rgb <- as.integer(grDevices::col2rgb(stroke_color, alpha = FALSE)[, 1])
-  tooltips <- build_popup_labels(popup, label, data)
+  tooltips <- build_popup_labels(NULL, label %||% popup, data)
+  popups <- if (!is.null(popup)) build_popup_labels(popup, NULL, data) else NULL
   icon_spec <- resolve_icon_spec(icon, data, n)
   cluster_spec <- resolve_cluster_spec(clusterOptions, n = n, render_mode = render_mode)
   render_spec <- resolve_icon_render_spec(
@@ -750,8 +751,9 @@ add_points <- function(
       render = render_spec,
       label_options = labelOptions
     ),
-    feature_ids = if (length(layer_id_vals) == n && n <= 50000L) as.character(layer_id_vals) else NULL,
-    tooltips = tooltips
+    feature_ids = if (length(layer_id_vals) == n && n <= 250000L) as.character(layer_id_vals) else NULL,
+    tooltips = tooltips,
+    popups = popups
   )
 
   legend_spec <- if (isTRUE(legend)) col_res$legend else NULL
@@ -1228,7 +1230,8 @@ add_lines <- function(
 
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
-  tooltips <- build_popup_labels(popup, label, data)
+  tooltips <- build_popup_labels(NULL, label %||% popup, data)
+  popups <- if (!is.null(popup)) build_popup_labels(popup, NULL, data) else NULL
 
   layer_spec <- list(
     id = id,
@@ -1244,7 +1247,8 @@ add_lines <- function(
       width = if (length(w_vec) == 1L) w_vec else 2.0,
       highlight = highlightOptions
     ),
-    tooltips = tooltips
+    tooltips = tooltips,
+    popups = popups
   )
 
   legend_spec <- if (isTRUE(legend)) col_res$legend else NULL
@@ -1385,7 +1389,8 @@ add_polygons <- function(
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
   line_rgb <- as.integer(grDevices::col2rgb(line_color[1], alpha = FALSE)[, 1])
-  tooltips <- build_popup_labels(popup, label, data)
+  tooltips <- build_popup_labels(NULL, label %||% popup, data)
+  popups <- if (!is.null(popup)) build_popup_labels(popup, NULL, data) else NULL
 
   hl_spec <- NULL
   if (is.list(highlightOptions)) {
@@ -1419,12 +1424,16 @@ add_polygons <- function(
       extruded = length(elev_vec) > 0L,
       highlight = hl_spec
     ),
-    feature_ids = if (length(layer_id_vals) == n && n <= 50000L) as.character(layer_id_vals) else NULL,
-    tooltips = tooltips
+    feature_ids = if (length(layer_id_vals) == n && n <= 250000L) as.character(layer_id_vals) else NULL,
+    tooltips = tooltips,
+    popups = popups
   )
 
   legend_spec <- if (isTRUE(legend)) col_res$legend else NULL
-  if (!is.null(legend_spec)) legend_spec$layer_id <- id
+  if (!is.null(legend_spec)) {
+    legend_spec$layer_id <- id
+    legend_spec$group <- group
+  }
 
   dispatch_layer(map, layer_spec, legend_spec, attr(raw_buf, "bbox"))
 }

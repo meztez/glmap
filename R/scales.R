@@ -349,7 +349,7 @@ resolve_numeric_aesthetic <- function(val, data = NULL, default = 5.0, range_out
   v
 }
 
-build_popup_labels <- function(popup, label, data, max_items = 25000L) {
+build_popup_labels <- function(popup, label, data, max_items = 250000L) {
   n <- if (!is.null(data) && is.data.frame(data)) nrow(data) else 0L
   if (n == 0L || n > max_items) return(NULL)
   src <- popup %||% label
@@ -367,6 +367,7 @@ build_popup_labels <- function(popup, label, data, max_items = 25000L) {
     return(NULL)
   }
   vals <- eval_aesthetic(src, data)
+  if (length(vals) == 1L && n > 1L) vals <- rep_len(as.character(vals), n)
   as.character(vals)
 }
 

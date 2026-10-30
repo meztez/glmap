@@ -1,3 +1,13 @@
+# glmap 1.0.1
+
+* **Triangulated Polygon Interior Hit-Testing & Picking (`glmap.js`)**:
+  * Added exact Mercator triangle point-in-polygon hit-testing (`_pickFeatureAt` using `parsed.indices` and `parsed.mercCoords`) in both `_handleHover()` and `_handleClick()` in reverse layer draw order (`points`/`labels` prioritized before `polygons`/`lines`). Hovering or clicking anywhere inside a filled polygon or hexagon now reliably triggers tooltips, hover highlights (`highlightOptions`), popups, and Shiny `_shape_mouseover` / `_shape_click` events instead of requiring cursor proximity to a boundary vertex.
+* **Popup vs. Hover Tooltip Separation (`add_points`, `add_polygons`, `add_lines`)**:
+  * Separated hover `tooltips` (`label`) from click `popups` (`popup`) in layer specifications so hovering displays `label` while clicking opens `popup` when both are provided, and raised the default `max_items` cap in `build_popup_labels()` and `feature_ids` to `250,000` features for high-density GPU layers.
+* **Layer Switcher & Legend Group Synchronization**:
+  * Excluded internal helper layer groups (`cat_claims_overlay`, `sg_shape`, `js_single_call`) from the user-facing `☰ Layers` switcher list.
+  * Updated `addLayer()` and `clearGroup()` in `glmap.js` to synchronize `_selectedOverlayGroups`, remove group-bound legends when a group is cleared, and emit `<mapId>_groups` to Shiny when visible overlay groups change.
+
 # glmap 1.0.0
 
 * **Production 1.0.0 Release**: Complete C++17 + WebGL2 + MapLibre GL geospatial mapping engine for R (`sf`, `terra`, `wk`, `nanoarrow`, `DuckDB`, `Shiny`, `Quarto`) with 100% drop-in `leaflet` and `leaflet.extras` compatibility.

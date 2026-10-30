@@ -1014,8 +1014,13 @@
         this.layerOrder.push(entry.id);
       }
       this.layers.set(entry.id, entry);
+      if (entry.visible && entry.group && entry.group !== "sg_shape" && entry.group !== "js_single_call" && entry.group !== "cat_claims_overlay") {
+        if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
+        this._selectedOverlayGroups.add(entry.group);
+      }
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
+      this._emitActiveGroups();
       this.requestRender();
     }
 
@@ -2073,35 +2078,10 @@
       const tolMerc = 8.0 / scale;
 
       if (!hitFeature) {
-        for (const layer of this.layers.values()) {
-          if (!layer.visible || !layer.parsed) continue;
-          const mc = layer.parsed.mercCoords;
-          const nV = layer.parsed.nVertices;
-          const stride = nV > 100000 ? Math.ceil(nV / 100000) : 1;
-          for (let v = 0; v < nV; v += stride) {
-            const dx = mc[2 * v] - mx;
-            const dy = mc[2 * v + 1] - my;
-            if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
-              const fid = layer.parsed.vertexFeatureIds[v];
-              const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
-                ? layer.feature_ids[fid]
-                : (fid + 1);
-              hitFeature = {
-                id: customId,
-                featureIndex: fid + 1,
-                layerId: layer.id,
-                group: layer.group || layer.id,
-                type: layer.type,
-                lng: lon,
-                lat: lat
-              };
-              if (layer.tooltips && layer.tooltips[fid]) {
-                hitText = layer.tooltips[fid];
-              }
-              break;
-            }
-          }
-          if (hitFeature) break;
+        const picked = this._pickFeatureAt(lon, lat, mx, my, tolMerc);
+        if (picked) {
+          hitFeature = picked.feature;
+          hitText = picked.tooltip;
         }
       }
 
@@ -2129,6 +2109,117 @@
       } else {
         this.tooltipEl.style.display = "none";
       }
+    }
+
+    _pickFeatureAt(lon, lat, mx, my, tolMerc) {
+      const ids = this.layerOrder.slice().reverse();
+      // Pass 1: check points and labels first so point markers on top of polygons win
+      for (const id of ids) {
+        const layer = this.layers.get(id);
+        if (!layer || !layer.visible || !layer.parsed) continue;
+        if (layer.type !== "points" && layer.type !== "labels") continue;
+        const mc = layer.parsed.mercCoords;
+        const nV = layer.parsed.nVertices;
+        const stride = nV > 150000 ? Math.ceil(nV / 150000) : 1;
+        for (let v = 0; v < nV; v += stride) {
+          const dx = mc[2 * v] - mx;
+          const dy = mc[2 * v + 1] - my;
+          if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
+            const fid = layer.parsed.vertexFeatureIds[v];
+            const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
+              ? layer.feature_ids[fid]
+              : (fid + 1);
+            return {
+              feature: {
+                id: customId,
+                featureIndex: fid + 1,
+                layerId: layer.id,
+                group: layer.group || layer.id,
+                type: layer.type,
+                lng: lon,
+                lat: lat
+              },
+              tooltip: (layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null,
+              popup: (layer.popups && layer.popups[fid]) ? layer.popups[fid] : ((layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null)
+            };
+          }
+        }
+      }
+
+      // Pass 2: check polygon interiors (using earstrip/earcut triangles) & line/polygon vertices
+      for (const id of ids) {
+        const layer = this.layers.get(id);
+        if (!layer || !layer.visible || !layer.parsed) continue;
+        if (layer.type === "points" || layer.type === "labels") continue;
+        const bb = layer.bbox || layer.parsed.bbox;
+        if (Array.isArray(bb) && bb.length >= 4) {
+          if (lon < bb[0] - 0.05 || lat < bb[1] - 0.05 || lon > bb[2] + 0.05 || lat > bb[3] + 0.05) continue;
+        }
+        const mc = layer.parsed.mercCoords;
+        const indices = layer.parsed.indices;
+        const vfids = layer.parsed.vertexFeatureIds;
+        if (layer.type === "polygons" && mc && indices && indices.length >= 3 && vfids) {
+          for (let t = 0; t + 2 < indices.length; t += 3) {
+            const i0 = indices[t], i1 = indices[t + 1], i2 = indices[t + 2];
+            const ax = mc[2 * i0], ay = mc[2 * i0 + 1];
+            const bx = mc[2 * i1], by = mc[2 * i1 + 1];
+            const cx = mc[2 * i2], cy = mc[2 * i2 + 1];
+            if (mx < Math.min(ax, bx, cx) || mx > Math.max(ax, bx, cx) ||
+                my < Math.min(ay, by, cy) || my > Math.max(ay, by, cy)) continue;
+            const d1 = (mx - bx) * (ay - by) - (ax - bx) * (my - by);
+            const d2 = (mx - cx) * (by - cy) - (bx - cx) * (my - cy);
+            const d3 = (mx - ax) * (cy - ay) - (cx - ax) * (my - ay);
+            const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+            const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+            if (!(hasNeg && hasPos)) {
+              const fid = vfids[i0];
+              const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
+                ? layer.feature_ids[fid]
+                : (fid + 1);
+              return {
+                feature: {
+                  id: customId,
+                  featureIndex: fid + 1,
+                  layerId: layer.id,
+                  group: layer.group || layer.id,
+                  type: layer.type,
+                  lng: lon,
+                  lat: lat
+                },
+                tooltip: (layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null,
+                popup: (layer.popups && layer.popups[fid]) ? layer.popups[fid] : ((layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null)
+              };
+            }
+          }
+        }
+        // Fallback vertex proximity for lines or unfilled polygons
+        const nV = layer.parsed.nVertices;
+        const stride = nV > 100000 ? Math.ceil(nV / 100000) : 1;
+        for (let v = 0; v < nV; v += stride) {
+          const dx = mc[2 * v] - mx;
+          const dy = mc[2 * v + 1] - my;
+          if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
+            const fid = vfids[v];
+            const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
+              ? layer.feature_ids[fid]
+              : (fid + 1);
+            return {
+              feature: {
+                id: customId,
+                featureIndex: fid + 1,
+                layerId: layer.id,
+                group: layer.group || layer.id,
+                type: layer.type,
+                lng: lon,
+                lat: lat
+              },
+              tooltip: (layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null,
+              popup: (layer.popups && layer.popups[fid]) ? layer.popups[fid] : ((layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null)
+            };
+          }
+        }
+      }
+      return null;
     }
 
     _handleClick(px, py, lon, lat) {
@@ -2210,9 +2301,17 @@
         }
       }
 
-      // 2. Check if user clicked a feature with a popup/tooltip (e.g. polygon with Remove button or table)
-      if (this._hoveredFeature && this.tooltipEl.style.display === "block") {
-        this._showPopupAt(px, py, this.tooltipEl.innerHTML);
+      // 2. Direct pick at click coordinates if not already hovered, then open popup/tooltip
+      let clickedFeature = this._hoveredFeature;
+      let clickedPopupHtml = (this.tooltipEl && this.tooltipEl.style.display === "block") ? this.tooltipEl.innerHTML : null;
+      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
+      const picked = this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale);
+      if (picked) {
+        clickedFeature = picked.feature;
+        if (picked.popup) clickedPopupHtml = picked.popup;
+      }
+      if (clickedFeature && clickedPopupHtml) {
+        this._showPopupAt(px, py, clickedPopupHtml);
       } else {
         this.popupEl.style.display = "none";
       }
@@ -2224,9 +2323,9 @@
           raster_value: this._cursorRasterVal,
           nonce: Math.random()
         });
-        if (this._hoveredFeature) {
-          const evtSuffix = this._hoveredFeature.type === "points" ? "_marker_click" : "_shape_click";
-          window.Shiny.setInputValue(this.el.id + evtSuffix, Object.assign({}, this._hoveredFeature, { nonce: Math.random() }));
+        if (clickedFeature) {
+          const evtSuffix = clickedFeature.type === "points" ? "_marker_click" : "_shape_click";
+          window.Shiny.setInputValue(this.el.id + evtSuffix, Object.assign({}, clickedFeature, { nonce: Math.random() }));
         }
       }
     }
@@ -2298,14 +2397,14 @@
       const groupMap = new Map();
       let hasSwitchablePointLayer = configuredOverlays.length > 0;
       for (const g of configuredOverlays) {
-        if (g && g !== "sg_shape" && g !== "js_single_call") {
+        if (g && g !== "sg_shape" && g !== "js_single_call" && g !== "cat_claims_overlay") {
           groupMap.set(g, { name: g, visible: false, count: 0 });
         }
       }
       for (const id of this.layerOrder) {
         const l = this.layers.get(id);
         const gName = l.group || l.id;
-        if (gName === "sg_shape" || gName === "js_single_call") continue;
+        if (gName === "sg_shape" || gName === "js_single_call" || gName === "cat_claims_overlay") continue;
         if (l.type === "points") {
           const allowUi = !(l.style && l.style.render && l.style.render.allow_ui_switcher === false);
           if (allowUi) hasSwitchablePointLayer = true;
@@ -2756,6 +2855,10 @@
 
     clearGroup(groups) {
       const grpSet = new Set(Array.isArray(groups) ? groups : [groups]);
+      if (this._selectedOverlayGroups) {
+        for (const g of grpSet) this._selectedOverlayGroups.delete(g);
+      }
+      this.legends = this.legends.filter((l) => !grpSet.has(l.group) && !grpSet.has(l.layer_id));
       const toRemove = [];
       for (const [id, l] of this.layers.entries()) {
         if (grpSet.has(l.group) || grpSet.has(l.id)) {
@@ -2765,6 +2868,9 @@
       for (const id of toRemove) {
         this.clearLayer(id);
       }
+      this._rebuildLayerSwitcher();
+      this._rebuildLegends();
+      this._emitActiveGroups();
     }
 
     flyToBounds(opts) {

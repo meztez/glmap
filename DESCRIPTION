@@ -1,6 +1,6 @@
 Package: glmap
 Title: High-Performance GPU Geospatial Mapping for 'sf' and 'terra'
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(
     person("Bruno", "Tremblay", , "meztez@gmail.com", role = c("aut", "cre")),
     person("Evgen", "Bodunov", role = "cph", comment = "GLMap/earstrip in src/earstrip.h (ISC License)"),

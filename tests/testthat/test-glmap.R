@@ -506,6 +506,17 @@ test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API wor
   expect_equal(prx$calls[[2]]$method, "clearMarkers")
   expect_equal(prx$calls[[3]]$method, "clearControls")
   expect_equal(prx$calls[[4]]$method, "clearLayer")
+
+  # Verify popup vs label separation on polygons and points, and scalar popup recycling
+  poly_sf <- gl_benchmark_data(n_points = 10L, n_polygons = 5L)$polygons_sf
+  poly_sf$hover_txt <- paste0("Hover #", seq_len(nrow(poly_sf)))
+  poly_sf$click_txt <- paste0("Click #", seq_len(nrow(poly_sf)))
+  m_pop <- glmap(poly_sf) |>
+    add_polygons(label = ~hover_txt, popup = ~click_txt, id = "poly_pop") |>
+    add_polygons(label = ~hover_txt, popup = "Static Popup", id = "poly_static")
+  expect_equal(m_pop$x$layers[[1]]$tooltips, poly_sf$hover_txt)
+  expect_equal(m_pop$x$layers[[1]]$popups, poly_sf$click_txt)
+  expect_equal(m_pop$x$layers[[2]]$popups, rep("Static Popup", nrow(poly_sf)))
 })
 
 
