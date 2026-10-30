@@ -2555,8 +2555,12 @@
           if (l.visible && l.group) this._selectedOverlayGroups.add(l.group);
         }
       }
-      const active = [this._activeBaseGroup || "Dark", ...Array.from(this._selectedOverlayGroups)];
-      window.Shiny.setInputValue(this.el.id + "_groups", active);
+      if (this._emitGroupsTimer) clearTimeout(this._emitGroupsTimer);
+      this._emitGroupsTimer = setTimeout(() => {
+        this._emitGroupsTimer = null;
+        const active = [this._activeBaseGroup || "Dark", ...Array.from(this._selectedOverlayGroups || [])];
+        window.Shiny.setInputValue(this.el.id + "_groups", active);
+      }, 15);
     }
 
     _rebuildLegends() {
