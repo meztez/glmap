@@ -527,7 +527,19 @@ test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API wor
   expect_equal(m_pop$x$layers[[1]]$tooltips, poly_sf$hover_txt)
   expect_equal(m_pop$x$layers[[1]]$popups, poly_sf$click_txt)
   expect_equal(m_pop$x$layers[[2]]$popups, rep("Static Popup", nrow(poly_sf)))
+
+  # Verify unminified source is retained in js-src/ while htmlwidgets/ serves the minified binding
+  src_js <- system.file("js-src", "glmap.js", package = "glmap")
+  min_js <- system.file("htmlwidgets", "glmap.js", package = "glmap")
+  expect_true(nzchar(src_js) && file.exists(src_js))
+  expect_true(nzchar(min_js) && file.exists(min_js))
+  expect_lt(file.info(min_js)$size, file.info(src_js)$size * 0.70)
+  min_code <- paste(readLines(min_js, warn = FALSE), collapse = "\n")
+  expect_match(min_code, "GLMapInstance")
+  expect_match(min_code, "clearGroup")
+  expect_match(min_code, "setGroupVisibility")
 })
+
 
 
 
