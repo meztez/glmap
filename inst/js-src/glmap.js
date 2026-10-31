@@ -530,13 +530,62 @@
           this._onViewportChanged();
         }
       };
-      this.navControlEl.querySelector(".glmap-nav-compass").onclick = (e) => {
+      const btnComp = this.navControlEl.querySelector(".glmap-nav-compass");
+      let compassDragStartX = null;
+      let compassStartBearing = 0;
+      let compassDragged = false;
+      btnComp.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
         e.stopPropagation();
-        if (this.map && typeof this.map.resetNorthPitch === "function") this.map.resetNorthPitch();
-        else {
-          this.camera.bearing = 0;
-          this.camera.pitch = 0;
-          this.requestRender();
+        compassDragStartX = e.clientX;
+        compassStartBearing = (this.map && typeof this.map.getBearing === "function") ? this.map.getBearing() : (this.camera.bearing || 0);
+        compassDragged = false;
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (compassDragStartX === null) return;
+        const dx = e.clientX - compassDragStartX;
+        if (Math.abs(dx) > 2) compassDragged = true;
+        if (compassDragged) {
+          const nextBearing = ((compassStartBearing + dx * 0.8 + 540) % 360) - 180;
+          this.camera.bearing = nextBearing;
+          if (this.map && typeof this.map.setBearing === "function") {
+            this.map.setBearing(nextBearing);
+          } else {
+            const arrow = this.navControlEl.querySelector(".glmap-compass-arrow");
+            if (arrow) arrow.style.transform = `rotate(${-nextBearing}deg)`;
+            this.requestRender();
+          }
+        }
+      });
+      window.addEventListener("mouseup", () => {
+        if (compassDragStartX !== null) {
+          compassDragStartX = null;
+          if (compassDragged) this._onViewportChanged();
+        }
+      });
+      btnComp.onclick = (e) => {
+        e.stopPropagation();
+        if (compassDragged) {
+          compassDragged = false;
+          return;
+        }
+        const curBearing = (this.map && typeof this.map.getBearing === "function") ? this.map.getBearing() : (this.camera.bearing || 0);
+        const curPitch = (this.map && typeof this.map.getPitch === "function") ? this.map.getPitch() : (this.camera.pitch || 0);
+        if (Math.abs(curBearing) > 0.5 || Math.abs(curPitch) > 0.5) {
+          if (this.map && typeof this.map.resetNorthPitch === "function") this.map.resetNorthPitch();
+          else {
+            this.camera.bearing = 0;
+            this.camera.pitch = 0;
+            const arrow = this.navControlEl.querySelector(".glmap-compass-arrow");
+            if (arrow) arrow.style.transform = "rotate(0deg)";
+            this.requestRender();
+          }
+        } else if (this.initialCamera) {
+          this.flyTo({
+            center: [this.initialCamera.centerLon, this.initialCamera.centerLat],
+            zoom: this.initialCamera.zoom,
+            duration: 700
+          });
         }
       };
 
@@ -669,10 +718,12 @@
         uniform vec2 u_viewport;
         uniform float u_dpr;
         uniform float u_opacity;
+        uniform vec2 u_rot;
         varying vec4 v_color;
         varying float v_radius;
         void main() {
-          vec2 delta_px = (a_pos - u_center_merc) * u_scale;
+          vec2 d = (a_pos - u_center_merc) * u_scale;
+          vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
           vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
           gl_Position = vec4(clip, 0.0, 1.0);
           float r = max(1.5, a_radius);
@@ -715,9 +766,11 @@
         uniform float u_opacity;
         uniform float u_use_uniform_color;
         uniform vec4 u_uniform_color;
+        uniform vec2 u_rot;
         varying vec4 v_color;
         void main() {
-          vec2 delta_px = (a_pos - u_center_merc) * u_scale;
+          vec2 d = (a_pos - u_center_merc) * u_scale;
+          vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
           vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
           gl_Position = vec4(clip, 0.0, 1.0);
           if (u_use_uniform_color > 0.5) {
@@ -745,8 +798,10 @@
         uniform vec2 u_viewport;
         uniform float u_dpr;
         uniform float u_radius_mult;
+        uniform vec2 u_rot;
         void main() {
-          vec2 delta_px = (a_pos - u_center_merc) * u_scale;
+          vec2 d = (a_pos - u_center_merc) * u_scale;
+          vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
           vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
           gl_Position = vec4(clip, 0.0, 1.0);
           gl_PointSize = max(8.0, a_radius * u_radius_mult) * 2.0 * u_dpr;
@@ -774,9 +829,11 @@
         uniform vec2 u_center_merc;
         uniform float u_scale;
         uniform vec2 u_viewport;
+        uniform vec2 u_rot;
         varying vec2 v_uv;
         void main() {
-          vec2 delta_px = (a_pos - u_center_merc) * u_scale;
+          vec2 d = (a_pos - u_center_merc) * u_scale;
+          vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
           vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
           gl_Position = vec4(clip, 0.0, 1.0);
           v_uv = a_uv;
@@ -845,9 +902,11 @@
         uniform vec2 u_viewport;
         uniform float u_dpr;
         uniform float u_icon_size;
+        uniform vec2 u_rot;
         varying float v_icon_idx;
         void main() {
-          vec2 delta_px = (a_pos - u_center_merc) * u_scale;
+          vec2 d = (a_pos - u_center_merc) * u_scale;
+          vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
           vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
           gl_Position = vec4(clip, 0.0, 1.0);
           gl_PointSize = u_icon_size * u_dpr;
@@ -889,6 +948,11 @@
       } else if (x.view && Array.isArray(x.view.bounds) && x.view.bounds.length === 4) {
         this._fitCameraToBounds(x.view.bounds);
       }
+      this.initialCamera = {
+        centerLon: this.camera.centerLon,
+        centerLat: this.camera.centerLat,
+        zoom: this.camera.zoom
+      };
 
       this._initMapLibre(x);
       this._applyControlLayout(x);
@@ -1025,9 +1089,15 @@
               this.camera.worldSize = this.map.transform.worldSize;
             }
             this.camera.zoom = this.map.getZoom();
-            if (typeof this.map.getBearing === "function" && this.navControlEl) {
-              const arrow = this.navControlEl.querySelector(".glmap-compass-arrow");
-              if (arrow) arrow.style.transform = `rotate(${-this.map.getBearing()}deg)`;
+            if (typeof this.map.getBearing === "function") {
+              this.camera.bearing = this.map.getBearing() || 0;
+              if (this.navControlEl) {
+                const arrow = this.navControlEl.querySelector(".glmap-compass-arrow");
+                if (arrow) arrow.style.transform = `rotate(${-this.camera.bearing}deg)`;
+              }
+            }
+            if (typeof this.map.getPitch === "function") {
+              this.camera.pitch = this.map.getPitch() || 0;
             }
             this.requestRender();
           };
@@ -1123,8 +1193,12 @@
       const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
       const cx = lonToMercX(this.camera.centerLon);
       const cy = latToMercY(this.camera.centerLat);
-      const mx = cx + (px - w * 0.5) / scale;
-      const my = cy + (py - h * 0.5) / scale;
+      const bRad = (this.camera.bearing || 0) * DEG2RAD;
+      const c = Math.cos(bRad), s = Math.sin(bRad);
+      const dxPx = px - w * 0.5;
+      const dyPx = py - h * 0.5;
+      const mx = cx + (dxPx * c - dyPx * s) / scale;
+      const my = cy + (dxPx * s + dyPx * c) / scale;
       return [mercXToLon(mx), mercYToLat(my)];
     }
 
@@ -1483,11 +1557,17 @@
             this._activeSpiderfy = null;
           }
           this.camera.zoom = newZoom;
+          if (typeof this.map.getBearing === "function") {
+            this.camera.bearing = this.map.getBearing() || 0;
+          }
           if (this.map.transform && this.map.transform.worldSize) {
             this.camera.worldSize = this.map.transform.worldSize;
           }
         } catch (e) {}
       }
+      const bRad = (this.camera.bearing || 0) * DEG2RAD;
+      this._curRotCos = Math.cos(bRad);
+      this._curRotSin = Math.sin(bRad);
 
       const centerMercX = lonToMercX(this.camera.centerLon);
       const centerMercY = latToMercY(this.camera.centerLat);
@@ -1625,6 +1705,7 @@
       gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos || 1.0, this._curRotSin || 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 0.85) * opacityMult);
 
@@ -1669,6 +1750,7 @@
       gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos || 1.0, this._curRotSin || 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
       gl.uniform1f(gl.getUniformLocation(prog, "u_icon_size"), iconSize);
       gl.uniform1f(gl.getUniformLocation(prog, "u_atlas_count"), layer.atlasCount || 1);
@@ -1695,12 +1777,17 @@
       const sp = (this._activeSpiderfy && this._activeSpiderfy.layerId === layer.id) ? this._activeSpiderfy : null;
       const spSet = sp ? sp.memberSet : null;
 
+      const rotCos = this._curRotCos !== undefined ? this._curRotCos : 1.0;
+      const rotSin = this._curRotSin !== undefined ? this._curRotSin : 0.0;
+
       for (let i = 0; i < n; i++) {
         if (spSet && spSet.has(i)) continue; // Spiderfied points are rendered on their expanded web legs!
         const mx = mc[2 * i];
         const my = mc[2 * i + 1];
-        const sx = halfW + (mx - cx) * scale;
-        const sy = halfH + (my - cy) * scale;
+        const dx = (mx - cx) * scale;
+        const dy = (my - cy) * scale;
+        const sx = halfW + (dx * rotCos + dy * rotSin);
+        const sy = halfH + (-dx * rotSin + dy * rotCos);
         if (sx < -pad || sx > w + pad || sy < -pad || sy > h + pad) continue;
         const gx = Math.floor(sx / cellPx);
         const gy = Math.floor(sy / cellPx);
@@ -1752,8 +1839,10 @@
       if (sp && sp.indices && sp.indices.length > 0 && gl) {
         const hubMx = lonToMercX(sp.centerLon);
         const hubMy = latToMercY(sp.centerLat);
-        const hubSx = halfW + (hubMx - cx) * scale;
-        const hubSy = halfH + (hubMy - cy) * scale;
+        const hDx = (hubMx - cx) * scale;
+        const hDy = (hubMy - cy) * scale;
+        const hubSx = halfW + (hDx * rotCos + hDy * rotSin);
+        const hubSy = halfH + (-hDx * rotSin + hDy * rotCos);
         const mCount = sp.indices.length;
         spScreenLegs = [];
         const legVertsMerc = new Float32Array(mCount * 4);
@@ -1772,8 +1861,10 @@
           }
           const lx = hubSx + legR * Math.cos(ang);
           const ly = hubSy + legR * Math.sin(ang);
-          const lmx = cx + (lx - halfW) / scale;
-          const lmy = cy + (ly - halfH) / scale;
+          const lDx = lx - halfW;
+          const lDy = ly - halfH;
+          const lmx = cx + (lDx * rotCos - lDy * rotSin) / scale;
+          const lmy = cy + (lDx * rotSin + lDy * rotCos) / scale;
           spScreenLegs.push({
             idx: sp.indices[k],
             sx: lx,
@@ -1821,6 +1912,7 @@
         gl.uniform2f(gl.getUniformLocation(progM, "u_center_merc"), cx, cy);
         gl.uniform1f(gl.getUniformLocation(progM, "u_scale"), scale);
         gl.uniform2f(gl.getUniformLocation(progM, "u_viewport"), w, h);
+        gl.uniform2f(gl.getUniformLocation(progM, "u_rot"), rotCos, rotSin);
         gl.uniform1f(gl.getUniformLocation(progM, "u_opacity"), 0.85);
         gl.uniform1f(gl.getUniformLocation(progM, "u_use_uniform_color"), 0.0);
         gl.drawArrays(gl.LINES, 0, mCount * 2);
@@ -1853,6 +1945,7 @@
         gl.uniform2f(gl.getUniformLocation(progP, "u_center_merc"), cx, cy);
         gl.uniform1f(gl.getUniformLocation(progP, "u_scale"), scale);
         gl.uniform2f(gl.getUniformLocation(progP, "u_viewport"), w, h);
+        gl.uniform2f(gl.getUniformLocation(progP, "u_rot"), rotCos, rotSin);
         gl.uniform1f(gl.getUniformLocation(progP, "u_dpr"), dpr);
         gl.uniform1f(gl.getUniformLocation(progP, "u_opacity"), 0.9);
         gl.uniform1f(gl.getUniformLocation(progP, "u_stroke"), 1.0);
@@ -1935,6 +2028,7 @@
           gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
           gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
           gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+          gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), rotCos, rotSin);
           gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
           gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
           const st = layer.style || {};
@@ -2018,12 +2112,16 @@
       ctx.strokeStyle = st.halo_color || "#0f172a";
       ctx.fillStyle = st.color || "#f8fafc";
 
+      const rotCos = this._curRotCos !== undefined ? this._curRotCos : 1.0;
+      const rotSin = this._curRotSin !== undefined ? this._curRotSin : 0.0;
       const n = Math.min(layer.parsed.nVertices, labels.length);
       for (let i = 0; i < n; i++) {
         const txt = labels[i];
         if (!txt) continue;
-        const sx = w * 0.5 + (mc[2 * i] - cx) * scale;
-        const sy = h * 0.5 + (mc[2 * i + 1] - cy) * scale - 6;
+        const dx = (mc[2 * i] - cx) * scale;
+        const dy = (mc[2 * i + 1] - cy) * scale;
+        const sx = w * 0.5 + (dx * rotCos + dy * rotSin);
+        const sy = h * 0.5 + (-dx * rotSin + dy * rotCos) - 6;
         if (sx >= -50 && sx <= w + 50 && sy >= -20 && sy <= h + 20) {
           ctx.strokeText(txt, sx, sy);
           ctx.fillText(txt, sx, sy);
@@ -2051,6 +2149,7 @@
       gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos || 1.0, this._curRotSin || 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
       gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 0.0);
 
@@ -2089,6 +2188,7 @@
       gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos || 1.0, this._curRotSin || 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
       gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 0.0);
 
@@ -2120,6 +2220,7 @@
       gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos || 1.0, this._curRotSin || 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
       gl.uniform1f(gl.getUniformLocation(prog, "u_radius_mult"), 1.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_intensity"), (layer.style && layer.style.intensity) || 1.0);
@@ -2157,6 +2258,7 @@
       gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
       gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
       gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
+      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos || 1.0, this._curRotSin || 0.0);
       gl.uniform1f(gl.getUniformLocation(prog, "u_vmin"), layer.curMin);
       gl.uniform1f(gl.getUniformLocation(prog, "u_vmax"), layer.curMax);
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
@@ -3238,7 +3340,11 @@
       }
       const mx = lonToMercX(lon);
       const my = latToMercY(lat);
-      return [w * 0.5 + (mx - cx) * scale, h * 0.5 + (my - cy) * scale];
+      const dx = (mx - cx) * scale;
+      const dy = (my - cy) * scale;
+      const c = this._curRotCos !== undefined ? this._curRotCos : 1.0;
+      const s = this._curRotSin !== undefined ? this._curRotSin : 0.0;
+      return [w * 0.5 + (dx * c + dy * s), h * 0.5 + (-dx * s + dy * c)];
     }
 
     addDrawToolbar(spec) {
@@ -3926,11 +4032,14 @@
               if (s < e && fids[s] === targetFid) {
                 ctx.beginPath();
                 for (let v = s; v < e; v++) {
-                  const sx = w * 0.5 + (mc[2 * v] - cx) * scale;
-                  const sy = h * 0.5 + (mc[2 * v + 1] - cy) * scale;
-                  if (v === s) ctx.moveTo(sx, sy);
-                  else ctx.lineTo(sx, sy);
-                }
+                    const [sx, sy] = this.lonLatToScreen(
+                      mercXToLon(mc[2 * v]),
+                      mercYToLat(mc[2 * v + 1]),
+                      cx, cy, scale, w, h
+                    );
+                    if (v === s) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                  }
                 ctx.stroke();
               }
             }

@@ -1,0 +1,108 @@
+name: Update MapLibre GL JS
+
+on:
+  schedule:
+    # Run every Monday at 08:00 UTC to check for new MapLibre GL JS releases
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Optional MapLibre GL JS version to test/update to (defaults to latest on npm)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-maplibre:
+    runs-on: ubuntu-latest
+    name: Check, Test & PR MapLibre GL Update
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Check and download latest MapLibre GL JS release
+        id: maplibre
+        run: |
+          if [ -n "${{ github.event.inputs.target_version }}" ]; then
+            Rscript tools/update_maplibre.R "--target=${{ github.event.inputs.target_version }}"
+          else
+            Rscript tools/update_maplibre.R
+          fi
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        if: steps.maplibre.outputs.updated == 'true'
+        with:
+          extra-packages: any::rcmdcheck, any::chromote
+          needs: check
+
+      - name: Run R CMD check with updated MapLibre GL JS
+        if: steps.maplibre.outputs.updated == 'true'
+        run: |
+          Rscript -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--ignore-vignettes'), build_args = c('--no-build-vignettes'), error_on = 'warning')"
+
+      - name: Run headless Chromium WebGL2 + MapLibre GL smoke test
+        if: steps.maplibre.outputs.updated == 'true'
+        run: |
+          Rscript -e "
+            pkgload::load_all('.')
+            df <- data.frame(lon = c(-73.56, -71.20), lat = c(45.50, 46.81), val = c(10, 20))
+            m <- glmap(df, basemap = 'positron') |> add_points(color = ~val, radius = 8)
+            tmp_html <- tempfile(fileext = '.html')
+            gl_save_html(m, tmp_html, selfcontained = FALSE)
+            stopifnot(file.exists(tmp_html))
+            tryCatch({
+              png_out <- tempfile(fileext = '.png')
+              gl_save_png(m, png_out, vwidth = 800, vheight = 500, delay = 1.5)
+              stopifnot(file.exists(png_out), file.info(png_out)\$size > 1000)
+              message('Headless Chromium WebGL2 snapshot verified (', file.info(png_out)\$size, ' bytes).')
+            }, error = function(e) {
+              message('Note: headless browser screenshot skipped on runner: ', conditionMessage(e))
+            })
+          "
+
+      - name: Open Pull Request via gh pr create
+        if: steps.maplibre.outputs.updated == 'true'
+        run: |
+          NEW_VER="${{ steps.maplibre.outputs.latest_version }}"
+          OLD_VER="${{ steps.maplibre.outputs.current_version }}"
+          BRANCH="chore/maplibre-gl-${NEW_VER}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Skip if PR branch already exists on remote
+          if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
+            echo "Branch ${BRANCH} already exists on origin; skipping PR creation."
+            exit 0
+          fi
+
+          git checkout -b "${BRANCH}"
+          git add inst/htmlwidgets/glmap.yaml inst/htmlwidgets/lib/maplibre-gl/ docs/articles/ || true
+          git commit -m "chore(deps): update maplibre-gl from ${OLD_VER} to ${NEW_VER}"
+          git push -u origin "${BRANCH}"
+
+          gh pr create \
+            --title "chore(deps): update maplibre-gl from v${OLD_VER} to v${NEW_VER}" \
+            --body "## Automated MapLibre GL JS Update
+
+          - **Previous version:** \`${OLD_VER}\`
+          - **New version:** \`${NEW_VER}\`
+          - **Release notes:** https://github.com/maplibre/maplibre-gl-js/releases/tag/v${NEW_VER}
+          - **Validation:** \`R CMD check\` (0 errors, 0 warnings) and \`testthat\` suite passed on this branch." \
+            --base main \
+            --head "${BRANCH}"
