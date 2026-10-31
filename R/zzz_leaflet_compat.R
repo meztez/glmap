@@ -33,7 +33,7 @@
 #' @param popup,popupOptions,label,labelOptions,highlightOptions,maxWidth,minWidth,maxHeight,autoPan,keepInView,closeButton,closeOnClick,interactive,clickable,noHide,permanent,direction,offset,textsize,textOnly,style,sticky,bringToFront,sendToBack Popup, label, and hover highlight parameters.
 #' @param x,colors,project,method,maxBytes Raster parameters for `addRasterImage()`.
 #' @param baseUrl,layers,styles,format,transparent,version WMS parameters for `addWMSTiles()`.
-#' @param title,labels,domain,position,order,pal,values,labFormat Legend parameters for `addLegend()`.
+#' @param title,labels,domain,position,order,pal,values,labFormat,opacity_slider Legend parameters for `addLegend()`.
 #' @param baseGroups,overlayGroups,collapsed,autoZIndex Layer control parameters.
 #' @param primaryLengthUnit,secondaryLengthUnit,primaryAreaUnit,secondaryAreaUnit,activeColor,completedColor,localization Measurement control parameters.
 #' @param zoomLevelOffset,toggleDisplay,aimingRectOptions,interval,sphere,resolution,time MiniMap, Graticule, and Terminator parameters.

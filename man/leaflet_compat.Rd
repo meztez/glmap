@@ -609,7 +609,7 @@ leafletProxy(mapId, session = NULL, data = NULL, deferUntilFlush = TRUE)
 
 \item{baseUrl, layers, styles, format, transparent, version}{WMS parameters for \code{addWMSTiles()}.}
 
-\item{title, labels, domain, position, order, pal, values, labFormat}{Legend parameters for \code{addLegend()}.}
+\item{title, labels, domain, position, order, pal, values, labFormat, opacity_slider}{Legend parameters for \code{addLegend()}.}
 
 \item{baseGroups, overlayGroups, collapsed, autoZIndex}{Layer control parameters.}
 
