@@ -232,6 +232,13 @@ test_that("GLMap/earstrip.hpp in C++17 accurately triangulates complex polygons 
   raw_bowtie <- gl_pack_sf_binary(sfc_bowtie)
   expect_type(raw_bowtie, "raw")
   expect_gte(attr(raw_bowtie, "n_indices"), 6L)
+  # Verify Steiner points are isolated in ring_starts so border strokes never connect across the polygon
+  n_verts_bt <- readBin(raw_bowtie[13:16], "integer", n = 1, size = 4)
+  n_rings_bt <- readBin(raw_bowtie[21:24], "integer", n = 1, size = 4)
+  off_bt <- 48L + n_verts_bt * 8L + n_verts_bt * 4L
+  rs_bt <- readBin(raw_bowtie[(off_bt + 1L):(off_bt + n_rings_bt * 4L)], "integer", n = n_rings_bt, size = 4L)
+  expect_equal(rs_bt[1], 0L)
+  expect_equal(rs_bt[2], 5L) # Original 5-vertex ring closes cleanly before any Steiner point
 })
 
 test_that("add_labels, 3D polygon extrusion, categorical color scales, and camera controls work", {

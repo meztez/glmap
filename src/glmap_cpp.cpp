@@ -165,6 +165,12 @@ void extract_sfg_coords(
             coords.push_back(ey);
             vertex_feat_ids.push_back(feat_id);
           }
+          // Close the last ring before extra Steiner points so line/border strokes
+          // never connect the ring's closing vertex to interior Steiner points!
+          uint32_t steiner_start_v = static_cast<uint32_t>((coords.size() / 2) - n_extra);
+          for (size_t k = 0; k < n_extra; ++k) {
+            ring_starts.push_back(steiner_start_v + static_cast<uint32_t>(k));
+          }
         }
         for (uint32_t idx : local_tris) {
           tri_indices.push_back(poly_base_v + idx);
