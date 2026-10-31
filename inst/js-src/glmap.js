@@ -3538,8 +3538,13 @@
     lonLatToScreen(lon, lat, cx, cy, scale, w, h) {
       const mx = lonToMercX(lon);
       const my = latToMercY(lat);
+      const vw = w || this.el.clientWidth || 800;
+      const vh = h || this.el.clientHeight || 600;
+      const sc = scale || this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
+      const cmx = cx !== undefined ? cx : lonToMercX(this.camera.centerLon);
+      const cmy = cy !== undefined ? cy : latToMercY(this.camera.centerLat);
       if (this._curMatrix) {
-        return this.mercToScreen(mx, my, cx, cy, scale, w, h);
+        return this.mercToScreen(mx, my, cmx, cmy, sc, vw, vh);
       }
       if (this.map && this.map.transform && typeof this.map.transform.customLayerMatrix === "function") {
         try {
@@ -3548,8 +3553,6 @@
           const clipY = m[1] * mx + m[5] * my + m[13];
           const clipW = m[3] * mx + m[7] * my + m[15];
           if (clipW > 1e-6) {
-            const vw = w || this.el.clientWidth || 800;
-            const vh = h || this.el.clientHeight || 600;
             return [(clipX / clipW * 0.5 + 0.5) * vw, (0.5 - clipY / clipW * 0.5) * vh];
           }
         } catch (e) {}
@@ -3560,11 +3563,6 @@
           return [p.x, p.y];
         } catch (e) {}
       }
-      const vw = w || this.el.clientWidth || 800;
-      const vh = h || this.el.clientHeight || 600;
-      const sc = scale || this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
-      const cmx = cx !== undefined ? cx : lonToMercX(this.camera.centerLon);
-      const cmy = cy !== undefined ? cy : latToMercY(this.camera.centerLat);
       return this.mercToScreen(mx, my, cmx, cmy, sc, vw, vh);
     }
 
