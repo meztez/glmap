@@ -677,7 +677,7 @@
           gl_Position = vec4(clip, 0.0, 1.0);
           float r = max(1.5, a_radius);
           gl_PointSize = (r * 2.0 + 3.0) * u_dpr;
-          v_color = vec4(a_color.rgb / 255.0, (a_color.a / 255.0) * u_opacity);
+          v_color = vec4(a_color.rgb / 255.0, u_opacity);
           v_radius = r;
         }
       `;
@@ -723,7 +723,7 @@
           if (u_use_uniform_color > 0.5) {
             v_color = u_uniform_color;
           } else {
-            v_color = vec4(a_color.rgb / 255.0, (a_color.a / 255.0) * u_opacity);
+            v_color = vec4(a_color.rgb / 255.0, u_opacity);
           }
         }
       `;
@@ -2062,7 +2062,7 @@
       if (layer.style && layer.style.stroke && layer.iboLine) {
         const lc = layer.style.line_color || [226, 232, 240];
         gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 1.0);
-        const lineAlpha = (layer.style && layer.style.fill === false) ? 0.92 : Math.min(1.0, layer.opacity + 0.15);
+        const lineAlpha = (layer.style && layer.style.fill === false) ? 0.92 : Math.min(1.0, Math.max(0.75, layer.opacity + 0.35));
         gl.uniform4f(gl.getUniformLocation(prog, "u_uniform_color"), lc[0] / 255, lc[1] / 255, lc[2] / 255, lineAlpha);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboLine);
         gl.drawElements(gl.LINES, layer.parsed.lineIndices.length, gl.UNSIGNED_INT, 0);
@@ -2260,8 +2260,8 @@
               lng: leg.lon,
               lat: leg.lat
             };
-            if (layer && layer.tooltips && layer.tooltips[fid]) {
-              hitText = layer.tooltips[fid];
+            if (layer && layer.tooltips) {
+              hitText = Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips;
             }
             break;
           }
@@ -2335,8 +2335,8 @@
                 lng: lon,
                 lat: lat
               },
-              tooltip: (layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null,
-              popup: (layer.popups && layer.popups[fid]) ? layer.popups[fid] : ((layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null)
+              tooltip: (layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null,
+              popup: (layer.popups && layer.popups[fid]) ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : ((layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null)
             };
           }
         }
@@ -2382,8 +2382,8 @@
                   lng: lon,
                   lat: lat
                 },
-                tooltip: (layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null,
-                popup: (layer.popups && layer.popups[fid]) ? layer.popups[fid] : ((layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null)
+                tooltip: (layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null,
+                popup: (layer.popups && layer.popups[fid]) ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : ((layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null)
               };
             }
           }
@@ -2409,8 +2409,8 @@
                 lng: lon,
                 lat: lat
               },
-              tooltip: (layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null,
-              popup: (layer.popups && layer.popups[fid]) ? layer.popups[fid] : ((layer.tooltips && layer.tooltips[fid]) ? layer.tooltips[fid] : null)
+              tooltip: (layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null,
+              popup: (layer.popups && layer.popups[fid]) ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : ((layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null)
             };
           }
         }

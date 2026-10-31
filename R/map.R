@@ -727,7 +727,7 @@ add_points <- function(
   }
 
   stroke_rgb <- as.integer(grDevices::col2rgb(stroke_color, alpha = FALSE)[, 1])
-  tooltips <- build_popup_labels(NULL, label %||% popup, data)
+  tooltips <- if (!is.null(label)) build_popup_labels(NULL, label, data) else NULL
   popups <- if (!is.null(popup)) build_popup_labels(popup, NULL, data) else NULL
   icon_spec <- resolve_icon_spec(icon, data, n)
   cluster_spec <- resolve_cluster_spec(clusterOptions, n = n, render_mode = render_mode)
@@ -1239,7 +1239,7 @@ add_lines <- function(
 
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
-  tooltips <- build_popup_labels(NULL, label %||% popup, data)
+  tooltips <- if (!is.null(label)) build_popup_labels(NULL, label, data) else NULL
   popups <- if (!is.null(popup)) build_popup_labels(popup, NULL, data) else NULL
 
   layer_spec <- list(
@@ -1398,7 +1398,7 @@ add_polygons <- function(
   transport_mode <- if (inherits(map, "glmap_proxy")) "inline" else (map$x$transport %||% "auto")
   buf_spec <- register_binary_buffer(id, raw_buf, mode = transport_mode)
   line_rgb <- as.integer(grDevices::col2rgb(line_color[1], alpha = FALSE)[, 1])
-  tooltips <- build_popup_labels(NULL, label %||% popup, data)
+  tooltips <- if (!is.null(label)) build_popup_labels(NULL, label, data) else NULL
   popups <- if (!is.null(popup)) build_popup_labels(popup, NULL, data) else NULL
 
   hl_spec <- NULL
