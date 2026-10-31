@@ -188,11 +188,12 @@
 
     const featureElevation = hasElevation ? new Float32Array(arrayBuffer, offset, nFeatures) : null;
 
-    // Pre-project lon/lat into Web Mercator [0..1] in a single fast Float32 pass
-    // and expand per-feature RGBA/Radius to per-vertex attributes for 1-draw-call GPU rendering
+      // Pre-project lon/lat into Web Mercator [0..1] in a single fast Float32 pass
+    // and expand per-feature RGBA/Radius/Elevation to per-vertex attributes for 1-draw-call GPU rendering
     const mercCoords = new Float32Array(nVertices * 2);
     const vertexRgba = new Uint8Array(nVertices * 4);
     const vertexRadius = new Float32Array(nVertices);
+    const vertexElevation = featureElevation ? new Float32Array(nVertices) : null;
 
     for (let v = 0; v < nVertices; v++) {
       const lon = coords[2 * v];
@@ -206,6 +207,10 @@
       vertexRgba[4 * v + 2] = featureRgba[4 * fid + 2];
       vertexRgba[4 * v + 3] = featureRgba[4 * fid + 3];
       vertexRadius[v] = featureRadius ? featureRadius[fid] : 5.0;
+      if (vertexElevation) {
+        const cosLat = Math.max(0.1, Math.cos(lat * DEG2RAD));
+        vertexElevation[v] = (featureElevation[fid] || 0.0) / (40075016.68557849 * cosLat);
+      }
     }
 
     // For lines & polygon borders, build segment index pairs so disjoint rings don't connect
@@ -245,7 +250,8 @@
       featureRgba,
       vertexRgba,
       vertexRadius,
-      featureElevation
+      featureElevation,
+      vertexElevation
     };
   }
 
@@ -770,10 +776,11 @@
       `;
       this.progPoints = createProgram(gl, vsPoints, fsPoints);
 
-      // 2. Polygon & Line Mesh Shader
+      // 2. Polygon & Line Mesh Shader (with optional 3D elevation extrusion in Web Mercator Z)
       const vsMesh = `
         attribute vec2 a_pos;
         attribute vec4 a_color;
+        attribute float a_elev;
         uniform mat4 u_matrix;
         uniform float u_use_matrix;
         uniform vec2 u_center_merc;
@@ -786,7 +793,7 @@
         varying vec4 v_color;
         void main() {
           if (u_use_matrix > 0.5) {
-            gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
+            gl_Position = u_matrix * vec4(a_pos, a_elev, 1.0);
           } else {
             vec2 d = (a_pos - u_center_merc) * u_scale;
             vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
@@ -986,10 +993,18 @@
       } else if (x.view && Array.isArray(x.view.bounds) && x.view.bounds.length === 4) {
         this._fitCameraToBounds(x.view.bounds);
       }
+      if (x.view && x.view.pitch !== undefined && x.view.pitch !== null) {
+        this.camera.pitch = Number(x.view.pitch) || 0;
+      }
+      if (x.view && x.view.bearing !== undefined && x.view.bearing !== null) {
+        this.camera.bearing = Number(x.view.bearing) || 0;
+      }
       this.initialCamera = {
         centerLon: this.camera.centerLon,
         centerLat: this.camera.centerLat,
-        zoom: this.camera.zoom
+        zoom: this.camera.zoom,
+        pitch: this.camera.pitch || 0,
+        bearing: this.camera.bearing || 0
       };
 
       this._initMapLibre(x);
@@ -1109,11 +1124,16 @@
             style: mapStyle,
             center: [this.camera.centerLon, this.camera.centerLat],
             zoom: this.camera.zoom,
-            pitch: 0,
-            bearing: 0,
+            pitch: Number((x.view && x.view.pitch !== undefined) ? x.view.pitch : (this.camera.pitch || 0)),
+            bearing: Number((x.view && x.view.bearing !== undefined) ? x.view.bearing : (this.camera.bearing || 0)),
+            maxPitch: 85,
             attributionControl: false,
             preserveDrawingBuffer: true
           });
+
+          if (x.view && Array.isArray(x.view.max_bounds) && x.view.max_bounds.length >= 4) {
+            this.setMaxBounds({ max_bounds: x.view.max_bounds });
+          }
 
           // Navigation control is mounted inside glmap's 9-zone dock grid (`this.navControlEl`)
           // so `add_control(type = "navigation", position = ...)` works dynamically and via proxy!
@@ -1141,6 +1161,12 @@
           };
 
           this.map.on("load", () => {
+            if (x.view && x.view.projection) {
+              this.setProjection({ projection: x.view.projection });
+            }
+            if (x.terrain) {
+              this.setTerrain(x.terrain);
+            }
             syncMove();
           });
           this.map.on("move", syncMove);
@@ -1274,6 +1300,12 @@
           entry.vboRad = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, entry.vboRad);
           gl.bufferData(gl.ARRAY_BUFFER, parsed.vertexRadius, gl.STATIC_DRAW);
+
+          if (parsed.vertexElevation) {
+            entry.vboElev = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, entry.vboElev);
+            gl.bufferData(gl.ARRAY_BUFFER, parsed.vertexElevation, gl.STATIC_DRAW);
+          }
 
           if (entry.style && entry.style.icons) {
             this._prepareLayerIconAtlas(entry, parsed);
@@ -1681,6 +1713,20 @@
 
       if (ctx2d) {
         this._renderDrawnFeatures2D(ctx2d, centerMercX, centerMercY, scale, w, h);
+      }
+      if (this.popupEl && this.popupEl.style.display === "block" && Array.isArray(this._popupLonLat)) {
+        const [ppx, ppy] = this.mercToScreen(
+          lonToMercX(this._popupLonLat[0]),
+          latToMercY(this._popupLonLat[1]),
+          centerMercX,
+          centerMercY,
+          scale,
+          w,
+          h
+        );
+        const rightReserve = w > 640 ? 540 : 280;
+        this.popupEl.style.left = Math.min(w - rightReserve, Math.max(12, ppx)) + "px";
+        this.popupEl.style.top = Math.min(h - 220, Math.max(12, ppy)) + "px";
       }
       this._updateMiniMap(centerMercX, centerMercY, scale, w, h);
 
@@ -2192,6 +2238,7 @@
 
       const locPos = gl.getAttribLocation(prog, "a_pos");
       const locCol = gl.getAttribLocation(prog, "a_color");
+      const locElev = gl.getAttribLocation(prog, "a_elev");
 
       gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboPos);
       gl.enableVertexAttribArray(locPos);
@@ -2200,6 +2247,17 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboCol);
       gl.enableVertexAttribArray(locCol);
       gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+
+      if (locElev >= 0) {
+        if (layer.vboElev) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboElev);
+          gl.enableVertexAttribArray(locElev);
+          gl.vertexAttribPointer(locElev, 1, gl.FLOAT, false, 0, 0);
+        } else {
+          gl.disableVertexAttribArray(locElev);
+          gl.vertexAttrib1f(locElev, 0.0);
+        }
+      }
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
@@ -2228,6 +2286,7 @@
 
       const locPos = gl.getAttribLocation(prog, "a_pos");
       const locCol = gl.getAttribLocation(prog, "a_color");
+      const locElev = gl.getAttribLocation(prog, "a_elev");
 
       gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboPos);
       gl.enableVertexAttribArray(locPos);
@@ -2236,6 +2295,11 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboCol);
       gl.enableVertexAttribArray(locCol);
       gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+
+      if (locElev >= 0) {
+        gl.disableVertexAttribArray(locElev);
+        gl.vertexAttrib1f(locElev, 0.0);
+      }
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
       gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
@@ -2319,14 +2383,34 @@
     async _onViewportChanged() {
       const w = this.el.clientWidth || 800;
       const h = this.el.clientHeight || 600;
-      const [xmin, ymax] = this.screenToLonLat(0, 0);
-      const [xmax, ymin] = this.screenToLonLat(w, h);
+      let xmin, ymin, xmax, ymax;
+      if (this.map && typeof this.map.getBounds === "function") {
+        try {
+          const b = this.map.getBounds();
+          xmin = b.getWest();
+          ymin = b.getSouth();
+          xmax = b.getEast();
+          ymax = b.getNorth();
+        } catch (e) {}
+      }
+      if (!Number.isFinite(xmin) || !Number.isFinite(ymin) || !Number.isFinite(xmax) || !Number.isFinite(ymax)) {
+        const c00 = this.screenToLonLat(0, 0);
+        const c10 = this.screenToLonLat(w, 0);
+        const c01 = this.screenToLonLat(0, h);
+        const c11 = this.screenToLonLat(w, h);
+        xmin = Math.min(c00[0], c10[0], c01[0], c11[0]);
+        xmax = Math.max(c00[0], c10[0], c01[0], c11[0]);
+        ymin = Math.min(c00[1], c10[1], c01[1], c11[1]);
+        ymax = Math.max(c00[1], c10[1], c01[1], c11[1]);
+      }
 
-      // Update Shiny inputs (leaflet-compatible <id>_bounds, <id>_zoom, <id>_center)
+      // Update Shiny inputs (leaflet-compatible <id>_bounds, <id>_zoom, <id>_center, plus MapLibre <id>_pitch & <id>_bearing)
       if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
         window.Shiny.setInputValue(this.el.id + "_bounds", { west: xmin, south: ymin, east: xmax, north: ymax });
         window.Shiny.setInputValue(this.el.id + "_zoom", this.camera.zoom);
         window.Shiny.setInputValue(this.el.id + "_center", { lng: this.camera.centerLon, lat: this.camera.centerLat });
+        window.Shiny.setInputValue(this.el.id + "_pitch", this.camera.pitch || 0);
+        window.Shiny.setInputValue(this.el.id + "_bearing", this.camera.bearing || 0);
       }
 
       // Dynamic viewport spatial index streaming
@@ -2628,13 +2712,14 @@
                   ${this._t("remove_drawn_button")}
                 </button>
               </div>
-            `);
+            `, [lon, lat]);
             const rmBtn = this.popupEl.querySelector(".glmap-remove-drawn-btn");
             if (rmBtn) {
               rmBtn.onclick = (ev) => {
                 ev.stopPropagation();
                 this._removeDrawnFeatureById(fid);
                 this.popupEl.style.display = "none";
+                this._popupLonLat = null;
               };
             }
             return;
@@ -2652,9 +2737,12 @@
         if (picked.popup) clickedPopupHtml = picked.popup;
       }
       if (clickedFeature && clickedPopupHtml) {
-        this._showPopupAt(px, py, clickedPopupHtml);
+        const anchorLon = clickedFeature.lng !== undefined ? clickedFeature.lng : lon;
+        const anchorLat = clickedFeature.lat !== undefined ? clickedFeature.lat : lat;
+        this._showPopupAt(px, py, clickedPopupHtml, [anchorLon, anchorLat]);
       } else {
         this.popupEl.style.display = "none";
+        this._popupLonLat = null;
       }
 
       if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
@@ -2671,7 +2759,12 @@
       }
     }
 
-    _showPopupAt(px, py, htmlContent) {
+    _showPopupAt(px, py, htmlContent, lonLat = null) {
+      if (Array.isArray(lonLat) && lonLat.length >= 2 && Number.isFinite(lonLat[0]) && Number.isFinite(lonLat[1])) {
+        this._popupLonLat = [Number(lonLat[0]), Number(lonLat[1])];
+      } else {
+        this._popupLonLat = this.screenToLonLat(px, py);
+      }
       this.popupEl.innerHTML = `<button type="button" class="glmap-popup-close">&times;</button><div class="glmap-popup-content leaflet-popup-content">${htmlContent}</div>`;
       const mapW = this.el.clientWidth || 800;
       const mapH = this.el.clientHeight || 600;
@@ -2684,6 +2777,7 @@
         closeBtn.onclick = (e) => {
           e.stopPropagation();
           this.popupEl.style.display = "none";
+          this._popupLonLat = null;
         };
       }
     }
@@ -2698,10 +2792,11 @@
       const w = this.el.clientWidth || 800;
       const h = this.el.clientHeight || 600;
       const [px, py] = this.lonLatToScreen(lon, lat, cx, cy, scale, w, h);
-      this._showPopupAt(px, py, opts.html || "");
+      this._showPopupAt(px, py, opts.html || "", [lon, lat]);
     }
 
     clearPopups() {
+      this._popupLonLat = null;
       if (this.popupEl) {
         this.popupEl.style.display = "none";
         this.popupEl.innerHTML = "";
@@ -3090,31 +3185,97 @@
 
     // Proxy & API methods
     setView(opts) {
+      if (!opts) return;
       if (Array.isArray(opts.center)) {
         this.camera.centerLon = Number(opts.center[0]);
         this.camera.centerLat = Number(opts.center[1]);
       }
-      if (opts.zoom !== undefined) this.camera.zoom = Number(opts.zoom);
+      if (opts.zoom !== undefined && opts.zoom !== null) this.camera.zoom = Number(opts.zoom);
+      if (opts.pitch !== undefined && opts.pitch !== null) this.camera.pitch = Number(opts.pitch);
+      if (opts.bearing !== undefined && opts.bearing !== null) this.camera.bearing = Number(opts.bearing);
       if (this.map) {
-        this.map.jumpTo({ center: [this.camera.centerLon, this.camera.centerLat], zoom: this.camera.zoom });
+        const jumpOpts = {
+          center: [this.camera.centerLon, this.camera.centerLat],
+          zoom: this.camera.zoom
+        };
+        if (opts.pitch !== undefined && opts.pitch !== null) jumpOpts.pitch = this.camera.pitch;
+        if (opts.bearing !== undefined && opts.bearing !== null) jumpOpts.bearing = this.camera.bearing;
+        this.map.jumpTo(jumpOpts);
       }
+      this._onViewportChanged();
       this.requestRender();
     }
 
     flyTo(opts) {
+      if (!opts) return;
       if (Array.isArray(opts.center)) {
         this.camera.centerLon = Number(opts.center[0]);
         this.camera.centerLat = Number(opts.center[1]);
       }
-      if (opts.zoom !== undefined) this.camera.zoom = Number(opts.zoom);
+      if (opts.zoom !== undefined && opts.zoom !== null) this.camera.zoom = Number(opts.zoom);
+      if (opts.pitch !== undefined && opts.pitch !== null) this.camera.pitch = Number(opts.pitch);
+      if (opts.bearing !== undefined && opts.bearing !== null) this.camera.bearing = Number(opts.bearing);
       if (this.map) {
-        this.map.flyTo({
+        const flyOpts = {
           center: [this.camera.centerLon, this.camera.centerLat],
           zoom: this.camera.zoom,
-          duration: opts.duration || 1500
-        });
+          duration: opts.duration !== undefined ? Number(opts.duration) : 1500
+        };
+        if (opts.pitch !== undefined && opts.pitch !== null) flyOpts.pitch = this.camera.pitch;
+        if (opts.bearing !== undefined && opts.bearing !== null) flyOpts.bearing = this.camera.bearing;
+        this.map.flyTo(flyOpts);
+      } else {
+        this._onViewportChanged();
       }
       this.requestRender();
+    }
+
+    setTerrain(opts) {
+      if (!opts) return;
+      this.spec = this.spec || {};
+      this.spec.terrain = opts;
+      if (!this.map) return;
+      const applyTerrain = () => {
+        try {
+          if (!opts.enabled) {
+            if (typeof this.map.setTerrain === "function") this.map.setTerrain(null);
+            return;
+          }
+          const srcId = "glmap-terrain-dem";
+          if (!this.map.getSource(srcId)) {
+            this.map.addSource(srcId, {
+              type: "raster-dem",
+              tiles: [opts.source_url || "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+              encoding: "terrarium",
+              tileSize: 256,
+              maxzoom: 15
+            });
+          }
+          if (typeof this.map.setTerrain === "function") {
+            this.map.setTerrain({ source: srcId, exaggeration: Number(opts.exaggeration || 1.5) });
+          }
+        } catch (e) {}
+      };
+      if (this.map.isStyleLoaded && this.map.isStyleLoaded()) applyTerrain();
+      else this.map.once("style.load", applyTerrain);
+      this.requestRender();
+    }
+
+    setProjection(opts) {
+      if (!opts || !opts.projection) return;
+      const proj = String(opts.projection).toLowerCase() === "globe" ? "globe" : "mercator";
+      this.spec = this.spec || {};
+      this.spec.view = this.spec.view || {};
+      this.spec.view.projection = proj;
+      if (!this.map || typeof this.map.setProjection !== "function") return;
+      const applyProj = () => {
+        try {
+          this.map.setProjection({ type: proj });
+          this.requestRender();
+        } catch (e) {}
+      };
+      if (this.map.isStyleLoaded && this.map.isStyleLoaded()) applyProj();
+      else this.map.once("style.load", applyProj);
     }
 
     fitBounds(bounds) {
@@ -3375,19 +3536,36 @@
     }
 
     lonLatToScreen(lon, lat, cx, cy, scale, w, h) {
+      const mx = lonToMercX(lon);
+      const my = latToMercY(lat);
+      if (this._curMatrix) {
+        return this.mercToScreen(mx, my, cx, cy, scale, w, h);
+      }
+      if (this.map && this.map.transform && typeof this.map.transform.customLayerMatrix === "function") {
+        try {
+          const m = this.map.transform.customLayerMatrix();
+          const clipX = m[0] * mx + m[4] * my + m[12];
+          const clipY = m[1] * mx + m[5] * my + m[13];
+          const clipW = m[3] * mx + m[7] * my + m[15];
+          if (clipW > 1e-6) {
+            const vw = w || this.el.clientWidth || 800;
+            const vh = h || this.el.clientHeight || 600;
+            return [(clipX / clipW * 0.5 + 0.5) * vw, (0.5 - clipY / clipW * 0.5) * vh];
+          }
+        } catch (e) {}
+      }
       if (this.map && typeof this.map.project === "function") {
         try {
           const p = this.map.project([lon, lat]);
           return [p.x, p.y];
         } catch (e) {}
       }
-      const mx = lonToMercX(lon);
-      const my = latToMercY(lat);
-      const dx = (mx - cx) * scale;
-      const dy = (my - cy) * scale;
-      const c = this._curRotCos !== undefined ? this._curRotCos : 1.0;
-      const s = this._curRotSin !== undefined ? this._curRotSin : 0.0;
-      return [w * 0.5 + (dx * c + dy * s), h * 0.5 + (-dx * s + dy * c)];
+      const vw = w || this.el.clientWidth || 800;
+      const vh = h || this.el.clientHeight || 600;
+      const sc = scale || this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
+      const cmx = cx !== undefined ? cx : lonToMercX(this.camera.centerLon);
+      const cmy = cy !== undefined ? cy : latToMercY(this.camera.centerLat);
+      return this.mercToScreen(mx, my, cmx, cmy, sc, vw, vh);
     }
 
     addDrawToolbar(spec) {
@@ -3948,15 +4126,26 @@
         }
       }
 
-      // Draw aiming rectangle representing current main viewport bounds
-      const aimW = Math.max(10, Math.min(w - 4, (mainW / mainScale) * miniScale));
-      const aimH = Math.max(8, Math.min(h - 4, (mainH / mainScale) * miniScale));
+      // Draw aiming frustum quad representing current main viewport 4 corners (handles rotation & pitch!)
       const aimCol = spec.aimingColor || "#ff7800";
       ctx.strokeStyle = aimCol;
       ctx.fillStyle = "rgba(255, 120, 0, 0.16)";
       ctx.lineWidth = 1.8;
-      ctx.fillRect((w - aimW) * 0.5, (h - aimH) * 0.5, aimW, aimH);
-      ctx.strokeRect((w - aimW) * 0.5, (h - aimH) * 0.5, aimW, aimH);
+      const c00 = this.screenToLonLat(0, 0);
+      const c10 = this.screenToLonLat(mainW, 0);
+      const c11 = this.screenToLonLat(mainW, mainH);
+      const c01 = this.screenToLonLat(0, mainH);
+      const corners = [c00, c10, c11, c01];
+      ctx.beginPath();
+      for (let i = 0; i < corners.length; i++) {
+        const sx = Math.max(2, Math.min(w - 2, w * 0.5 + (lonToMercX(corners[i][0]) - cx) * miniScale));
+        const sy = Math.max(2, Math.min(h - 2, h * 0.5 + (latToMercY(corners[i][1]) - cy) * miniScale));
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
     }
 
     _finishActiveVertexShape() {
@@ -4140,16 +4329,36 @@
         const [lon1, lat1] = this._dragStartLonLat;
         const [lon2, lat2] = this._dragCurLonLat;
         if (this.drawMode === "rectangle") {
-          const [x1, y1] = this.lonLatToScreen(lon1, lat1, cx, cy, scale, w, h);
-          const [x2, y2] = this.lonLatToScreen(lon2, lat2, cx, cy, scale, w, h);
-          ctx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
-          ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
-        } else if (this.drawMode === "circle") {
-          const [x1, y1] = this.lonLatToScreen(lon1, lat1, cx, cy, scale, w, h);
-          const [x2, y2] = this.lonLatToScreen(lon2, lat2, cx, cy, scale, w, h);
-          const rPx = Math.hypot(x2 - x1, y2 - y1);
+          const xmin = Math.min(lon1, lon2), xmax = Math.max(lon1, lon2);
+          const ymin = Math.min(lat1, lat2), ymax = Math.max(lat1, lat2);
+          const corners = [
+            [xmin, ymin],
+            [xmax, ymin],
+            [xmax, ymax],
+            [xmin, ymax]
+          ];
           ctx.beginPath();
-          ctx.arc(x1, y1, rPx, 0, Math.PI * 2);
+          for (let i = 0; i < corners.length; i++) {
+            const [sx, sy] = this.lonLatToScreen(corners[i][0], corners[i][1], cx, cy, scale, w, h);
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        } else if (this.drawMode === "circle") {
+          const radKm = computePathDistanceKm([[lon1, lat1], [lon2, lat2]]);
+          const radM = Math.max(10, radKm * 1000.0);
+          ctx.beginPath();
+          for (let i = 0; i <= 32; i++) {
+            const ang = (i / 32) * Math.PI * 2.0;
+            const dy = (radM / 111320.0) * Math.sin(ang);
+            const dx = (radM / (111320.0 * Math.max(0.1, Math.cos(lat1 * DEG2RAD)))) * Math.cos(ang);
+            const [sx, sy] = this.lonLatToScreen(lon1 + dx, lat1 + dy, cx, cy, scale, w, h);
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
           ctx.fill();
           ctx.stroke();
         }
@@ -4223,10 +4432,16 @@
           boxEl.style.display = "none";
           const rect = this.el.getBoundingClientRect();
           const endPx = [e.clientX - rect.left, e.clientY - rect.top];
-          const [lon1, lat1] = this.screenToLonLat(Math.min(startPx[0], endPx[0]), Math.max(startPx[1], endPx[1]));
-          const [lon2, lat2] = this.screenToLonLat(Math.max(startPx[0], endPx[0]), Math.min(startPx[1], endPx[1]));
+          const c00 = this.screenToLonLat(startPx[0], startPx[1]);
+          const c10 = this.screenToLonLat(endPx[0], startPx[1]);
+          const c01 = this.screenToLonLat(startPx[0], endPx[1]);
+          const c11 = this.screenToLonLat(endPx[0], endPx[1]);
+          const xmin = Math.min(c00[0], c10[0], c01[0], c11[0]);
+          const xmax = Math.max(c00[0], c10[0], c01[0], c11[0]);
+          const ymin = Math.min(c00[1], c10[1], c01[1], c11[1]);
+          const ymax = Math.max(c00[1], c10[1], c01[1], c11[1]);
           startPx = null;
-          this._selectInBbox([lon1, lat1, lon2, lat2]);
+          this._selectInBbox([xmin, ymin, xmax, ymax]);
         });
       }
     }
@@ -4408,6 +4623,8 @@
         else if (m === "flyToBounds") inst.flyToBounds(args);
         else if (m === "setMaxBounds") inst.setMaxBounds(args);
         else if (m === "fitBounds") inst.fitBounds(args.bounds);
+        else if (m === "setTerrain") inst.setTerrain(args);
+        else if (m === "setProjection") inst.setProjection(args);
         else if (m === "addLegend") {
           inst.legends = inst.legends.filter((l) => l.layer_id !== args.layer_id);
           inst.legends.push(args);
