@@ -345,9 +345,125 @@
         pitch: 0.0,
         bearing: 0.0
       };
+      this.labels = this._defaultLabels();
 
       this._initDOM();
       this._initWebGL2Overlay();
+    }
+
+    _defaultLabels() {
+      return {
+        zoom_in: "Zoom in",
+        zoom_out: "Zoom out",
+        reset_north: "Reset bearing to north",
+        layers_title: "Layers",
+        basemap_header: "Basemap",
+        overlays_header: "Overlays",
+        marker_engine_header: "Marker / Icon Engine",
+        marker_mode_auto: "Auto (Dynamic)",
+        marker_mode_cluster: "Cluster + GPU Atlas",
+        marker_mode_lod: "LOD Hybrid (Dots -> Icons)",
+        marker_mode_atlas: "GPU Sprite Atlas (All Icons)",
+        marker_mode_points: "GPU Fast Dots (SDF)",
+        basemap_groups: {},
+        layer_groups: {},
+        legend_default_title: "Legend",
+        layer_opacity: "Layer Opacity",
+        shader_palette: "GPU Shader Palette",
+        gpu_hillshade: "Real-Time GPU Hillshade",
+        custom_palette: "custom (R)",
+        draw_poly_label: "Poly",
+        draw_rect_label: "Rect",
+        draw_circle_label: "Circle",
+        draw_line_label: "Line",
+        draw_pin_label: "Pin",
+        draw_clear_label: "Clear",
+        draw_poly_title: "Draw a polygon",
+        draw_rect_title: "Draw a rectangle",
+        draw_circle_title: "Draw a circle",
+        draw_line_title: "Draw a polyline",
+        draw_pin_title: "Draw a marker",
+        draw_clear_title: "Clear all drawn shapes",
+        drawn_area_prefix: "Drawn Area #",
+        remove_drawn_button: "Remove",
+        measure_start: "Measure Distance / Area",
+        measure_finish: "Finish Measure",
+        measure_clear: "Clear",
+        measure_length: "Length",
+        measure_area: "Area",
+        measure_hint: "Click points on map (3+ for area, double-click to finish)",
+        search_placeholder: "Search address or place...",
+        search_button_title: "Search OpenStreetMap",
+        search_clear_title: "Clear search",
+        search_searching: "Searching OpenStreetMap...",
+        search_no_results: "No results found.",
+        search_unavailable: "Search unavailable.",
+        minimap_title: "Overview",
+        export_png: "Export PNG",
+        hud_features: "Features",
+        hud_lon_lat: "Lon/Lat",
+        hud_raster: "Raster",
+        hud_dist: "Dist"
+      };
+    }
+
+    _t(key, fallback) {
+      if (this.labels && this.labels[key] !== undefined && this.labels[key] !== null && String(this.labels[key]).length > 0) {
+        return String(this.labels[key]);
+      }
+      const def = this._defaultLabels();
+      return def[key] !== undefined ? def[key] : (fallback || key);
+    }
+
+    _applyNavLabels() {
+      if (!this.navControlEl) return;
+      const btnIn = this.navControlEl.querySelector(".glmap-nav-in");
+      const btnOut = this.navControlEl.querySelector(".glmap-nav-out");
+      const btnComp = this.navControlEl.querySelector(".glmap-nav-compass");
+      if (btnIn) {
+        btnIn.title = this._t("zoom_in");
+        btnIn.setAttribute("aria-label", this._t("zoom_in"));
+      }
+      if (btnOut) {
+        btnOut.title = this._t("zoom_out");
+        btnOut.setAttribute("aria-label", this._t("zoom_out"));
+      }
+      if (btnComp) {
+        btnComp.title = this._t("reset_north");
+        btnComp.setAttribute("aria-label", this._t("reset_north"));
+      }
+    }
+
+    setLabels(patch) {
+      if (!patch || typeof patch !== "object") return;
+      const baseBg = Object.assign({}, (this.labels && this.labels.basemap_groups) || {}, patch.basemap_groups || {});
+      const lyrGrp = Object.assign({}, (this.labels && this.labels.layer_groups) || {}, patch.layer_groups || {});
+      this.labels = Object.assign(this._defaultLabels(), this.labels || {}, patch);
+      this.labels.basemap_groups = baseBg;
+      this.labels.layer_groups = lyrGrp;
+      if (this.spec) this.spec.labels = this.labels;
+      this._applyNavLabels();
+      this._rebuildLayerSwitcher();
+      this._rebuildLegends();
+      if (this.drawSpec && this.drawSpec.enabled) {
+        this.addDrawToolbar(this.drawSpec);
+      }
+      if (this.measureSpec && this.measureSpec.enabled !== false) {
+        this._updateMeasureControlUI();
+      }
+      if (this.searchSpec && this.searchSpec.enabled !== false && this.searchEl) {
+        const inp = this.searchEl.querySelector(".gl-osm-input");
+        const btn = this.searchEl.querySelector(".gl-osm-btn");
+        const clr = this.searchEl.querySelector(".gl-osm-clr");
+        if (inp) inp.placeholder = this._t("search_placeholder");
+        if (btn) btn.title = this._t("search_button_title");
+        if (clr) clr.title = this._t("search_clear_title");
+      }
+      if (this.miniMapSpec && this.miniMapSpec.enabled !== false && this.miniMapEl) {
+        const titleSpan = this.miniMapEl.querySelector(".gl-minimap-title");
+        if (titleSpan) titleSpan.textContent = this._t("minimap_title");
+      }
+      this._updateHUD();
     }
 
     _initDOM() {
@@ -759,6 +875,8 @@
 
     async renderValue(x) {
       this.spec = x;
+      this.labels = Object.assign(this._defaultLabels(), (x && x.labels) || {});
+      this._applyNavLabels();
       this.layers.clear();
       this.layerOrder = [];
       this.legends = x.legends || [];
@@ -2360,9 +2478,9 @@
             const fid = f.properties && f.properties._leaflet_id;
             this._showPopupAt(px, py, `
               <div style="padding-right:16px">
-                <div style="font-weight:600;margin-bottom:6px;color:#38bdf8;">Drawn Area #${fid}</div>
+                <div style="font-weight:600;margin-bottom:6px;color:#38bdf8;">${this._t("drawn_area_prefix")}${fid}</div>
                 <button type="button" class="btn btn-sm btn-danger glmap-remove-drawn-btn" data-drawn-id="${fid}" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;">
-                  Remove
+                  ${this._t("remove_drawn_button")}
                 </button>
               </div>
             `);
@@ -2497,35 +2615,39 @@
 
       this.switcherEl.style.display = "block";
       const curBase = this._activeBaseGroup || (baseGroups.includes("Dark") ? "Dark" : baseGroups[0]);
+      const bgMap = (this.labels && this.labels.basemap_groups) || {};
+      const lgMap = (this.labels && this.labels.layer_groups) || {};
 
       let html = `
         <div class="glmap-panel-title">
-          <span>☰ Layers</span>
+          <span>☰ ${this._t("layers_title")}</span>
           <span class="glmap-badge">${groupMap.size}</span>
         </div>
         <div class="glmap-switcher-body">
-          <div class="glmap-layer-section-hdr">Basemap</div>
+          <div class="glmap-layer-section-hdr">${this._t("basemap_header")}</div>
       `;
 
       for (const bg of baseGroups) {
+        const bgDisp = bgMap[bg] || bg;
         html += `
           <div class="glmap-layer-item">
             <label class="glmap-layer-label">
               <input type="radio" name="glmap_base_${this.el.id}" value="${bg}" ${curBase === bg ? "checked" : ""}/>
-              <span>${bg}</span>
+              <span>${bgDisp}</span>
             </label>
           </div>
         `;
       }
 
       if (groupMap.size > 0) {
-        html += `<div class="glmap-layer-section-hdr">Overlays</div>`;
+        html += `<div class="glmap-layer-section-hdr">${this._t("overlays_header")}</div>`;
         for (const [gName, info] of groupMap.entries()) {
+          const gDisp = lgMap[gName] || gName;
           html += `
             <div class="glmap-layer-item">
               <label class="glmap-layer-label">
                 <input type="checkbox" data-group-name="${gName}" ${info.visible ? "checked" : ""}/>
-                <span>${gName}</span>
+                <span>${gDisp}</span>
               </label>
               ${info.count ? `<span class="glmap-badge">${info.count}</span>` : ""}
             </div>
@@ -2536,14 +2658,14 @@
       if (hasSwitchablePointLayer) {
         const curMode = this._userMarkerModeOverride || "auto";
         const modeOpts = [
-          { val: "auto", label: "Auto (Dynamic)" },
-          { val: "cluster", label: "Cluster + GPU Atlas" },
-          { val: "lod", label: "LOD Hybrid (Dots -> Icons)" },
-          { val: "atlas", label: "GPU Sprite Atlas (All Icons)" },
-          { val: "points", label: "GPU Fast Dots (SDF)" }
+          { val: "auto", label: this._t("marker_mode_auto") },
+          { val: "cluster", label: this._t("marker_mode_cluster") },
+          { val: "lod", label: this._t("marker_mode_lod") },
+          { val: "atlas", label: this._t("marker_mode_atlas") },
+          { val: "points", label: this._t("marker_mode_points") }
         ];
         html += `
-          <div class="glmap-layer-section-hdr" style="margin-top:6px">Marker / Icon Engine</div>
+          <div class="glmap-layer-section-hdr" style="margin-top:6px">${this._t("marker_engine_header")}</div>
           <div style="padding:2px 4px 4px 4px">
             <select class="gl-marker-mode-select" style="width:100%;font-size:11px;padding:3px 5px;border-radius:4px;background:var(--gl-input-bg);color:var(--gl-text-primary);border:1px solid var(--gl-input-border);cursor:pointer">
               ${modeOpts.map((o) => `<option value="${o.val}" ${curMode === o.val ? "selected" : ""}>${o.label}</option>`).join("")}
@@ -2662,7 +2784,10 @@
         }
         const card = document.createElement("div");
         card.className = "glmap-panel";
-        let html = `<div class="glmap-panel-title"><span>${leg.title || "Legend"}</span></div>`;
+        const lgMap = (this.labels && this.labels.layer_groups) || {};
+        const rawTitle = leg.title || this._t("legend_default_title");
+        const dispTitle = lgMap[rawTitle] || rawTitle;
+        let html = `<div class="glmap-panel-title"><span>${dispTitle}</span></div>`;
         let hasRasterOpacity = false;
         if (leg.type === "continuous" && Array.isArray(leg.colors)) {
           const grad = `linear-gradient(to right, ${leg.colors.join(", ")})`;
@@ -2679,13 +2804,13 @@
               const curPal = (rl.style && rl.style.palette) || "viridis";
               const palOpts = ["custom", "viridis", "magma", "plasma", "turbo", "terrain", "rdylbu"]
                 .filter((p) => p !== "custom" || curPal === "custom")
-                .map((p) => `<option value="${p}" ${curPal === p ? "selected" : ""}>${p === "custom" ? "custom (R)" : p}</option>`)
+                .map((p) => `<option value="${p}" ${curPal === p ? "selected" : ""}>${p === "custom" ? this._t("custom_palette") : p}</option>`)
                 .join("");
               const curOp = rl.opacity !== undefined ? Number(rl.opacity) : 0.85;
               html += `<div class="glmap-raster-controls" data-raster-id="${leg.layer_id}">`;
               if (sc.palette !== false) {
                 html += `
-                  <label style="font-size:10px;color:var(--gl-text-muted)">GPU Shader Palette</label>
+                  <label style="font-size:10px;color:var(--gl-text-muted)">${this._t("shader_palette")}</label>
                   <select class="gl-pal-select">${palOpts}</select>
                 `;
               }
@@ -2693,7 +2818,7 @@
                 html += `
                   <label style="font-size:10px;color:var(--gl-text-muted);display:flex;align-items:center;gap:4px;margin-top:3px">
                     <input type="checkbox" class="gl-hill-cb" ${(rl.style && rl.style.hillshade) ? "checked" : ""}/>
-                    Real-Time GPU Hillshade
+                    ${this._t("gpu_hillshade")}
                   </label>
                 `;
               }
@@ -2701,7 +2826,7 @@
                 hasRasterOpacity = true;
                 html += `
                   <label style="font-size:10px;color:var(--gl-text-muted);display:flex;justify-content:space-between;margin-top:4px">
-                    <span>Layer Opacity</span>
+                    <span>${this._t("layer_opacity")}</span>
                     <span class="gl-op-val">${Math.round(curOp * 100)}%</span>
                   </label>
                   <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:var(--gl-accent);cursor:pointer;margin-top:2px"/>
@@ -2726,7 +2851,7 @@
           html += `
             <div class="glmap-layer-opacity-ctrl" data-target-id="${opTarget}" style="margin-top:6px;padding-top:4px;border-top:1px solid var(--gl-divider)">
               <label style="font-size:10px;color:var(--gl-text-muted);display:flex;justify-content:space-between">
-                <span>Layer Opacity</span>
+                <span>${this._t("layer_opacity")}</span>
                 <span class="gl-op-val">${Math.round(curOp * 100)}%</span>
               </label>
               <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:var(--gl-accent);cursor:pointer;margin-top:2px"/>
@@ -2795,17 +2920,17 @@
       const latStr = this._cursorLat !== undefined ? this._cursorLat.toFixed(4) : this.camera.centerLat.toFixed(4);
       let extra = "";
       if (this._cursorRasterVal !== null && this._cursorRasterVal !== undefined) {
-        extra = ` | <span>Raster: <b>${this._cursorRasterVal.toFixed(2)}</b></span>`;
+        extra = ` | <span>${this._t("hud_raster")}: <b>${this._cursorRasterVal.toFixed(2)}</b></span>`;
       }
       if (this.measureActive && this.measurePoints.length >= 2) {
         const dKm = computePathDistanceKm(this.measurePoints);
-        extra += ` | <span style="color:#38bdf8">Dist: <b>${dKm.toFixed(2)} km</b></span>`;
+        extra += ` | <span style="color:#38bdf8">${this._t("hud_dist")}: <b>${dKm.toFixed(2)} km</b></span>`;
       }
 
       this.hudEl.innerHTML = `
         <span class="glmap-hud-fps">${this.fps} FPS</span>
-        <span>Features: <b>${totalFeats.toLocaleString()}</b></span>
-        <span>Lon/Lat: ${lonStr}, ${latStr}</span>
+        <span>${this._t("hud_features")}: <b>${totalFeats.toLocaleString()}</b></span>
+        <span>${this._t("hud_lon_lat")}: ${lonStr}, ${latStr}</span>
         ${extra}
       `;
 
@@ -3129,13 +3254,25 @@
 
       const tools = spec.tools || { polygon: true, rectangle: true, circle: true, polyline: true, marker: true, edit: true };
       const btns = (spec.toolbar && spec.toolbar.buttons) || {};
+      const defBtns = {
+        polygon: "Draw a polygon",
+        rectangle: "Draw a rectangle",
+        circle: "Draw a circle",
+        polyline: "Draw a polyline",
+        marker: "Draw a marker"
+      };
+      const resolveTitle = (btnKey, labelKey) => {
+        const bVal = btns[btnKey];
+        if (bVal && bVal !== defBtns[btnKey]) return bVal;
+        return this._t(labelKey, bVal || defBtns[btnKey]);
+      };
 
       const items = [];
-      if (tools.polygon) items.push({ mode: "polygon", icon: "⬠", label: "Poly", title: btns.polygon || "Draw a polygon" });
-      if (tools.rectangle) items.push({ mode: "rectangle", icon: "▭", label: "Rect", title: btns.rectangle || "Draw a rectangle" });
-      if (tools.circle) items.push({ mode: "circle", icon: "◯", label: "Circle", title: btns.circle || "Draw a circle" });
-      if (tools.polyline) items.push({ mode: "polyline", icon: "╱", label: "Line", title: btns.polyline || "Draw a polyline" });
-      if (tools.marker) items.push({ mode: "marker", icon: "📍", label: "Pin", title: btns.marker || "Draw a marker" });
+      if (tools.polygon) items.push({ mode: "polygon", icon: "⬠", label: this._t("draw_poly_label"), title: resolveTitle("polygon", "draw_poly_title") });
+      if (tools.rectangle) items.push({ mode: "rectangle", icon: "▭", label: this._t("draw_rect_label"), title: resolveTitle("rectangle", "draw_rect_title") });
+      if (tools.circle) items.push({ mode: "circle", icon: "◯", label: this._t("draw_circle_label"), title: resolveTitle("circle", "draw_circle_title") });
+      if (tools.polyline) items.push({ mode: "polyline", icon: "╱", label: this._t("draw_line_label"), title: resolveTitle("polyline", "draw_line_title") });
+      if (tools.marker) items.push({ mode: "marker", icon: "📍", label: this._t("draw_pin_label"), title: resolveTitle("marker", "draw_pin_title") });
 
       let html = items.map((it) => `
         <button type="button" class="glmap-draw-btn" data-draw-mode="${it.mode}" title="${it.title}">
@@ -3146,9 +3283,9 @@
 
       if (tools.edit) {
         html += `
-          <button type="button" class="glmap-draw-btn glmap-draw-clear" data-draw-action="clear" title="Clear / delete drawn shapes">
+          <button type="button" class="glmap-draw-btn glmap-draw-clear" data-draw-action="clear" title="${this._t("draw_clear_title")}">
             <span class="glmap-draw-icon">🗑</span>
-            <span>Clear</span>
+            <span>${this._t("draw_clear_label")}</span>
           </button>
         `;
       }
@@ -3432,16 +3569,16 @@
       let html = `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <button type="button" class="glmap-btn gl-meas-toggle ${this.measureActive ? "active" : ""}" style="font-size:11px;padding:4px 8px;cursor:pointer">
-            📐 ${this.measureActive ? "Finish Measure" : "Measure Distance / Area"}
+            📐 ${this.measureActive ? this._t("measure_finish") : this._t("measure_start")}
           </button>
-          ${pts.length > 0 ? `<button type="button" class="glmap-btn gl-meas-clear" style="font-size:11px;padding:4px 7px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer">Clear</button>` : ""}
+          ${pts.length > 0 ? `<button type="button" class="glmap-btn gl-meas-clear" style="font-size:11px;padding:4px 7px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer">${this._t("measure_clear")}</button>` : ""}
         </div>
       `;
       if (pts.length > 0 || this.measureActive) {
         html += `
           <div style="margin-top:6px;font-size:11px;color:var(--gl-text-primary);line-height:1.45;border-top:1px solid var(--gl-divider);padding-top:5px">
-            <div>Length: <b style="color:var(--gl-accent)">${lenStr}</b></div>
-            ${allPts.length >= 3 ? `<div>Area: <b style="color:#9333ea">${areaStr}</b></div>` : `<div style="color:var(--gl-text-muted);font-size:10px">Click points on map (3+ for area, double-click to finish)</div>`}
+            <div>${this._t("measure_length")}: <b style="color:var(--gl-accent)">${lenStr}</b></div>
+            ${allPts.length >= 3 ? `<div>${this._t("measure_area")}: <b style="color:#9333ea">${areaStr}</b></div>` : `<div style="color:var(--gl-text-muted);font-size:10px">${this._t("measure_hint")}</div>`}
           </div>
         `;
       }
@@ -3490,12 +3627,14 @@
       const ord = spec.order !== undefined ? spec.order : 5;
       this._mountInSlot(this.searchEl, pos, ord);
 
-      const placeholder = spec.textPlaceholder || "Search address or place...";
+      const placeholder = (spec.textPlaceholder && spec.textPlaceholder !== "Search address or place...")
+        ? spec.textPlaceholder
+        : this._t("search_placeholder");
       this.searchEl.innerHTML = `
         <div style="display:flex;align-items:center;gap:4px">
           <input type="text" class="gl-osm-input" placeholder="${placeholder}" style="width:195px;padding:4px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gl-input-border);background:var(--gl-input-bg);color:var(--gl-text-primary);outline:none"/>
-          <button type="button" class="glmap-btn gl-osm-btn" title="Search OpenStreetMap" style="padding:4px 7px;font-size:11px;cursor:pointer">🔍</button>
-          <button type="button" class="glmap-btn gl-osm-clr" title="Clear search" style="padding:4px 6px;font-size:11px;display:none;cursor:pointer">&times;</button>
+          <button type="button" class="glmap-btn gl-osm-btn" title="${this._t("search_button_title")}" style="padding:4px 7px;font-size:11px;cursor:pointer">🔍</button>
+          <button type="button" class="glmap-btn gl-osm-clr" title="${this._t("search_clear_title")}" style="padding:4px 6px;font-size:11px;display:none;cursor:pointer">&times;</button>
         </div>
         <div class="gl-osm-results" style="display:none;margin-top:4px;max-height:180px;overflow-y:auto;border-top:1px solid var(--gl-divider);padding-top:4px"></div>
       `;
@@ -3509,14 +3648,14 @@
         const q = (inp.value || "").trim();
         if (!q) return;
         resBox.style.display = "block";
-        resBox.innerHTML = `<div style="font-size:10px;color:var(--gl-text-muted);padding:3px">Searching OpenStreetMap...</div>`;
+        resBox.innerHTML = `<div style="font-size:10px;color:var(--gl-text-muted);padding:3px">${this._t("search_searching")}</div>`;
         try {
           const urlTmpl = spec.url || "https://nominatim.openstreetmap.org/search?format=json&q={s}";
           const url = urlTmpl.replace("{s}", encodeURIComponent(q));
           const resp = await fetch(url, { headers: { "Accept": "application/json" } });
           const data = await resp.json();
           if (!Array.isArray(data) || data.length === 0) {
-            resBox.innerHTML = `<div style="font-size:10px;color:#ef4444;padding:3px">No results found.</div>`;
+            resBox.innerHTML = `<div style="font-size:10px;color:#ef4444;padding:3px">${this._t("search_no_results")}</div>`;
             return;
           }
           resBox.innerHTML = data.slice(0, 6).map((item, idx) => `
@@ -3540,7 +3679,7 @@
             };
           });
         } catch (err) {
-          resBox.innerHTML = `<div style="font-size:10px;color:#f87171;padding:3px">Search unavailable.</div>`;
+          resBox.innerHTML = `<div style="font-size:10px;color:#f87171;padding:3px">${this._t("search_unavailable")}</div>`;
         }
       };
 
@@ -3578,7 +3717,7 @@
 
       this.miniMapEl.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:3px;padding:0 2px">
-          <span>Overview</span>
+          <span class="gl-minimap-title">${this._t("minimap_title")}</span>
           ${spec.toggleDisplay !== false ? `<button type="button" class="gl-mini-toggle" style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:10px;padding:0">▾</button>` : ""}
         </div>
         <canvas class="gl-minimap-canvas" width="${w}" height="${h}" style="width:${w}px;height:${h}px;display:block;border-radius:6px;cursor:crosshair;background:#0f172a;border:1px solid rgba(148,163,184,0.28)"></canvas>
@@ -3986,7 +4125,7 @@
     enableExportButton(cfg) {
       const btn = document.createElement("button");
       btn.className = "glmap-btn";
-      btn.textContent = "Export PNG";
+      btn.textContent = this._t("export_png");
       btn.onclick = () => {
         const a = document.createElement("a");
         a.download = (cfg && cfg.filename) || "glmap-map.png";
@@ -4139,6 +4278,7 @@
           inst.spec.controls[args.type] = args.config;
           inst._applyControlLayout(inst.spec);
         }
+        else if (m === "setLabels") inst.setLabels(args);
         else if (m === "addDrawToolbar") inst.addDrawToolbar(args);
         else if (m === "removeDrawToolbar") inst.removeDrawToolbar(args);
         else if (m === "usePlugin") inst._runPlugins([args]);

@@ -19,6 +19,7 @@
 #'   `"server"` (streams via local `httpuv` binary range server), or `"inline"`.
 #' @param ui_theme UI control theme: `"auto"` (default, automatically switches between `"light"` and `"dark"`
 #'   based on the active basemap tile shade), `"light"`, or `"dark"`.
+#' @param labels Optional named list of custom UI labels created by [gl_labels()] (defaults to English [gl_labels()]).
 #' @param width Widget width (CSS units).
 #' @param height Widget height (CSS units).
 #' @param elementId Optional HTML element ID.
@@ -38,6 +39,7 @@ glmap <- function(
     projection = c("mercator", "globe"),
     transport = c("auto", "inline", "server"),
     ui_theme = c("auto", "light", "dark"),
+    labels = NULL,
     width = "100%",
     height = NULL,
     elementId = NULL,
@@ -47,6 +49,7 @@ glmap <- function(
   projection <- match.arg(projection)
   transport <- match.arg(transport)
   ui_theme <- match.arg(ui_theme)
+  resolved_labels <- if (is.null(labels)) gl_labels() else utils::modifyList(gl_labels(), as.list(labels))
 
   # Unwrap crosstalk::SharedData if provided
   crosstalk_group <- NULL
@@ -67,6 +70,7 @@ glmap <- function(
     basemap = resolve_basemap_spec(basemap, api_key = api_key),
     basemap_name = if (is.character(basemap) && length(basemap) == 1L) basemap else "custom",
     ui_theme = ui_theme,
+    labels = resolved_labels,
     view = list(
       center = center,
       zoom = zoom,

@@ -428,6 +428,29 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
       group = "Concentration & Perils"
     )
   expect_true(m_leg$x$legends[[1]]$opacity_slider)
+
+  # Test gl_labels() and set_labels() on widget and glmap_proxy
+  lbl_def <- gl_labels()
+  expect_equal(lbl_def$layers_title, "Layers")
+  expect_equal(lbl_def$zoom_in, "Zoom in")
+
+  m_fr <- glmap(labels = gl_labels(
+    layers_title = "Couches",
+    basemap_header = "Fond de carte",
+    basemap_groups = c("Light" = "Clair", "Dark" = "Sombre"),
+    layer_groups = c("Risks" = "Risques")
+  )) |>
+    set_labels(search_placeholder = "Rechercher une adresse...")
+  expect_equal(m_fr$x$labels$layers_title, "Couches")
+  expect_equal(m_fr$x$labels$basemap_header, "Fond de carte")
+  expect_equal(m_fr$x$labels$search_placeholder, "Rechercher une adresse...")
+  expect_equal(m_fr$x$labels$basemap_groups$Light, "Clair")
+  expect_equal(m_fr$x$labels$layer_groups$Risks, "Risques")
+
+  prx_lbl <- glmap_proxy("map") |>
+    set_labels(gl_labels(layers_title = "Couches", measure_start = "Mesurer"))
+  expect_equal(prx_lbl$calls[[1]]$method, "setLabels")
+  expect_equal(prx_lbl$calls[[1]]$args$layers_title, "Couches")
 })
 
 test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API works end-to-end", {

@@ -499,6 +499,10 @@ removeMarker <- remove_marker
 
 #' @rdname leaflet_compat
 #' @export
+setLabels <- set_labels
+
+#' @rdname leaflet_compat
+#' @export
 leafletOutput <- glmapOutput
 
 #' @rdname leaflet_compat

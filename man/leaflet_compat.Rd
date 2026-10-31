@@ -55,6 +55,7 @@
 \alias{clearControls}
 \alias{removeShape}
 \alias{removeMarker}
+\alias{setLabels}
 \alias{leafletOutput}
 \alias{\%>\%}
 \alias{renderLeaflet}
@@ -557,6 +558,8 @@ clearControls(map)
 removeShape(map, layerId)
 
 removeMarker(map, layerId)
+
+setLabels(map, labels = NULL, ...)
 
 leafletOutput(outputId, width = "100\%", height = "600px")
 

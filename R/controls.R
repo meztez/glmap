@@ -1,3 +1,168 @@
+#' Customize or Localize User-Facing UI Labels in `glmap` (`gl_labels`, `set_labels`)
+#'
+#' Creates a flat named list of user-facing UI strings used across `glmap`'s
+#' built-in controls (navigation tooltips, layer switcher, marker engine selector,
+#' legends & GPU raster shader controls, draw toolbar, measurement widget,
+#' address search bar, overview minimap, and HUD).
+#'
+#' By default, `glmap` uses English for all user-facing text and carries no
+#' built-in multi-language dictionaries. Supply `gl_labels(...)` to `glmap(labels = ...)`
+#' at initialization or call `set_labels(proxy, ...)` in Shiny to switch any or
+#' all UI strings on the fly without re-rendering the map or losing active layers.
+#'
+#' Use `basemap_groups` and `layer_groups` (named character vectors or lists, e.g.
+#' `c("Risks" = "Risques", "Claims" = "Réclamations")`) to translate the display
+#' names shown in the Layer Switcher while keeping the underlying group IDs
+#' unchanged for `show_group()`, `hide_group()`, `clear_group()`, and `input$<mapId>_groups`.
+#'
+#' @param map A `glmap` widget or `glmap_proxy` (for `set_labels()`).
+#' @param labels A named list of label overrides (e.g., from `gl_labels(...)`), or `NULL` to use arguments in `...`.
+#' @param zoom_in,zoom_out,reset_north Tooltips for the navigation zoom/compass buttons.
+#' @param layers_title,basemap_header,overlays_header,marker_engine_header Section headers in the Layer Switcher.
+#' @param marker_mode_auto,marker_mode_cluster,marker_mode_lod,marker_mode_atlas,marker_mode_points Option labels in the Marker / Icon Engine dropdown.
+#' @param basemap_groups Optional named character vector/list mapping basemap group IDs to display labels (e.g. `c("Light" = "Clair", "Dark" = "Sombre", "Satellite" = "Satellite")`).
+#' @param layer_groups Optional named character vector/list mapping overlay group IDs to display labels (e.g. `c("Risks" = "Risques")`).
+#' @param legend_default_title,layer_opacity,shader_palette,gpu_hillshade,custom_palette Labels inside legend and raster shader cards.
+#' @param draw_poly_label,draw_rect_label,draw_circle_label,draw_line_label,draw_pin_label,draw_clear_label Short button labels on the draw toolbar.
+#' @param draw_poly_title,draw_rect_title,draw_circle_title,draw_line_title,draw_pin_title,draw_clear_title Hover tooltips on the draw toolbar.
+#' @param drawn_area_prefix,remove_drawn_button Labels inside the popup shown when clicking a drawn shape.
+#' @param measure_start,measure_finish,measure_clear,measure_length,measure_area,measure_hint Labels inside the distance/area measurement control.
+#' @param search_placeholder,search_button_title,search_clear_title,search_searching,search_no_results,search_unavailable Labels inside the OpenStreetMap search control.
+#' @param minimap_title,export_png Header for the overview minimap and label for the PNG export button.
+#' @param hud_features,hud_lon_lat,hud_raster,hud_dist Labels inside the bottom status HUD.
+#' @param ... Additional named label overrides.
+#' @return For `gl_labels()`, a named list of UI label strings. For `set_labels()`, the updated `glmap` widget or `glmap_proxy`.
+#' @export
+gl_labels <- function(
+    zoom_in = "Zoom in",
+    zoom_out = "Zoom out",
+    reset_north = "Reset bearing to north",
+    layers_title = "Layers",
+    basemap_header = "Basemap",
+    overlays_header = "Overlays",
+    marker_engine_header = "Marker / Icon Engine",
+    marker_mode_auto = "Auto (Dynamic)",
+    marker_mode_cluster = "Cluster + GPU Atlas",
+    marker_mode_lod = "LOD Hybrid (Dots -> Icons)",
+    marker_mode_atlas = "GPU Sprite Atlas (All Icons)",
+    marker_mode_points = "GPU Fast Dots (SDF)",
+    basemap_groups = NULL,
+    layer_groups = NULL,
+    legend_default_title = "Legend",
+    layer_opacity = "Layer Opacity",
+    shader_palette = "GPU Shader Palette",
+    gpu_hillshade = "Real-Time GPU Hillshade",
+    custom_palette = "custom (R)",
+    draw_poly_label = "Poly",
+    draw_rect_label = "Rect",
+    draw_circle_label = "Circle",
+    draw_line_label = "Line",
+    draw_pin_label = "Pin",
+    draw_clear_label = "Clear",
+    draw_poly_title = "Draw a polygon",
+    draw_rect_title = "Draw a rectangle",
+    draw_circle_title = "Draw a circle",
+    draw_line_title = "Draw a polyline",
+    draw_pin_title = "Draw a marker",
+    draw_clear_title = "Clear all drawn shapes",
+    drawn_area_prefix = "Drawn Area #",
+    remove_drawn_button = "Remove",
+    measure_start = "Measure Distance / Area",
+    measure_finish = "Finish Measure",
+    measure_clear = "Clear",
+    measure_length = "Length",
+    measure_area = "Area",
+    measure_hint = "Click points on map (3+ for area, double-click to finish)",
+    search_placeholder = "Search address or place...",
+    search_button_title = "Search OpenStreetMap",
+    search_clear_title = "Clear search",
+    search_searching = "Searching OpenStreetMap...",
+    search_no_results = "No results found.",
+    search_unavailable = "Search unavailable.",
+    minimap_title = "Overview",
+    export_png = "Export PNG",
+    hud_features = "Features",
+    hud_lon_lat = "Lon/Lat",
+    hud_raster = "Raster",
+    hud_dist = "Dist",
+    ...
+) {
+  base_list <- list(
+    zoom_in = as.character(zoom_in[1]),
+    zoom_out = as.character(zoom_out[1]),
+    reset_north = as.character(reset_north[1]),
+    layers_title = as.character(layers_title[1]),
+    basemap_header = as.character(basemap_header[1]),
+    overlays_header = as.character(overlays_header[1]),
+    marker_engine_header = as.character(marker_engine_header[1]),
+    marker_mode_auto = as.character(marker_mode_auto[1]),
+    marker_mode_cluster = as.character(marker_mode_cluster[1]),
+    marker_mode_lod = as.character(marker_mode_lod[1]),
+    marker_mode_atlas = as.character(marker_mode_atlas[1]),
+    marker_mode_points = as.character(marker_mode_points[1]),
+    basemap_groups = if (!is.null(basemap_groups)) as.list(basemap_groups) else stats::setNames(list(), character(0)),
+    layer_groups = if (!is.null(layer_groups)) as.list(layer_groups) else stats::setNames(list(), character(0)),
+    legend_default_title = as.character(legend_default_title[1]),
+    layer_opacity = as.character(layer_opacity[1]),
+    shader_palette = as.character(shader_palette[1]),
+    gpu_hillshade = as.character(gpu_hillshade[1]),
+    custom_palette = as.character(custom_palette[1]),
+    draw_poly_label = as.character(draw_poly_label[1]),
+    draw_rect_label = as.character(draw_rect_label[1]),
+    draw_circle_label = as.character(draw_circle_label[1]),
+    draw_line_label = as.character(draw_line_label[1]),
+    draw_pin_label = as.character(draw_pin_label[1]),
+    draw_clear_label = as.character(draw_clear_label[1]),
+    draw_poly_title = as.character(draw_poly_title[1]),
+    draw_rect_title = as.character(draw_rect_title[1]),
+    draw_circle_title = as.character(draw_circle_title[1]),
+    draw_line_title = as.character(draw_line_title[1]),
+    draw_pin_title = as.character(draw_pin_title[1]),
+    draw_clear_title = as.character(draw_clear_title[1]),
+    drawn_area_prefix = as.character(drawn_area_prefix[1]),
+    remove_drawn_button = as.character(remove_drawn_button[1]),
+    measure_start = as.character(measure_start[1]),
+    measure_finish = as.character(measure_finish[1]),
+    measure_clear = as.character(measure_clear[1]),
+    measure_length = as.character(measure_length[1]),
+    measure_area = as.character(measure_area[1]),
+    measure_hint = as.character(measure_hint[1]),
+    search_placeholder = as.character(search_placeholder[1]),
+    search_button_title = as.character(search_button_title[1]),
+    search_clear_title = as.character(search_clear_title[1]),
+    search_searching = as.character(search_searching[1]),
+    search_no_results = as.character(search_no_results[1]),
+    search_unavailable = as.character(search_unavailable[1]),
+    minimap_title = as.character(minimap_title[1]),
+    export_png = as.character(export_png[1]),
+    hud_features = as.character(hud_features[1]),
+    hud_lon_lat = as.character(hud_lon_lat[1]),
+    hud_raster = as.character(hud_raster[1]),
+    hud_dist = as.character(hud_dist[1])
+  )
+  extra <- list(...)
+  if (length(extra) > 0L) {
+    for (nm in names(extra)) {
+      if (nzchar(nm)) base_list[[nm]] <- extra[[nm]]
+    }
+  }
+  base_list
+}
+
+#' @rdname gl_labels
+#' @export
+set_labels <- function(map, labels = NULL, ...) {
+  overrides <- if (is.null(labels)) list(...) else utils::modifyList(as.list(labels), list(...))
+  if (!is.null(overrides$basemap_groups)) overrides$basemap_groups <- as.list(overrides$basemap_groups)
+  if (!is.null(overrides$layer_groups)) overrides$layer_groups <- as.list(overrides$layer_groups)
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "setLabels", overrides))
+  }
+  cur <- map$x$labels %||% gl_labels()
+  map$x$labels <- utils::modifyList(cur, overrides)
+  map
+}
+
 #' Set Map Camera View (Center, Zoom, Pitch, Bearing)
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.

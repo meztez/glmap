@@ -15,6 +15,7 @@ glmap(
   projection = c("mercator", "globe"),
   transport = c("auto", "inline", "server"),
   ui_theme = c("auto", "light", "dark"),
+  labels = NULL,
   width = "100\%",
   height = NULL,
   elementId = NULL,
@@ -46,6 +47,8 @@ a provider from \link{gl_providers}, or a custom MapLibre style URL / \code{{z}/
 
 \item{ui_theme}{UI control theme: \code{"auto"} (default, automatically switches between \code{"light"} and \code{"dark"}
 based on the active basemap tile shade), \code{"light"}, or \code{"dark"}.}
+
+\item{labels}{Optional named list of custom UI labels created by \code{\link[=gl_labels]{gl_labels()}} (defaults to English \code{\link[=gl_labels]{gl_labels()}}).}
 
 \item{width}{Widget width (CSS units).}
 
