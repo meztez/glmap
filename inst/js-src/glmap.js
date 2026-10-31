@@ -386,6 +386,44 @@
         this.slots.set(pos, slot);
       }
 
+      // Navigation / Zoom + Compass Control (`add_control(type = "navigation", position = ...)`)
+      this.navControlEl = document.createElement("div");
+      this.navControlEl.className = "glmap-nav-control";
+      this.navControlEl.innerHTML = `
+        <button type="button" class="glmap-nav-btn glmap-nav-in" title="Zoom in" aria-label="Zoom in">+</button>
+        <button type="button" class="glmap-nav-btn glmap-nav-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="glmap-nav-btn glmap-nav-compass" title="Reset bearing to north" aria-label="Reset bearing to north">
+          <span class="glmap-compass-arrow">▲</span>
+        </button>
+      `;
+      this.navControlEl.querySelector(".glmap-nav-in").onclick = (e) => {
+        e.stopPropagation();
+        if (this.map && typeof this.map.zoomIn === "function") this.map.zoomIn();
+        else {
+          this.camera.zoom = Math.min(20, this.camera.zoom + 1);
+          this.requestRender();
+          this._onViewportChanged();
+        }
+      };
+      this.navControlEl.querySelector(".glmap-nav-out").onclick = (e) => {
+        e.stopPropagation();
+        if (this.map && typeof this.map.zoomOut === "function") this.map.zoomOut();
+        else {
+          this.camera.zoom = Math.max(1, this.camera.zoom - 1);
+          this.requestRender();
+          this._onViewportChanged();
+        }
+      };
+      this.navControlEl.querySelector(".glmap-nav-compass").onclick = (e) => {
+        e.stopPropagation();
+        if (this.map && typeof this.map.resetNorthPitch === "function") this.map.resetNorthPitch();
+        else {
+          this.camera.bearing = 0;
+          this.camera.pitch = 0;
+          this.requestRender();
+        }
+      };
+
       // Layer switcher panel
       this.switcherEl = document.createElement("div");
       this.switcherEl.className = "glmap-panel glmap-layer-switcher collapsed";
@@ -454,6 +492,7 @@
 
     _applyControlLayout(x) {
       const ctrls = (x && x.controls) || {};
+      const nvCfg = ctrls.navigation || { enabled: true, position: "top-right", order: 10 };
       const lsCfg = ctrls.layer_switcher || { enabled: true, position: "top-left", order: 10, collapsed: true };
       const scCfg = ctrls.scale || { enabled: true, position: "bottom-left", order: 90 };
       const hdCfg = ctrls.hud || { enabled: true, position: "bottom-center", order: 20 };
@@ -461,6 +500,8 @@
       const atCfg = ctrls.attribution || { enabled: true, position: "bottom-right", order: 100 };
 
       this.switcherEl.classList.toggle("collapsed", lsCfg.collapsed !== false);
+      this._mountInSlot(this.navControlEl, nvCfg.position || "top-right", nvCfg.order || 10, nvCfg.direction || null);
+      this.navControlEl.style.display = (nvCfg && nvCfg.enabled === false) ? "none" : "flex";
       this._mountInSlot(this.switcherEl, lsCfg.position || "top-left", lsCfg.order || 10);
       this._mountInSlot(this.scaleEl, scCfg.position || "bottom-left", scCfg.order || 90);
       this._mountInSlot(this.hudEl, hdCfg.position || "bottom-center", hdCfg.order || 20);
@@ -825,9 +866,8 @@
             preserveDrawingBuffer: true
           });
 
-          if (x.controls && x.controls.navigation && x.controls.navigation.enabled) {
-            this.map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
-          }
+          // Navigation control is mounted inside glmap's 9-zone dock grid (`this.navControlEl`)
+          // so `add_control(type = "navigation", position = ...)` works dynamically and via proxy!
 
           const syncMove = () => {
             const c = this.map.getCenter();
@@ -838,6 +878,10 @@
               this.camera.worldSize = this.map.transform.worldSize;
             }
             this.camera.zoom = this.map.getZoom();
+            if (typeof this.map.getBearing === "function" && this.navControlEl) {
+              const arrow = this.navControlEl.querySelector(".glmap-compass-arrow");
+              if (arrow) arrow.style.transform = `rotate(${-this.map.getBearing()}deg)`;
+            }
             this.requestRender();
           };
 

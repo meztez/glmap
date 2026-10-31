@@ -179,6 +179,53 @@
   gap: 6px;
 }
 
+/* Navigation (Zoom + / - / Compass) Control in 9-Zone Dock Grid */
+.glmap-nav-control {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.36);
+  overflow: hidden;
+}
+
+.glmap-nav-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  background: transparent;
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.glmap-nav-btn:last-child {
+  border-bottom: none;
+}
+
+.glmap-nav-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+  color: #38bdf8;
+}
+
+.glmap-compass-arrow {
+  display: inline-block;
+  font-size: 11px;
+  color: #f87171;
+  transition: transform 0.1s linear;
+}
+
 .glmap-scale-box {
   background: rgba(15, 23, 42, 0.78);
   border: 1px solid rgba(148, 163, 184, 0.35);
