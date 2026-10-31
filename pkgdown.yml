@@ -11,7 +11,7 @@ articles:
   markers-and-clusters: markers-and-clusters.html
   raster-hexbin-duckdb: raster-hexbin-duckdb.html
   shapes-and-choropleths: shapes-and-choropleths.html
-last_built: 2026-10-31T13:33Z
+last_built: 2026-10-31T13:44Z
 urls:
   reference: https://meztez.github.io/glmap/reference
   article: https://meztez.github.io/glmap/articles

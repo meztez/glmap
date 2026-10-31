@@ -73,6 +73,7 @@ and adds the appropriate GPU layer unless layers are added downstream via pipes 
 <span>  bearing <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  projection <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mercator"</span>, <span class="st">"globe"</span><span class="op">)</span>,</span>
 <span>  transport <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"inline"</span>, <span class="st">"server"</span><span class="op">)</span>,</span>
+<span>  ui_theme <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"light"</span>, <span class="st">"dark"</span><span class="op">)</span>,</span>
 <span>  width <span class="op">=</span> <span class="st">"100%"</span>,</span>
 <span>  height <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  elementId <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -122,6 +123,11 @@ a provider from <a href="gl_providers.html">gl_providers</a>, or a custom MapLib
 <dt id="arg-transport">transport<a class="anchor" aria-label="anchor" href="#arg-transport"></a></dt>
 <dd><p>Binary transport mode: <code>"auto"</code> (inline gzipped binary up to 25 MB, works in static HTML &amp; Viewer),
 <code>"server"</code> (streams via local <code>httpuv</code> binary range server), or <code>"inline"</code>.</p></dd>
+
+
+<dt id="arg-ui-theme">ui_theme<a class="anchor" aria-label="anchor" href="#arg-ui-theme"></a></dt>
+<dd><p>UI control theme: <code>"auto"</code> (default, automatically switches between <code>"light"</code> and <code>"dark"</code>
+based on the active basemap tile shade), <code>"light"</code>, or <code>"dark"</code>.</p></dd>
 
 
 <dt id="arg-width">width<a class="anchor" aria-label="anchor" href="#arg-width"></a></dt>
