@@ -96,12 +96,14 @@ glmap(basemap = "dark") |>
 
 ---
 
-## Camera, 3D Terrain & Globe Projection
+## Camera, 3D Perspective Matrix Alignment, Terrain & Globe Projection
 
-Because `glmap` is powered by MapLibre GL + WebGL2, you can tilt (`pitch`), rotate (`bearing`), enable 3D DEM terrain extrusion (`set_terrain()`), or switch to a 3D spherical globe (`set_projection("globe")`):
+Because `glmap` is powered by MapLibre GL + WebGL2, you can tilt (`pitch`), rotate (`bearing`), extrude 3D polygons (`add_polygons(extrude = ~height)`), enable 3D DEM terrain (`set_terrain()`), or switch to a 3D spherical globe (`set_projection("globe")`).
+
+All 5 WebGL2 shaders (`vsPoints`, `vsMesh`, `vsHeat`, `vsRaster`, `vsIcons`) and the 2D overlay (`mercToScreen()` / `lonLatToScreen()` for clusters, spiderfy webs, drawn shapes, and distance/area measurements) project coordinates through MapLibre's exact 4×4 Web Mercator perspective matrix (`customLayerMatrix()`), keeping every feature locked to the ground at any tilt (`0°–85°`) and rotation (`-180°–180°`). You can also drag horizontally on the `▲` compass button to rotate `bearing` or drag vertically to adjust `pitch`:
 
 ```{r}
-glmap(basemap = "satellite", projection = "globe") |>
+glmap(basemap = "satellite", projection = "globe", pitch = 60, bearing = -25) |>
   set_terrain(exaggeration = 1.5) |>
   fly_to(lng = -122.19, lat = 46.20, zoom = 11, pitch = 60, bearing = -25)
 ```

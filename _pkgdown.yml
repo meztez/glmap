@@ -42,6 +42,8 @@ reference:
       - add_simple_graticule
       - add_terminator
       - add_legend
+      - gl_labels
+      - set_labels
       - gl_save_html
       - gl_save_png
 

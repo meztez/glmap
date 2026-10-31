@@ -451,6 +451,37 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
     set_labels(gl_labels(layers_title = "Couches", measure_start = "Mesurer"))
   expect_equal(prx_lbl$calls[[1]]$method, "setLabels")
   expect_equal(prx_lbl$calls[[1]]$args$layers_title, "Couches")
+
+  # Test 3D camera pitch/bearing, set_terrain, and set_projection on widget and glmap_proxy
+  m_cam <- glmap(center = c(-71.2, 46.8), zoom = 11, pitch = 55, bearing = 30, projection = "globe") |>
+    set_terrain(exaggeration = 2.0)
+  expect_equal(m_cam$x$view$pitch, 55)
+  expect_equal(m_cam$x$view$bearing, 30)
+  expect_equal(m_cam$x$view$projection, "globe")
+  expect_true(m_cam$x$terrain$enabled)
+  expect_equal(m_cam$x$terrain$exaggeration, 2.0)
+
+  prx_cam <- glmap_proxy("map") |>
+    set_view(lng = -71.2, lat = 46.8, zoom = 12, pitch = 60, bearing = -45) |>
+    fly_to(lng = -73.5, lat = 45.5, zoom = 13, pitch = 45, bearing = 15, duration = 900) |>
+    set_terrain(exaggeration = 1.8) |>
+    set_projection("globe")
+  expect_equal(prx_cam$calls[[1]]$method, "setView")
+  expect_equal(prx_cam$calls[[1]]$args$pitch, 60)
+  expect_equal(prx_cam$calls[[1]]$args$bearing, -45)
+  expect_equal(prx_cam$calls[[2]]$method, "flyTo")
+  expect_equal(prx_cam$calls[[2]]$args$pitch, 45)
+  expect_equal(prx_cam$calls[[2]]$args$bearing, 15)
+  expect_equal(prx_cam$calls[[3]]$method, "setTerrain")
+  expect_equal(prx_cam$calls[[3]]$args$exaggeration, 1.8)
+  expect_equal(prx_cam$calls[[4]]$method, "setProjection")
+  expect_equal(prx_cam$calls[[4]]$args$projection, "globe")
+
+  # Verify GLMP binary buffer encodes per-feature elevation when extrude is supplied
+  poly_ext <- gl_benchmark_data(n_points = 5L, n_polygons = 4L)$polygons_sf
+  poly_ext$bldg_h <- c(25, 50, 100, 200)
+  m_ext <- glmap(poly_ext) |> add_polygons(extrude = ~bldg_h, id = "bldg3d")
+  expect_true(m_ext$x$layers[[1]]$style$extruded)
 })
 
 test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API works end-to-end", {

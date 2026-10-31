@@ -46,12 +46,35 @@ glmap(basemap = "dark") |>
 
 ---
 
-## Interactive Vector Draw Toolbar (`add_draw_toolbar`), Measure (`add_measure`) & OSM Search (`add_search_osm`)
+## Interactive Vector Draw Toolbar (`add_draw_toolbar`), Measure (`add_measure`), OSM Search (`add_search_osm`) & UI Localization (`gl_labels`)
 
-- **`add_draw_toolbar()`**: Draw **Polygons** (click vertices, double-click or click first vertex to close), **Rectangles** (click-drag), **Geodesic Circles** (click center, drag radius in meters), **Polylines**, and **Markers**. Clicking a completed shape opens a popup with a **Remove** button, or click **Clear** to remove all drawn shapes.
-- **`add_measure()`**: Click points on the map to measure geodesic path distance (`m` / `km`) and spherical-excess polygon area (`sq. m` / `sq. km`).
+- **`add_draw_toolbar()`**: Draw **Polygons** (click vertices, double-click or click first vertex to close), **Rectangles** (click-drag), **Geodesic Circles** (click center, drag radius in meters), **Polylines**, and **Markers**. Clicking a completed shape opens a popup with a **Remove** button, or click **Clear** to remove all drawn shapes. All live draw previews and committed polygons project through MapLibre's 4×4 perspective matrix (`customLayerMatrix()`), staying locked to the ground even when the camera is tilted (`pitch > 0`) or rotated (`bearing != 0`).
+- **`add_measure()`**: Click points on the map to measure geodesic path distance (`m` / `km`) and spherical-excess polygon area (`sq. m` / `sq. km`). Double-click or click **Finish** to lock the measurement path.
 - **`add_search_osm()`**: Live geocoding search bar powered by OpenStreetMap Nominatim.
 - **`add_graticule()` & `add_terminator()`**: Add coordinate meridians/parallels and the real-time solar day/night hemisphere polygon.
+- **Interactive 3D Compass (`▲`)**: Drag horizontally on the `▲` button to rotate `bearing`, drag vertically to tilt `pitch` (`0°–85°`), click when rotated/tilted to reset to North/flat, or click when already North-up to fly back to the initial home view.
+- **Customizable UI Labels & Localization (`gl_labels()` & `set_labels()`)**: `glmap` uses English UI strings by default, and any user-facing label, tooltip, or basemap/layer group display name can be overridden at initialization (`glmap(labels = gl_labels(...))`) or switched live in Shiny via `set_labels()` on `glmap_proxy()` without changing internal group IDs:
+
+```{r}
+glmap(
+  basemap = "positron",
+  ui_theme = "auto",
+  labels = gl_labels(
+    layers_title = "Couches",
+    basemap_header = "Fond de carte",
+    overlays_header = "Superpositions",
+    search_placeholder = "Rechercher une adresse...",
+    measure_start = "Mesurer distance / surface",
+    basemap_groups = c("Light" = "Clair", "Dark" = "Sombre", "Satellite" = "Satellite"),
+    layer_groups = c("Risks" = "Risques", "Claims" = "Réclamations")
+  )
+) |>
+  add_layers_control(
+    baseGroups = c("Light", "Dark", "Satellite"),
+    overlayGroups = c("Risks", "Claims")
+  ) |>
+  add_measure(position = "bottom-right")
+```
 
 ---
 

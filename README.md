@@ -190,8 +190,13 @@ server <- function(input, output, session) {
 ### Shiny Input Events Emitted Automatically by `glmap`
 For a widget with `outputId = "map"`, `glmap` automatically provides:
 - `input$map_click`: `list(lng, lat, raster_value)` on map click.
-- `input$map_bounds`: `list(west, south, east, north)` after every pan/zoom (`moveend`).
-- `input$map_selected`: `list(bbox, count, indices)` when the user drags a selection with the **Box Brush** tool.
+- `input$map_marker_click` / `input$map_shape_click`: clicked feature metadata (`id`, `layerId`, `group`, `lng`, `lat`).
+- `input$map_bounds`: `list(west, south, east, north)` after every pan/zoom/rotate/tilt (`moveend`), computed from the full 4-corner camera frustum so `west <= east` and `south <= north` even when rotated or pitched.
+- `input$map_zoom`, `input$map_center`, `input$map_pitch`, `input$map_bearing`: live camera zoom, center (`lng, lat`), tilt (`0°–85°`), and rotation bearing.
+- `input$map_groups`: character vector of currently active overlay group names.
+- `input$map_ui_theme`: `"light"` or `"dark"` reflecting the active basemap shade when `ui_theme = "auto"`.
+- `input$map_draw_new_feature`, `input$map_draw_deleted_features`, `input$map_draw_all_features`: GeoJSON + WKT payloads emitted by `add_draw_toolbar()`.
+- `input$map_selected`: `list(bbox, wkt, count, indices)` when the user draws an AOI or drags a selection with the **Box Brush** tool.
 
 ---
 
