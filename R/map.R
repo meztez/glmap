@@ -17,6 +17,8 @@
 #' @param projection Map projection: `"mercator"` (default) or `"globe"`.
 #' @param transport Binary transport mode: `"auto"` (inline gzipped binary up to 25 MB, works in static HTML & Viewer),
 #'   `"server"` (streams via local `httpuv` binary range server), or `"inline"`.
+#' @param ui_theme UI control theme: `"auto"` (default, automatically switches between `"light"` and `"dark"`
+#'   based on the active basemap tile shade), `"light"`, or `"dark"`.
 #' @param width Widget width (CSS units).
 #' @param height Widget height (CSS units).
 #' @param elementId Optional HTML element ID.
@@ -35,6 +37,7 @@ glmap <- function(
     bearing = 0,
     projection = c("mercator", "globe"),
     transport = c("auto", "inline", "server"),
+    ui_theme = c("auto", "light", "dark"),
     width = "100%",
     height = NULL,
     elementId = NULL,
@@ -43,6 +46,7 @@ glmap <- function(
 ) {
   projection <- match.arg(projection)
   transport <- match.arg(transport)
+  ui_theme <- match.arg(ui_theme)
 
   # Unwrap crosstalk::SharedData if provided
   crosstalk_group <- NULL
@@ -62,6 +66,7 @@ glmap <- function(
   x <- list(
     basemap = resolve_basemap_spec(basemap, api_key = api_key),
     basemap_name = if (is.character(basemap) && length(basemap) == 1L) basemap else "custom",
+    ui_theme = ui_theme,
     view = list(
       center = center,
       zoom = zoom,

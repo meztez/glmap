@@ -813,6 +813,27 @@
       this.camera.zoom = Math.max(1, Math.min(16, Math.log2(360.0 / maxSpan) - 0.5));
     }
 
+    _updateUIThemeFromBasemap(basemap, nameHint) {
+      const explicitTheme = (this.spec && this.spec.ui_theme) || "auto";
+      if (explicitTheme === "light" || explicitTheme === "dark") {
+        this.el.setAttribute("data-ui-theme", explicitTheme);
+        return;
+      }
+      const bgHex = String((basemap && basemap.bg) || "").trim();
+      let isLight = false;
+      if (/^#[0-9a-fA-F]{6}$/.test(bgHex)) {
+        const r = parseInt(bgHex.slice(1, 3), 16);
+        const g = parseInt(bgHex.slice(3, 5), 16);
+        const b = parseInt(bgHex.slice(5, 7), 16);
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+        isLight = lum >= 0.5;
+      } else {
+        const nm = String(nameHint || (basemap && basemap.style_url) || "").toLowerCase();
+        isLight = /positron|light|voyager|liberty|bright|osm|mapnik|topo|street|graycanvas|backdrop|outdoor|landscape|smooth(?!dark)/.test(nm);
+      }
+      this.el.setAttribute("data-ui-theme", isLight ? "light" : "dark");
+    }
+
     _initMapLibre(x) {
       if (this.map) {
         try { this.map.remove(); } catch (e) {}
@@ -821,6 +842,14 @@
 
       const basemap = x.basemap || { bg: "#0e1117", tiles: [] };
       this.el.style.background = basemap.bg || "#0e1117";
+      this._updateUIThemeFromBasemap(basemap, x.basemap_name);
+      if (!this._activeBaseGroup) {
+        const isLightInit = this.el.getAttribute("data-ui-theme") === "light";
+        const bName = String(x.basemap_name || "").toLowerCase();
+        this._activeBaseGroup = bName.includes("satellite") || bName.includes("imagery")
+          ? "Satellite"
+          : (isLightInit ? "Light" : "Dark");
+      }
 
   const styleUrl = basemap.style_url || null;
       let mapStyle = {
@@ -2516,7 +2545,7 @@
         html += `
           <div class="glmap-layer-section-hdr" style="margin-top:6px">Marker / Icon Engine</div>
           <div style="padding:2px 4px 4px 4px">
-            <select class="gl-marker-mode-select" style="width:100%;font-size:11px;padding:3px 5px;border-radius:4px;background:rgba(15,23,42,0.85);color:#e2e8f0;border:1px solid rgba(148,163,184,0.35);cursor:pointer">
+            <select class="gl-marker-mode-select" style="width:100%;font-size:11px;padding:3px 5px;border-radius:4px;background:var(--gl-input-bg);color:var(--gl-text-primary);border:1px solid var(--gl-input-border);cursor:pointer">
               ${modeOpts.map((o) => `<option value="${o.val}" ${curMode === o.val ? "selected" : ""}>${o.label}</option>`).join("")}
             </select>
           </div>
@@ -2656,13 +2685,13 @@
               html += `<div class="glmap-raster-controls" data-raster-id="${leg.layer_id}">`;
               if (sc.palette !== false) {
                 html += `
-                  <label style="font-size:10px;color:#94a3b8">GPU Shader Palette</label>
+                  <label style="font-size:10px;color:var(--gl-text-muted)">GPU Shader Palette</label>
                   <select class="gl-pal-select">${palOpts}</select>
                 `;
               }
               if (sc.hillshade !== false) {
                 html += `
-                  <label style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-top:3px">
+                  <label style="font-size:10px;color:var(--gl-text-muted);display:flex;align-items:center;gap:4px;margin-top:3px">
                     <input type="checkbox" class="gl-hill-cb" ${(rl.style && rl.style.hillshade) ? "checked" : ""}/>
                     Real-Time GPU Hillshade
                   </label>
@@ -2671,11 +2700,11 @@
               if (sc.opacity !== false) {
                 hasRasterOpacity = true;
                 html += `
-                  <label style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;margin-top:4px">
+                  <label style="font-size:10px;color:var(--gl-text-muted);display:flex;justify-content:space-between;margin-top:4px">
                     <span>Layer Opacity</span>
                     <span class="gl-op-val">${Math.round(curOp * 100)}%</span>
                   </label>
-                  <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:#38bdf8;cursor:pointer;margin-top:2px"/>
+                  <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:var(--gl-accent);cursor:pointer;margin-top:2px"/>
                 `;
               }
               html += `</div>`;
@@ -2695,12 +2724,12 @@
           const opTarget = leg.group || targetLayer.id;
           const curOp = targetLayer.opacity !== undefined ? Number(targetLayer.opacity) : 0.65;
           html += `
-            <div class="glmap-layer-opacity-ctrl" data-target-id="${opTarget}" style="margin-top:6px;padding-top:4px;border-top:1px solid rgba(148,163,184,0.2)">
-              <label style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">
+            <div class="glmap-layer-opacity-ctrl" data-target-id="${opTarget}" style="margin-top:6px;padding-top:4px;border-top:1px solid var(--gl-divider)">
+              <label style="font-size:10px;color:var(--gl-text-muted);display:flex;justify-content:space-between">
                 <span>Layer Opacity</span>
                 <span class="gl-op-val">${Math.round(curOp * 100)}%</span>
               </label>
-              <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:#38bdf8;cursor:pointer;margin-top:2px"/>
+              <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:var(--gl-accent);cursor:pointer;margin-top:2px"/>
             </div>
           `;
         }
@@ -2840,6 +2869,7 @@
       if (!opts || !opts.basemap) return;
       const basemap = opts.basemap;
       this.el.style.background = basemap.bg || "#0e1117";
+      this._updateUIThemeFromBasemap(basemap, opts.name);
       if (!this.map) return;
 
       const styleUrl = basemap.style_url || null;
@@ -3409,9 +3439,9 @@
       `;
       if (pts.length > 0 || this.measureActive) {
         html += `
-          <div style="margin-top:6px;font-size:11px;color:#e2e8f0;line-height:1.45;border-top:1px solid rgba(148,163,184,0.2);padding-top:5px">
-            <div>Length: <b style="color:#38bdf8">${lenStr}</b></div>
-            ${allPts.length >= 3 ? `<div>Area: <b style="color:#c084fc">${areaStr}</b></div>` : `<div style="color:#94a3b8;font-size:10px">Click points on map (3+ for area, double-click to finish)</div>`}
+          <div style="margin-top:6px;font-size:11px;color:var(--gl-text-primary);line-height:1.45;border-top:1px solid var(--gl-divider);padding-top:5px">
+            <div>Length: <b style="color:var(--gl-accent)">${lenStr}</b></div>
+            ${allPts.length >= 3 ? `<div>Area: <b style="color:#9333ea">${areaStr}</b></div>` : `<div style="color:var(--gl-text-muted);font-size:10px">Click points on map (3+ for area, double-click to finish)</div>`}
           </div>
         `;
       }
@@ -3463,11 +3493,11 @@
       const placeholder = spec.textPlaceholder || "Search address or place...";
       this.searchEl.innerHTML = `
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="text" class="gl-osm-input" placeholder="${placeholder}" style="width:195px;padding:4px 8px;font-size:11px;border-radius:6px;border:1px solid rgba(148,163,184,0.35);background:rgba(15,23,42,0.92);color:#f8fafc;outline:none"/>
+          <input type="text" class="gl-osm-input" placeholder="${placeholder}" style="width:195px;padding:4px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gl-input-border);background:var(--gl-input-bg);color:var(--gl-text-primary);outline:none"/>
           <button type="button" class="glmap-btn gl-osm-btn" title="Search OpenStreetMap" style="padding:4px 7px;font-size:11px;cursor:pointer">🔍</button>
           <button type="button" class="glmap-btn gl-osm-clr" title="Clear search" style="padding:4px 6px;font-size:11px;display:none;cursor:pointer">&times;</button>
         </div>
-        <div class="gl-osm-results" style="display:none;margin-top:4px;max-height:180px;overflow-y:auto;border-top:1px solid rgba(148,163,184,0.2);padding-top:4px"></div>
+        <div class="gl-osm-results" style="display:none;margin-top:4px;max-height:180px;overflow-y:auto;border-top:1px solid var(--gl-divider);padding-top:4px"></div>
       `;
 
       const inp = this.searchEl.querySelector(".gl-osm-input");
@@ -3479,18 +3509,18 @@
         const q = (inp.value || "").trim();
         if (!q) return;
         resBox.style.display = "block";
-        resBox.innerHTML = `<div style="font-size:10px;color:#94a3b8;padding:3px">Searching OpenStreetMap...</div>`;
+        resBox.innerHTML = `<div style="font-size:10px;color:var(--gl-text-muted);padding:3px">Searching OpenStreetMap...</div>`;
         try {
           const urlTmpl = spec.url || "https://nominatim.openstreetmap.org/search?format=json&q={s}";
           const url = urlTmpl.replace("{s}", encodeURIComponent(q));
           const resp = await fetch(url, { headers: { "Accept": "application/json" } });
           const data = await resp.json();
           if (!Array.isArray(data) || data.length === 0) {
-            resBox.innerHTML = `<div style="font-size:10px;color:#f87171;padding:3px">No results found.</div>`;
+            resBox.innerHTML = `<div style="font-size:10px;color:#ef4444;padding:3px">No results found.</div>`;
             return;
           }
           resBox.innerHTML = data.slice(0, 6).map((item, idx) => `
-            <div class="gl-osm-item" data-idx="${idx}" style="padding:4px 6px;font-size:11px;cursor:pointer;border-radius:4px;color:#e2e8f0;border-bottom:1px solid rgba(148,163,184,0.12)">
+            <div class="gl-osm-item" data-idx="${idx}" style="padding:4px 6px;font-size:11px;cursor:pointer;border-radius:4px;color:var(--gl-text-primary);border-bottom:1px solid var(--gl-divider)">
               ${item.display_name}
             </div>
           `).join("");

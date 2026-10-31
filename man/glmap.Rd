@@ -14,6 +14,7 @@ glmap(
   bearing = 0,
   projection = c("mercator", "globe"),
   transport = c("auto", "inline", "server"),
+  ui_theme = c("auto", "light", "dark"),
   width = "100\%",
   height = NULL,
   elementId = NULL,
@@ -42,6 +43,9 @@ a provider from \link{gl_providers}, or a custom MapLibre style URL / \code{{z}/
 
 \item{transport}{Binary transport mode: \code{"auto"} (inline gzipped binary up to 25 MB, works in static HTML & Viewer),
 \code{"server"} (streams via local \code{httpuv} binary range server), or \code{"inline"}.}
+
+\item{ui_theme}{UI control theme: \code{"auto"} (default, automatically switches between \code{"light"} and \code{"dark"}
+based on the active basemap tile shade), \code{"light"}, or \code{"dark"}.}
 
 \item{width}{Widget width (CSS units).}
 
