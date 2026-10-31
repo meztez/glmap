@@ -941,6 +941,15 @@
       const gl = this.gl;
       const entry = Object.assign({ visible: true, opacity: 0.85 }, layerSpec);
 
+      let addedUserGroup = false;
+      if (entry.visible && entry.group && entry.group !== "sg_shape" && entry.group !== "js_single_call" && entry.group !== "cat_claims_overlay") {
+        if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
+        if (!this._selectedOverlayGroups.has(entry.group)) {
+          this._selectedOverlayGroups.add(entry.group);
+          addedUserGroup = true;
+        }
+      }
+
       if (legendSpec) {
         this.legends = this.legends.filter((l) => l.layer_id !== legendSpec.layer_id);
         this.legends.push(legendSpec);
@@ -1014,14 +1023,6 @@
         this.layerOrder.push(entry.id);
       }
       this.layers.set(entry.id, entry);
-      let addedUserGroup = false;
-      if (entry.visible && entry.group && entry.group !== "sg_shape" && entry.group !== "js_single_call" && entry.group !== "cat_claims_overlay") {
-        if (!this._selectedOverlayGroups) this._selectedOverlayGroups = new Set();
-        if (!this._selectedOverlayGroups.has(entry.group)) {
-          this._selectedOverlayGroups.add(entry.group);
-          addedUserGroup = true;
-        }
-      }
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
       if (addedUserGroup) this._emitActiveGroups();
@@ -2402,10 +2403,11 @@
 
       // Collect unique overlay groups from both configured overlayGroups and loaded layers
       const groupMap = new Map();
+      const selGroups = this._selectedOverlayGroups || new Set();
       let hasSwitchablePointLayer = configuredOverlays.length > 0;
       for (const g of configuredOverlays) {
         if (g && g !== "sg_shape" && g !== "js_single_call" && g !== "cat_claims_overlay") {
-          groupMap.set(g, { name: g, visible: false, count: 0 });
+          groupMap.set(g, { name: g, visible: selGroups.has(g), count: 0 });
         }
       }
       for (const id of this.layerOrder) {
@@ -2417,7 +2419,7 @@
           if (allowUi) hasSwitchablePointLayer = true;
         }
         const cnt = l.type === "raster" ? `${l.width}x${l.height}` : (l.n_features || 0).toLocaleString();
-        groupMap.set(gName, { name: gName, visible: Boolean(l.visible), count: cnt });
+        groupMap.set(gName, { name: gName, visible: selGroups.has(gName) || Boolean(l.visible), count: cnt });
       }
 
       this.switcherEl.style.display = "block";
@@ -2908,17 +2910,7 @@
     }
 
     clearGroup(groups) {
-      const INTERNAL_GROUPS = new Set(["sg_shape", "js_single_call", "cat_claims_overlay"]);
       const grpSet = new Set(Array.isArray(groups) ? groups : [groups]);
-      let changedUserGroup = false;
-      if (this._selectedOverlayGroups) {
-        for (const g of grpSet) {
-          if (!INTERNAL_GROUPS.has(g) && this._selectedOverlayGroups.has(g)) {
-            this._selectedOverlayGroups.delete(g);
-            changedUserGroup = true;
-          }
-        }
-      }
       this.legends = this.legends.filter((l) => !grpSet.has(l.group) && !grpSet.has(l.layer_id));
       const toRemove = [];
       for (const [id, l] of this.layers.entries()) {
@@ -2931,7 +2923,6 @@
       }
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
-      if (changedUserGroup) this._emitActiveGroups();
     }
 
     flyToBounds(opts) {
