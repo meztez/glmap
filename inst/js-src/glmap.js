@@ -1733,7 +1733,26 @@
       this._activeClusterBadges = [];
       this._activeSpiderfiedLegs = [];
 
-      for (const id of this.layerOrder) {
+      // Render in Leaflet-style pane order (rasters -> polygons -> lines -> heatmaps -> points -> labels)
+      // so that refreshing a polygon/raster layer via clearGroup() + addPolygons() never draws on top of point markers!
+      const paneRank = (t) => {
+        if (t === "raster") return 1;
+        if (t === "polygons") return 2;
+        if (t === "lines") return 3;
+        if (t === "heatmap") return 4;
+        if (t === "points") return 5;
+        if (t === "labels") return 6;
+        return 3;
+      };
+      const sortedIds = this.layerOrder.slice().sort((a, b) => {
+        const la = this.layers.get(a);
+        const lb = this.layers.get(b);
+        const za = la && la.zIndex !== undefined ? Number(la.zIndex) : paneRank(la ? la.type : "");
+        const zb = lb && lb.zIndex !== undefined ? Number(lb.zIndex) : paneRank(lb ? lb.type : "");
+        return za - zb;
+      });
+
+      for (const id of sortedIds) {
         const layer = this.layers.get(id);
         if (!layer || !layer.visible) continue;
 
