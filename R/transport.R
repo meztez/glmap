@@ -153,7 +153,6 @@ gl_server_status <- function() {
 
 register_binary_buffer <- function(id, raw_buf, mode = c("auto", "inline", "server")) {
   mode <- match.arg(mode)
-  assign(id, raw_buf, envir = .gl_env$buffers)
 
   # Choose transport:
   # - "inline": gzip + base64 embedded in widget payload (works offline, in standalone HTML, RMarkdown, Quarto)
@@ -164,6 +163,9 @@ register_binary_buffer <- function(id, raw_buf, mode = c("auto", "inline", "serv
     mode <- "inline"
   }
   use_server <- identical(mode, "server")
+  if (use_server || !is.null(.gl_env$server)) {
+    assign(id, raw_buf, envir = .gl_env$buffers)
+  }
   if (use_server) {
     base_url <- gl_serve_start()
     return(list(

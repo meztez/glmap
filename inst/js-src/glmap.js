@@ -260,13 +260,13 @@
 
     const featureElevation = hasElevation ? new Float32Array(arrayBuffer, offset, nFeatures) : null;
 
-      // Pre-project lon/lat into Web Mercator [0..1] in a single fast Float32 pass
+    // Pre-project lon/lat into Web Mercator [0..1] in a single fast Float32 pass
     // and expand per-feature RGBA/Radius/Elevation to per-vertex attributes for 1-draw-call GPU rendering
     const mercCoords = new Float32Array(nVertices * 2);
     const vertexRgba = new Uint8Array(nVertices * 4);
     const vertexRadius = new Float32Array(nVertices);
     const vertexElevation = featureElevation ? new Float32Array(nVertices) : null;
-    const featureBboxes = nFeatures > 0 ? new Float32Array(nFeatures * 4) : null;
+    const featureBboxes = (geomType >= 2 && nFeatures > 0) ? new Float32Array(nFeatures * 4) : null;
     if (featureBboxes) {
       for (let f = 0; f < nFeatures; f++) {
         featureBboxes[4 * f] = 1e9;
@@ -1208,14 +1208,27 @@
 
     _bindInteractionEvents() {
       this.el.addEventListener("mousemove", (e) => {
-        const rect = this.el.getBoundingClientRect();
-        const px = e.clientX - rect.left;
-        const py = e.clientY - rect.top;
-        const [lon, lat] = this.screenToLonLat(px, py);
-        this._handleHover(px, py, lon, lat);
+        this._pendingHoverEvt = e;
+        if (this._hoverRafPending) return;
+        this._hoverRafPending = true;
+        requestAnimationFrame(() => {
+          this._hoverRafPending = false;
+          const ev = this._pendingHoverEvt;
+          if (!ev) return;
+          if ((ev.buttons & 7) !== 0 || (this.map && typeof this.map.isMoving === "function" && this.map.isMoving())) {
+            this.tooltipEl.style.display = "none";
+            return;
+          }
+          const rect = this.el.getBoundingClientRect();
+          const px = ev.clientX - rect.left;
+          const py = ev.clientY - rect.top;
+          const [lon, lat] = this.screenToLonLat(px, py);
+          this._handleHover(px, py, lon, lat);
+        });
       });
 
       this.el.addEventListener("mouseleave", () => {
+        this._pendingHoverEvt = null;
         this.tooltipEl.style.display = "none";
       });
 
@@ -1910,127 +1923,214 @@
       const clCfg = (layer.style && layer.style.cluster) || {};
       const cellPx = Math.max(36, Number(clCfg.maxClusterRadius || 65));
       const cols = Math.max(1, Math.ceil(w / cellPx));
-      const rows = Math.max(1, Math.ceil(h / cellPx));
-      const halfW = w * 0.5;
-      const halfH = h * 0.5;
       const pad = cellPx;
 
-      // Fast O(N) screen-space spatial hash using pure arithmetic on precomputed mercCoords
-      const buckets = new Map();
       const sp = (this._activeSpiderfy && this._activeSpiderfy.layerId === layer.id) ? this._activeSpiderfy : null;
-      const spSet = sp ? sp.memberSet : null;
+      const spKey = sp ? `${sp.centerLon.toFixed(6)}:${sp.centerLat.toFixed(6)}:${sp.indices.length}` : "none";
+      const cacheKey = `${cx.toFixed(7)}|${cy.toFixed(7)}|${scale.toFixed(3)}|${(this.camera.bearing || 0).toFixed(2)}|${(this.camera.pitch || 0).toFixed(2)}|${w}x${h}|${cellPx}|${n}|${spKey}`;
 
-      for (let i = 0; i < n; i++) {
-        if (spSet && spSet.has(i)) continue; // Spiderfied points are rendered on their expanded web legs!
-        const mx = mc[2 * i];
-        const my = mc[2 * i + 1];
-        const [sx, sy] = this.mercToScreen(mx, my, cx, cy, scale, w, h);
-        if (sx < -pad || sx > w + pad || sy < -pad || sy > h + pad) continue;
-        const gx = Math.floor(sx / cellPx);
-        const gy = Math.floor(sy / cellPx);
-        const key = (gy + 16) * (cols + 32) + (gx + 16);
-        let b = buckets.get(key);
-        if (!b) {
-          const lon = coords[2 * i];
-          const lat = coords[2 * i + 1];
-          b = {
-            count: 1,
-            sumSx: sx,
-            sumSy: sy,
-            firstIdx: i,
-            indices: [i],
-            minLon: lon,
-            minLat: lat,
-            maxLon: lon,
-            maxLat: lat
-          };
-          buckets.set(key, b);
-        } else {
-          b.count++;
-          b.sumSx += sx;
-          b.sumSy += sy;
-          if (b.indices.length < 64) b.indices.push(i);
-          const lon = coords[2 * i];
-          const lat = coords[2 * i + 1];
-          if (lon < b.minLon) b.minLon = lon;
-          if (lon > b.maxLon) b.maxLon = lon;
-          if (lat < b.minLat) b.minLat = lat;
-          if (lat > b.maxLat) b.maxLat = lat;
-        }
-      }
+      let clusters, spScreenLegs, totalGpuSingletons;
+      if (layer._clusterCacheKey === cacheKey && layer._cachedClusters) {
+        clusters = layer._cachedClusters;
+        spScreenLegs = layer._cachedSpScreenLegs;
+        totalGpuSingletons = layer._cachedTotalSingletons || 0;
+      } else {
+        // Fast O(N) screen-space spatial hash using pure arithmetic on precomputed mercCoords
+        const buckets = new Map();
+        const spSet = sp ? sp.memberSet : null;
 
-      // Separate singleton markers (rendered via GPU shader) from multi-point clusters
-      const singles = [];
-      const clusters = [];
-      for (const b of buckets.values()) {
-        if (b.count === 1) {
-          singles.push(b.firstIdx);
-        } else {
-          clusters.push(b);
-        }
-      }
-
-      // Compute spiderfied leg positions (circle or spiral web) in exact WebGL Mercator space
-      let spScreenLegs = null;
-      const spStartOffset = singles.length;
-      if (sp && sp.indices && sp.indices.length > 0 && gl) {
-        const hubMx = lonToMercX(sp.centerLon);
-        const hubMy = latToMercY(sp.centerLat);
-        const [hubSx, hubSy] = this.mercToScreen(hubMx, hubMy, cx, cy, scale, w, h);
-        const mCount = sp.indices.length;
-        spScreenLegs = [];
-        const legVertsMerc = new Float32Array(mCount * 4);
-        const legCols = new Uint8Array(mCount * 8);
-
-        for (let k = 0; k < mCount; k++) {
-          let legR, ang;
-          if (mCount <= 8) {
-            // Circular spiderfy fan (exact Leaflet.markercluster circle layout)
-            legR = Math.max(30, 24 + mCount * 2.5);
-            ang = (k / mCount) * Math.PI * 2.0 - Math.PI * 0.5;
+        for (let i = 0; i < n; i++) {
+          if (spSet && spSet.has(i)) continue; // Spiderfied points are rendered on their expanded web legs!
+          const mx = mc[2 * i];
+          const my = mc[2 * i + 1];
+          const [sx, sy] = this.mercToScreen(mx, my, cx, cy, scale, w, h);
+          if (sx < -pad || sx > w + pad || sy < -pad || sy > h + pad) continue;
+          const gx = Math.floor(sx / cellPx);
+          const gy = Math.floor(sy / cellPx);
+          const key = (gy + 16) * (cols + 32) + (gx + 16);
+          let b = buckets.get(key);
+          if (!b) {
+            const lon = coords[2 * i];
+            const lat = coords[2 * i + 1];
+            b = {
+              count: 1,
+              sumSx: sx,
+              sumSy: sy,
+              firstIdx: i,
+              indices: [i],
+              minLon: lon,
+              minLat: lat,
+              maxLon: lon,
+              maxLat: lat
+            };
+            buckets.set(key, b);
           } else {
-            // Spiral spiderfy web for 9+ overlapping markers
-            legR = 28 + k * 4.5;
-            ang = k * 0.65;
-          }
-          const lx = hubSx + legR * Math.cos(ang);
-          const ly = hubSy + legR * Math.sin(ang);
-          const [lLon, lLat] = this.screenToLonLat(lx, ly);
-          const lmx = lonToMercX(lLon);
-          const lmy = latToMercY(lLat);
-          spScreenLegs.push({
-            idx: sp.indices[k],
-            sx: lx,
-            sy: ly,
-            hubSx: hubSx,
-            hubSy: hubSy,
-            mx: lmx,
-            my: lmy
-          });
-
-          // Vertex 0: hub; Vertex 1: exact icon center in Web Mercator
-          legVertsMerc[4 * k] = hubMx;
-          legVertsMerc[4 * k + 1] = hubMy;
-          legVertsMerc[4 * k + 2] = lmx;
-          legVertsMerc[4 * k + 3] = lmy;
-          for (let v = 0; v < 2; v++) {
-            const off = (2 * k + v) * 4;
-            legCols[off] = 30;
-            legCols[off + 1] = 41;
-            legCols[off + 2] = 59;
-            legCols[off + 3] = 210;
+            b.count++;
+            b.sumSx += sx;
+            b.sumSy += sy;
+            if (b.indices.length < 64) b.indices.push(i);
+            const lon = coords[2 * i];
+            const lat = coords[2 * i + 1];
+            if (lon < b.minLon) b.minLon = lon;
+            if (lon > b.maxLon) b.maxLon = lon;
+            if (lat < b.minLat) b.minLat = lat;
+            if (lat > b.maxLat) b.maxLat = lat;
           }
         }
 
-        // Draw spiderfy legs + center hub pin on the WebGL canvas (`gl`) BEFORE drawing the GPU icons
-        // so the legs sit strictly underneath the icons and terminate at the exact center of each icon!
-        if (!layer.vboSpiderLegs) layer.vboSpiderLegs = gl.createBuffer();
-        if (!layer.vboSpiderLegCols) layer.vboSpiderLegCols = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegs);
-        gl.bufferData(gl.ARRAY_BUFFER, legVertsMerc, gl.DYNAMIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegCols);
-        gl.bufferData(gl.ARRAY_BUFFER, legCols, gl.DYNAMIC_DRAW);
+        // Separate singleton markers (rendered via GPU shader) from multi-point clusters
+        const singles = [];
+        clusters = [];
+        for (const b of buckets.values()) {
+          if (b.count === 1) {
+            singles.push(b.firstIdx);
+          } else {
+            clusters.push(b);
+          }
+        }
 
+        // Compute spiderfied leg positions (circle or spiral web) in exact WebGL Mercator space
+        spScreenLegs = null;
+        const spStartOffset = singles.length;
+        if (sp && sp.indices && sp.indices.length > 0 && gl) {
+          const hubMx = lonToMercX(sp.centerLon);
+          const hubMy = latToMercY(sp.centerLat);
+          const [hubSx, hubSy] = this.mercToScreen(hubMx, hubMy, cx, cy, scale, w, h);
+          const mCount = sp.indices.length;
+          spScreenLegs = [];
+          const legVertsMerc = new Float32Array(mCount * 4);
+          const legCols = new Uint8Array(mCount * 8);
+
+          for (let k = 0; k < mCount; k++) {
+            let legR, ang;
+            if (mCount <= 8) {
+              legR = Math.max(30, 24 + mCount * 2.5);
+              ang = (k / mCount) * Math.PI * 2.0 - Math.PI * 0.5;
+            } else {
+              legR = 28 + k * 4.5;
+              ang = k * 0.65;
+            }
+            const lx = hubSx + legR * Math.cos(ang);
+            const ly = hubSy + legR * Math.sin(ang);
+            const [lLon, lLat] = this.screenToLonLat(lx, ly);
+            const lmx = lonToMercX(lLon);
+            const lmy = latToMercY(lLat);
+            spScreenLegs.push({
+              idx: sp.indices[k],
+              sx: lx,
+              sy: ly,
+              hubSx: hubSx,
+              hubSy: hubSy,
+              mx: lmx,
+              my: lmy
+            });
+
+            legVertsMerc[4 * k] = hubMx;
+            legVertsMerc[4 * k + 1] = hubMy;
+            legVertsMerc[4 * k + 2] = lmx;
+            legVertsMerc[4 * k + 3] = lmy;
+            for (let v = 0; v < 2; v++) {
+              const off = (2 * k + v) * 4;
+              legCols[off] = 30;
+              legCols[off + 1] = 41;
+              legCols[off + 2] = 59;
+              legCols[off + 3] = 210;
+            }
+          }
+
+          if (!layer.vboSpiderLegs) layer.vboSpiderLegs = gl.createBuffer();
+          if (!layer.vboSpiderLegCols) layer.vboSpiderLegCols = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegs);
+          gl.bufferData(gl.ARRAY_BUFFER, legVertsMerc, gl.DYNAMIC_DRAW);
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegCols);
+          gl.bufferData(gl.ARRAY_BUFFER, legCols, gl.DYNAMIC_DRAW);
+
+          if (!layer.vboSpiderHubPos) layer.vboSpiderHubPos = gl.createBuffer();
+          if (!layer.vboSpiderHubCol) layer.vboSpiderHubCol = gl.createBuffer();
+          if (!layer.vboSpiderHubRad) layer.vboSpiderHubRad = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubPos);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([hubMx, hubMy]), gl.DYNAMIC_DRAW);
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubCol);
+          gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([30, 41, 59, 230]), gl.DYNAMIC_DRAW);
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubRad);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([3.5]), gl.DYNAMIC_DRAW);
+        }
+
+        // Upload singleton + spiderfied VBOs only when camera or spiderfy state changes
+        const extraCount = spScreenLegs ? spScreenLegs.length : 0;
+        totalGpuSingletons = singles.length + extraCount;
+        if (totalGpuSingletons > 0 && gl) {
+          const sCount = totalGpuSingletons;
+          if (!layer._scratchPos || layer._scratchPos.length < sCount * 2) {
+            layer._scratchPos = new Float32Array(Math.max(sCount * 2, 1024));
+          }
+          const posArr = layer._scratchPos;
+          for (let k = 0; k < singles.length; k++) {
+            const idx = singles[k];
+            posArr[2 * k] = mc[2 * idx];
+            posArr[2 * k + 1] = mc[2 * idx + 1];
+          }
+          if (spScreenLegs) {
+            for (let k = 0; k < spScreenLegs.length; k++) {
+              const off = spStartOffset + k;
+              posArr[2 * off] = spScreenLegs[k].mx;
+              posArr[2 * off + 1] = spScreenLegs[k].my;
+            }
+          }
+          if (!layer.vboSinglePos) layer.vboSinglePos = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
+          gl.bufferData(gl.ARRAY_BUFFER, posArr.subarray(0, sCount * 2), gl.DYNAMIC_DRAW);
+
+          if (layer.style && layer.style.icons && layer.atlasTex && layer.iconIdxArr) {
+            if (!layer._scratchIcon || layer._scratchIcon.length < sCount) {
+              layer._scratchIcon = new Float32Array(Math.max(sCount, 512));
+            }
+            const idxArr = layer._scratchIcon;
+            for (let k = 0; k < singles.length; k++) {
+              idxArr[k] = layer.iconIdxArr[singles[k]];
+            }
+            if (spScreenLegs) {
+              for (let k = 0; k < spScreenLegs.length; k++) {
+                idxArr[spStartOffset + k] = layer.iconIdxArr[spScreenLegs[k].idx];
+              }
+            }
+            if (!layer.vboSingleIcon) layer.vboSingleIcon = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleIcon);
+            gl.bufferData(gl.ARRAY_BUFFER, idxArr.subarray(0, sCount), gl.DYNAMIC_DRAW);
+          } else {
+            if (!layer._scratchCol || layer._scratchCol.length < sCount * 4) {
+              layer._scratchCol = new Uint8Array(Math.max(sCount * 4, 2048));
+              layer._scratchRad = new Float32Array(Math.max(sCount, 512));
+            }
+            const colArr = layer._scratchCol;
+            const radArr = layer._scratchRad;
+            const vRgba = layer.parsed.vertexRgba;
+            const vRad = layer.parsed.vertexRadius;
+            for (let k = 0; k < sCount; k++) {
+              const idx = k < singles.length ? singles[k] : spScreenLegs[k - spStartOffset].idx;
+              colArr[4 * k] = vRgba[4 * idx];
+              colArr[4 * k + 1] = vRgba[4 * idx + 1];
+              colArr[4 * k + 2] = vRgba[4 * idx + 2];
+              colArr[4 * k + 3] = vRgba[4 * idx + 3];
+              radArr[k] = vRad[idx];
+            }
+            if (!layer.vboSingleCol) layer.vboSingleCol = gl.createBuffer();
+            if (!layer.vboSingleRad) layer.vboSingleRad = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleCol);
+            gl.bufferData(gl.ARRAY_BUFFER, colArr.subarray(0, sCount * 4), gl.DYNAMIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
+            gl.bufferData(gl.ARRAY_BUFFER, radArr.subarray(0, sCount), gl.DYNAMIC_DRAW);
+          }
+        }
+
+        layer._clusterCacheKey = cacheKey;
+        layer._cachedClusters = clusters;
+        layer._cachedSpScreenLegs = spScreenLegs;
+        layer._cachedTotalSingletons = totalGpuSingletons;
+      }
+
+      // Draw spiderfy legs + center hub pin from cached VBOs
+      if (spScreenLegs && spScreenLegs.length > 0 && gl && layer.vboSpiderLegs) {
         const progM = this.progMesh;
         gl.useProgram(progM);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -2041,87 +2141,17 @@
         this._applyProjectionUniforms(progM, cx, cy, scale, w, h);
         gl.uniform1f(this._uLoc(progM, "u_opacity"), 0.85);
         gl.uniform1f(this._uLoc(progM, "u_use_uniform_color"), 0.0);
-        gl.drawArrays(gl.LINES, 0, mCount * 2);
+        gl.drawArrays(gl.LINES, 0, spScreenLegs.length * 2);
 
-        // Draw center hub pin via progPoints underneath the spiderfied icons
-        if (!layer.vboSpiderHubPos) layer.vboSpiderHubPos = gl.createBuffer();
-        if (!layer.vboSpiderHubCol) layer.vboSpiderHubCol = gl.createBuffer();
-        if (!layer.vboSpiderHubRad) layer.vboSpiderHubRad = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubPos);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([hubMx, hubMy]), gl.DYNAMIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubCol);
-        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([30, 41, 59, 230]), gl.DYNAMIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubRad);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([3.5]), gl.DYNAMIC_DRAW);
         this._drawPointsLayer({ opacity: 0.9, style: { stroke: true, stroke_color: [255, 255, 255], stroke_width: 1.0 } }, cx, cy, scale, w, h, dpr, 1.0, layer.vboSpiderHubPos, layer.vboSpiderHubCol, layer.vboSpiderHubRad, 1);
       }
 
-      // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call (reusing grow-only scratch buffers)
-      const extraCount = spScreenLegs ? spScreenLegs.length : 0;
-      const totalGpuSingletons = singles.length + extraCount;
+      // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call from cached VBOs
       if (totalGpuSingletons > 0 && gl) {
-        const sCount = totalGpuSingletons;
-        if (!layer._scratchPos || layer._scratchPos.length < sCount * 2) {
-          layer._scratchPos = new Float32Array(Math.max(sCount * 2, 1024));
-        }
-        const posArr = layer._scratchPos;
-        for (let k = 0; k < singles.length; k++) {
-          const idx = singles[k];
-          posArr[2 * k] = mc[2 * idx];
-          posArr[2 * k + 1] = mc[2 * idx + 1];
-        }
-        if (spScreenLegs) {
-          for (let k = 0; k < spScreenLegs.length; k++) {
-            const off = spStartOffset + k;
-            posArr[2 * off] = spScreenLegs[k].mx;
-            posArr[2 * off + 1] = spScreenLegs[k].my;
-          }
-        }
-        if (!layer.vboSinglePos) layer.vboSinglePos = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
-        gl.bufferData(gl.ARRAY_BUFFER, posArr.subarray(0, sCount * 2), gl.DYNAMIC_DRAW);
-
-        if (layer.style && layer.style.icons && layer.atlasTex && layer.iconIdxArr) {
-          if (!layer._scratchIcon || layer._scratchIcon.length < sCount) {
-            layer._scratchIcon = new Float32Array(Math.max(sCount, 512));
-          }
-          const idxArr = layer._scratchIcon;
-          for (let k = 0; k < singles.length; k++) {
-            idxArr[k] = layer.iconIdxArr[singles[k]];
-          }
-          if (spScreenLegs) {
-            for (let k = 0; k < spScreenLegs.length; k++) {
-              idxArr[spStartOffset + k] = layer.iconIdxArr[spScreenLegs[k].idx];
-            }
-          }
-          if (!layer.vboSingleIcon) layer.vboSingleIcon = gl.createBuffer();
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleIcon);
-          gl.bufferData(gl.ARRAY_BUFFER, idxArr.subarray(0, sCount), gl.DYNAMIC_DRAW);
-          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, layer.vboSinglePos, layer.vboSingleIcon, sCount, 1.0);
-        } else {
-          if (!layer._scratchCol || layer._scratchCol.length < sCount * 4) {
-            layer._scratchCol = new Uint8Array(Math.max(sCount * 4, 2048));
-            layer._scratchRad = new Float32Array(Math.max(sCount, 512));
-          }
-          const colArr = layer._scratchCol;
-          const radArr = layer._scratchRad;
-          const vRgba = layer.parsed.vertexRgba;
-          const vRad = layer.parsed.vertexRadius;
-          for (let k = 0; k < sCount; k++) {
-            const idx = k < singles.length ? singles[k] : spScreenLegs[k - spStartOffset].idx;
-            colArr[4 * k] = vRgba[4 * idx];
-            colArr[4 * k + 1] = vRgba[4 * idx + 1];
-            colArr[4 * k + 2] = vRgba[4 * idx + 2];
-            colArr[4 * k + 3] = vRgba[4 * idx + 3];
-            radArr[k] = vRad[idx];
-          }
-          if (!layer.vboSingleCol) layer.vboSingleCol = gl.createBuffer();
-          if (!layer.vboSingleRad) layer.vboSingleRad = gl.createBuffer();
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleCol);
-          gl.bufferData(gl.ARRAY_BUFFER, colArr.subarray(0, sCount * 4), gl.DYNAMIC_DRAW);
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
-          gl.bufferData(gl.ARRAY_BUFFER, radArr.subarray(0, sCount), gl.DYNAMIC_DRAW);
-          this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0, layer.vboSinglePos, layer.vboSingleCol, layer.vboSingleRad, sCount);
+        if (layer.style && layer.style.icons && layer.atlasTex && layer.vboSingleIcon) {
+          this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, layer.vboSinglePos, layer.vboSingleIcon, totalGpuSingletons, 1.0);
+        } else if (layer.vboSingleCol && layer.vboSingleRad) {
+          this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0, layer.vboSinglePos, layer.vboSingleCol, layer.vboSingleRad, totalGpuSingletons);
         }
       }
 
@@ -2636,10 +2666,16 @@
       let clickedFeature = this._hoveredFeature;
       let clickedPopupHtml = (this.tooltipEl && this.tooltipEl.style.display === "block") ? this.tooltipEl.innerHTML : null;
       const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
-      const picked = this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale);
+      const picked = clickedFeature ? null : this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale);
       if (picked) {
         clickedFeature = picked.feature;
         if (picked.popup) clickedPopupHtml = picked.popup;
+      } else if (clickedFeature) {
+        const lyr = this.layers.get(clickedFeature.layerId);
+        if (lyr && lyr.popups) {
+          const fid = (clickedFeature.featureIndex || 1) - 1;
+          clickedPopupHtml = Array.isArray(lyr.popups) ? lyr.popups[fid] : lyr.popups;
+        }
       }
       if (clickedFeature && clickedPopupHtml) {
         const anchorLon = clickedFeature.lng !== undefined ? clickedFeature.lng : lon;

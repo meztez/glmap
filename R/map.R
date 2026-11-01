@@ -1634,15 +1634,14 @@ add_hexbin <- function(
 
   # Build hexagon polygons around each aggregated center
   angles <- seq(0, 2 * pi, length.out = 7)[1:6] + pi / 6
-  dx <- hex_radius * cos(angles)
-  dy <- hex_radius * sin(angles)
+  dx <- hex_radius * cos(angles)[c(1:6, 1L)]
+  dy <- hex_radius * sin(angles)[c(1:6, 1L)]
 
   n_bins <- length(bins$x)
+  bx <- bins$x
+  by <- bins$y
   sfc_hex <- lapply(seq_len(n_bins), function(i) {
-    cx <- bins$x[i]
-    cy <- bins$y[i]
-    ring <- cbind(c(cx + dx, cx + dx[1]), c(cy + dy, cy + dy[1]))
-    structure(list(ring), class = c("XY", "POLYGON", "sfg"))
+    structure(list( matrix(c(bx[i] + dx, by[i] + dy), ncol = 2L) ), class = c("XY", "POLYGON", "sfg"))
   })
   class(sfc_hex) <- c("sfc_POLYGON", "sfc")
 

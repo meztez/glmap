@@ -252,14 +252,12 @@ resolve_rgba <- function(
     return(list(rgba = rgba, legend = NULL))
   }
 
-  # Vector of explicit color strings
+  # Vector of explicit color strings -> deduplicate via unique() before calling col2rgb()
   if (is.character(val) && length(val) == n && all(vapply(val[seq_len(min(5L, n))], is_color_string, logical(1)))) {
-    rgb_mat <- grDevices::col2rgb(val, alpha = FALSE)
-    rgba <- integer(4L * n)
-    rgba[seq(1L, 4L * n, by = 4L)] <- rgb_mat[1, ]
-    rgba[seq(2L, 4L * n, by = 4L)] <- rgb_mat[2, ]
-    rgba[seq(3L, 4L * n, by = 4L)] <- rgb_mat[3, ]
-    rgba[seq(4L, 4L * n, by = 4L)] <- alpha_byte
+    u_cols <- unique(val)
+    rgb_u <- grDevices::col2rgb(u_cols, alpha = FALSE)
+    idx <- match(val, u_cols)
+    rgba <- as.integer(rbind(rgb_u[1L, idx], rgb_u[2L, idx], rgb_u[3L, idx], rep.int(alpha_byte, n)))
     return(list(rgba = rgba, legend = NULL))
   }
 
