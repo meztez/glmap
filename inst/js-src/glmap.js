@@ -266,14 +266,32 @@
     const vertexRgba = new Uint8Array(nVertices * 4);
     const vertexRadius = new Float32Array(nVertices);
     const vertexElevation = featureElevation ? new Float32Array(nVertices) : null;
+    const featureBboxes = nFeatures > 0 ? new Float32Array(nFeatures * 4) : null;
+    if (featureBboxes) {
+      for (let f = 0; f < nFeatures; f++) {
+        featureBboxes[4 * f] = 1e9;
+        featureBboxes[4 * f + 1] = 1e9;
+        featureBboxes[4 * f + 2] = -1e9;
+        featureBboxes[4 * f + 3] = -1e9;
+      }
+    }
 
     for (let v = 0; v < nVertices; v++) {
       const lon = coords[2 * v];
       const lat = coords[2 * v + 1];
-      mercCoords[2 * v] = lonToMercX(lon);
-      mercCoords[2 * v + 1] = latToMercY(lat);
+      const mx = lonToMercX(lon);
+      const my = latToMercY(lat);
+      mercCoords[2 * v] = mx;
+      mercCoords[2 * v + 1] = my;
 
       const fid = vertexFeatureIds[v];
+      if (featureBboxes && fid < nFeatures) {
+        const fb = 4 * fid;
+        if (mx < featureBboxes[fb]) featureBboxes[fb] = mx;
+        if (my < featureBboxes[fb + 1]) featureBboxes[fb + 1] = my;
+        if (mx > featureBboxes[fb + 2]) featureBboxes[fb + 2] = mx;
+        if (my > featureBboxes[fb + 3]) featureBboxes[fb + 3] = my;
+      }
       vertexRgba[4 * v] = featureRgba[4 * fid];
       vertexRgba[4 * v + 1] = featureRgba[4 * fid + 1];
       vertexRgba[4 * v + 2] = featureRgba[4 * fid + 2];
@@ -323,7 +341,8 @@
       vertexRgba,
       vertexRadius,
       featureElevation,
-      vertexElevation
+      vertexElevation,
+      featureBboxes
     };
   }
 
@@ -390,6 +409,8 @@
       const log = gl.getProgramInfoLog(prog);
       throw new Error("WebGL program link error: " + log);
     }
+    prog._a = {};
+    prog._u = {};
     return prog;
   }
 
@@ -943,6 +964,7 @@
       this.spec = x;
       this.labels = Object.assign(this._defaultLabels(), (x && x.labels) || {});
       this._applyNavLabels();
+      for (const l of this.layers.values()) this._disposeLayerGL(l);
       this.layers.clear();
       this.layerOrder = [];
       this.legends = x.legends || [];
@@ -1318,12 +1340,40 @@
 
       if (!this.layers.has(entry.id)) {
         this.layerOrder.push(entry.id);
+      } else {
+        this._disposeLayerGL(this.layers.get(entry.id));
       }
       this.layers.set(entry.id, entry);
       this._rebuildLayerSwitcher();
       this._rebuildLegends();
       if (addedUserGroup) this._emitActiveGroups();
       this.requestRender();
+    }
+
+    _disposeLayerGL(entry) {
+      const gl = this.gl;
+      if (!entry || !gl) return;
+      const bufs = [
+        "vboPos", "vboCol", "vboRad", "vboElev", "vboIcon",
+        "iboTri", "iboLine", "vboQuadPos", "vboQuadUV",
+        "vboSinglePos", "vboSingleCol", "vboSingleRad", "vboSingleIcon",
+        "vboSpiderLegs", "vboSpiderLegCols", "vboSpiderHubPos", "vboSpiderHubCol", "vboSpiderHubRad"
+      ];
+      for (let i = 0; i < bufs.length; i++) {
+        const k = bufs[i];
+        if (entry[k]) {
+          try { gl.deleteBuffer(entry[k]); } catch (e) {}
+          entry[k] = null;
+        }
+      }
+      const texs = ["rasterTex", "lutTex", "atlasTex"];
+      for (let i = 0; i < texs.length; i++) {
+        const k = texs[i];
+        if (entry[k]) {
+          try { gl.deleteTexture(entry[k]); } catch (e) {}
+          entry[k] = null;
+        }
+      }
     }
 
     _uploadRasterTexture(entry, parsed) {
@@ -1547,14 +1597,30 @@
       });
     }
 
+    _uLoc(prog, name) {
+      if (!prog._u) prog._u = {};
+      if (prog._u[name] === undefined) {
+        prog._u[name] = this.gl.getUniformLocation(prog, name);
+      }
+      return prog._u[name];
+    }
+
+    _aLoc(prog, name) {
+      if (!prog._a) prog._a = {};
+      if (prog._a[name] === undefined) {
+        prog._a[name] = this.gl.getAttribLocation(prog, name);
+      }
+      return prog._a[name];
+    }
+
     _applyProjectionUniforms(prog, cx, cy, scale, w, h) {
       const gl = this.gl;
-      gl.uniform2f(gl.getUniformLocation(prog, "u_center_merc"), cx, cy);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_scale"), scale);
-      gl.uniform2f(gl.getUniformLocation(prog, "u_viewport"), w, h);
-      gl.uniform2f(gl.getUniformLocation(prog, "u_rot"), this._curRotCos !== undefined ? this._curRotCos : 1.0, this._curRotSin !== undefined ? this._curRotSin : 0.0);
-      const locUseMat = gl.getUniformLocation(prog, "u_use_matrix");
-      const locMat = gl.getUniformLocation(prog, "u_matrix");
+      gl.uniform2f(this._uLoc(prog, "u_center_merc"), cx, cy);
+      gl.uniform1f(this._uLoc(prog, "u_scale"), scale);
+      gl.uniform2f(this._uLoc(prog, "u_viewport"), w, h);
+      gl.uniform2f(this._uLoc(prog, "u_rot"), this._curRotCos !== undefined ? this._curRotCos : 1.0, this._curRotSin !== undefined ? this._curRotSin : 0.0);
+      const locUseMat = this._uLoc(prog, "u_use_matrix");
+      const locMat = this._uLoc(prog, "u_matrix");
       if (locUseMat) {
         if (this._curMatrix && locMat) {
           gl.uniform1f(locUseMat, 1.0);
@@ -1774,7 +1840,7 @@
 
     _bindAttrib(prog, name, buf, size, type = this.gl.FLOAT) {
       const gl = this.gl;
-      const loc = gl.getAttribLocation(prog, name);
+      const loc = this._aLoc(prog, name);
       if (loc >= 0 && buf) {
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.enableVertexAttribArray(loc);
@@ -1794,14 +1860,14 @@
       this._bindAttrib(prog, "a_radius", radBuf || layer.vboRad, 1, gl.FLOAT);
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 0.85) * opacityMult);
+      gl.uniform1f(this._uLoc(prog, "u_dpr"), dpr);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 0.85) * opacityMult);
 
       const st = layer.style || {};
-      gl.uniform1f(gl.getUniformLocation(prog, "u_stroke"), st.stroke ? 1.0 : 0.0);
+      gl.uniform1f(this._uLoc(prog, "u_stroke"), st.stroke ? 1.0 : 0.0);
       const sc = st.stroke_color || [255, 255, 255];
-      gl.uniform3f(gl.getUniformLocation(prog, "u_stroke_color"), sc[0], sc[1], sc[2]);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_stroke_width"), st.stroke_width || 1.0);
+      gl.uniform3f(this._uLoc(prog, "u_stroke_color"), sc[0], sc[1], sc[2]);
+      gl.uniform1f(this._uLoc(prog, "u_stroke_width"), st.stroke_width || 1.0);
 
       gl.drawArrays(gl.POINTS, 0, posBuf ? count : layer.parsed.nVertices);
     }
@@ -1822,16 +1888,16 @@
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, layer.atlasTex);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_atlas_tex"), 0);
+      gl.uniform1i(this._uLoc(prog, "u_atlas_tex"), 0);
 
       const iconSpec = (layer.style && layer.style.icons) || {};
       const iconSize = Math.max(iconSpec.width || 28, iconSpec.height || 28);
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_icon_size"), iconSize);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_atlas_count"), layer.atlasCount || 1);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 1.0) * opacityMult);
+      gl.uniform1f(this._uLoc(prog, "u_dpr"), dpr);
+      gl.uniform1f(this._uLoc(prog, "u_icon_size"), iconSize);
+      gl.uniform1f(this._uLoc(prog, "u_atlas_count"), layer.atlasCount || 1);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), (layer.opacity !== undefined ? layer.opacity : 1.0) * opacityMult);
 
       gl.drawArrays(gl.POINTS, 0, count);
     }
@@ -1970,11 +2036,11 @@
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         this._bindAttrib(progM, "a_pos", layer.vboSpiderLegs, 2, gl.FLOAT);
         this._bindAttrib(progM, "a_color", layer.vboSpiderLegCols, 4, gl.UNSIGNED_BYTE);
-        const locMElev = gl.getAttribLocation(progM, "a_elev");
+        const locMElev = this._aLoc(progM, "a_elev");
         if (locMElev >= 0) { gl.disableVertexAttribArray(locMElev); gl.vertexAttrib1f(locMElev, 0.0); }
         this._applyProjectionUniforms(progM, cx, cy, scale, w, h);
-        gl.uniform1f(gl.getUniformLocation(progM, "u_opacity"), 0.85);
-        gl.uniform1f(gl.getUniformLocation(progM, "u_use_uniform_color"), 0.0);
+        gl.uniform1f(this._uLoc(progM, "u_opacity"), 0.85);
+        gl.uniform1f(this._uLoc(progM, "u_use_uniform_color"), 0.0);
         gl.drawArrays(gl.LINES, 0, mCount * 2);
 
         // Draw center hub pin via progPoints underneath the spiderfied icons
@@ -1990,12 +2056,15 @@
         this._drawPointsLayer({ opacity: 0.9, style: { stroke: true, stroke_color: [255, 255, 255], stroke_width: 1.0 } }, cx, cy, scale, w, h, dpr, 1.0, layer.vboSpiderHubPos, layer.vboSpiderHubCol, layer.vboSpiderHubRad, 1);
       }
 
-      // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call
+      // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call (reusing grow-only scratch buffers)
       const extraCount = spScreenLegs ? spScreenLegs.length : 0;
       const totalGpuSingletons = singles.length + extraCount;
       if (totalGpuSingletons > 0 && gl) {
         const sCount = totalGpuSingletons;
-        const posArr = new Float32Array(sCount * 2);
+        if (!layer._scratchPos || layer._scratchPos.length < sCount * 2) {
+          layer._scratchPos = new Float32Array(Math.max(sCount * 2, 1024));
+        }
+        const posArr = layer._scratchPos;
         for (let k = 0; k < singles.length; k++) {
           const idx = singles[k];
           posArr[2 * k] = mc[2 * idx];
@@ -2010,10 +2079,13 @@
         }
         if (!layer.vboSinglePos) layer.vboSinglePos = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
-        gl.bufferData(gl.ARRAY_BUFFER, posArr, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, posArr.subarray(0, sCount * 2), gl.DYNAMIC_DRAW);
 
         if (layer.style && layer.style.icons && layer.atlasTex && layer.iconIdxArr) {
-          const idxArr = new Float32Array(sCount);
+          if (!layer._scratchIcon || layer._scratchIcon.length < sCount) {
+            layer._scratchIcon = new Float32Array(Math.max(sCount, 512));
+          }
+          const idxArr = layer._scratchIcon;
           for (let k = 0; k < singles.length; k++) {
             idxArr[k] = layer.iconIdxArr[singles[k]];
           }
@@ -2024,11 +2096,15 @@
           }
           if (!layer.vboSingleIcon) layer.vboSingleIcon = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleIcon);
-          gl.bufferData(gl.ARRAY_BUFFER, idxArr, gl.DYNAMIC_DRAW);
+          gl.bufferData(gl.ARRAY_BUFFER, idxArr.subarray(0, sCount), gl.DYNAMIC_DRAW);
           this._drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, layer.vboSinglePos, layer.vboSingleIcon, sCount, 1.0);
         } else {
-          const colArr = new Uint8Array(sCount * 4);
-          const radArr = new Float32Array(sCount);
+          if (!layer._scratchCol || layer._scratchCol.length < sCount * 4) {
+            layer._scratchCol = new Uint8Array(Math.max(sCount * 4, 2048));
+            layer._scratchRad = new Float32Array(Math.max(sCount, 512));
+          }
+          const colArr = layer._scratchCol;
+          const radArr = layer._scratchRad;
           const vRgba = layer.parsed.vertexRgba;
           const vRad = layer.parsed.vertexRadius;
           for (let k = 0; k < sCount; k++) {
@@ -2042,9 +2118,9 @@
           if (!layer.vboSingleCol) layer.vboSingleCol = gl.createBuffer();
           if (!layer.vboSingleRad) layer.vboSingleRad = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleCol);
-          gl.bufferData(gl.ARRAY_BUFFER, colArr, gl.DYNAMIC_DRAW);
+          gl.bufferData(gl.ARRAY_BUFFER, colArr.subarray(0, sCount * 4), gl.DYNAMIC_DRAW);
           gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
-          gl.bufferData(gl.ARRAY_BUFFER, radArr, gl.DYNAMIC_DRAW);
+          gl.bufferData(gl.ARRAY_BUFFER, radArr.subarray(0, sCount), gl.DYNAMIC_DRAW);
           this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0, layer.vboSinglePos, layer.vboSingleCol, layer.vboSingleRad, sCount);
         }
       }
@@ -2142,7 +2218,7 @@
 
       this._bindAttrib(prog, "a_pos", layer.vboPos, 2, gl.FLOAT);
       this._bindAttrib(prog, "a_color", layer.vboCol, 4, gl.UNSIGNED_BYTE);
-      const locElev = gl.getAttribLocation(prog, "a_elev");
+      const locElev = this._aLoc(prog, "a_elev");
       if (locElev >= 0) {
         if (layer.vboElev) {
           this._bindAttrib(prog, "a_elev", layer.vboElev, 1, gl.FLOAT);
@@ -2153,8 +2229,8 @@
       }
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 0.0);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 0.0);
 
       if (layer.iboTri && layer.parsed.nIndices > 0 && (!layer.style || layer.style.fill !== false) && layer.opacity > 0.001) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboTri);
@@ -2163,9 +2239,9 @@
 
       if (layer.style && layer.style.stroke && layer.iboLine) {
         const lc = layer.style.line_color || [226, 232, 240];
-        gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 1.0);
+        gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 1.0);
         const lineAlpha = (layer.style && layer.style.fill === false) ? 0.92 : Math.min(1.0, Math.max(0.75, layer.opacity + 0.35));
-        gl.uniform4f(gl.getUniformLocation(prog, "u_uniform_color"), lc[0] / 255, lc[1] / 255, lc[2] / 255, lineAlpha);
+        gl.uniform4f(this._uLoc(prog, "u_uniform_color"), lc[0] / 255, lc[1] / 255, lc[2] / 255, lineAlpha);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboLine);
         gl.drawElements(gl.LINES, layer.parsed.lineIndices.length, gl.UNSIGNED_INT, 0);
       }
@@ -2179,15 +2255,15 @@
 
       this._bindAttrib(prog, "a_pos", layer.vboPos, 2, gl.FLOAT);
       this._bindAttrib(prog, "a_color", layer.vboCol, 4, gl.UNSIGNED_BYTE);
-      const locElev = gl.getAttribLocation(prog, "a_elev");
+      const locElev = this._aLoc(prog, "a_elev");
       if (locElev >= 0) {
         gl.disableVertexAttribArray(locElev);
         gl.vertexAttrib1f(locElev, 0.0);
       }
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_use_uniform_color"), 0.0);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 0.0);
 
       if (layer.iboLine) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboLine);
@@ -2207,10 +2283,10 @@
       this._bindAttrib(prog, "a_radius", layer.vboRad, 1, gl.FLOAT);
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_radius_mult"), 1.0);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_intensity"), (layer.style && layer.style.intensity) || 1.0);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(this._uLoc(prog, "u_dpr"), dpr);
+      gl.uniform1f(this._uLoc(prog, "u_radius_mult"), 1.0);
+      gl.uniform1f(this._uLoc(prog, "u_intensity"), (layer.style && layer.style.intensity) || 1.0);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
 
       gl.drawArrays(gl.POINTS, 0, layer.parsed.nVertices);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -2227,23 +2303,23 @@
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, layer.rasterTex);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_raster_tex"), 0);
+      gl.uniform1i(this._uLoc(prog, "u_raster_tex"), 0);
 
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, layer.lutTex);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_lut_tex"), 1);
+      gl.uniform1i(this._uLoc(prog, "u_lut_tex"), 1);
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_vmin"), layer.curMin);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_vmax"), layer.curMax);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_hillshade"), layer.style && layer.style.hillshade ? 1.0 : 0.0);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_band_math"), layer.bandMathMode || 0.0);
-      gl.uniform2f(gl.getUniformLocation(prog, "u_texel_size"), 1.0 / layer.parsed.width, 1.0 / layer.parsed.height);
+      gl.uniform1f(this._uLoc(prog, "u_vmin"), layer.curMin);
+      gl.uniform1f(this._uLoc(prog, "u_vmax"), layer.curMax);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(this._uLoc(prog, "u_hillshade"), layer.style && layer.style.hillshade ? 1.0 : 0.0);
+      gl.uniform1f(this._uLoc(prog, "u_band_math"), layer.bandMathMode || 0.0);
+      gl.uniform2f(this._uLoc(prog, "u_texel_size"), 1.0 / layer.parsed.width, 1.0 / layer.parsed.height);
       const lb = layer.latBounds || [layer.parsed.bbox[1], layer.parsed.bbox[3]];
       const mb = layer.mercYBounds || [latToMercY(lb[1]), latToMercY(lb[0])];
-      gl.uniform2f(gl.getUniformLocation(prog, "u_lat_bounds"), lb[0], lb[1]);
-      gl.uniform2f(gl.getUniformLocation(prog, "u_merc_y_bounds"), mb[0], mb[1]);
+      gl.uniform2f(this._uLoc(prog, "u_lat_bounds"), lb[0], lb[1]);
+      gl.uniform2f(this._uLoc(prog, "u_merc_y_bounds"), mb[0], mb[1]);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
@@ -2441,9 +2517,16 @@
         const mc = layer.parsed.mercCoords;
         const indices = layer.parsed.indices;
         const vfids = layer.parsed.vertexFeatureIds;
+        const fBboxes = layer.parsed.featureBboxes;
         if (layer.type === "polygons" && mc && indices && indices.length >= 3 && vfids) {
           for (let t = 0; t + 2 < indices.length; t += 3) {
-            const i0 = indices[t], i1 = indices[t + 1], i2 = indices[t + 2];
+            const i0 = indices[t];
+            const fid = vfids[i0];
+            if (fBboxes) {
+              const fb = 4 * fid;
+              if (mx < fBboxes[fb] || my < fBboxes[fb + 1] || mx > fBboxes[fb + 2] || my > fBboxes[fb + 3]) continue;
+            }
+            const i1 = indices[t + 1], i2 = indices[t + 2];
             const ax = mc[2 * i0], ay = mc[2 * i0 + 1];
             const bx = mc[2 * i1], by = mc[2 * i1 + 1];
             const cx = mc[2 * i2], cy = mc[2 * i2 + 1];
@@ -2453,7 +2536,7 @@
             const d2 = (mx - cx) * (by - cy) - (bx - cx) * (my - cy);
             const d3 = (mx - ax) * (cy - ay) - (cx - ax) * (my - ay);
             if (!(((d1 < 0) || (d2 < 0) || (d3 < 0)) && ((d1 > 0) || (d2 > 0) || (d3 > 0)))) {
-              return this._buildPickedResult(layer, vfids[i0], lon, lat);
+              return this._buildPickedResult(layer, fid, lon, lat);
             }
           }
         }
@@ -2985,18 +3068,23 @@
         extra += ` | <span style="color:#38bdf8">${this._t("hud_dist")}: <b>${dKm.toFixed(2)} km</b></span>`;
       }
 
-      this.hudEl.innerHTML = `
+      const nextHudHtml = `
         <span class="glmap-hud-fps">${this.fps} FPS</span>
         <span>${this._t("hud_features")}: <b>${totalFeats.toLocaleString()}</b></span>
         <span>${this._t("hud_lon_lat")}: ${lonStr}, ${latStr}</span>
         ${extra}
       `;
+      if (this._lastHudHtml !== nextHudHtml) {
+        this._lastHudHtml = nextHudHtml;
+        this.hudEl.innerHTML = nextHudHtml;
+      }
 
       // Update metric scale bar based on zoom & latitude
       const metersPerPx = (156543.03392 * Math.cos(this.camera.centerLat * DEG2RAD)) / Math.pow(2.0, this.camera.zoom);
       const barMeters = metersPerPx * 90;
       const labelKm = barMeters >= 1000 ? `${Math.round(barMeters / 1000)} km` : `${Math.round(barMeters)} m`;
-      if (this.scaleEl) {
+      if (this.scaleEl && this._lastScaleText !== labelKm) {
+        this._lastScaleText = labelKm;
         this.scaleEl.textContent = labelKm;
       }
     }
@@ -3145,6 +3233,7 @@
     }
 
     clearLayer(id) {
+      this._disposeLayerGL(this.layers.get(id));
       this.layers.delete(id);
       this.layerOrder = this.layerOrder.filter((x) => x !== id);
       this.legends = this.legends.filter((l) => l.layer_id !== id);
@@ -3155,6 +3244,7 @@
     }
 
     clearLayers() {
+      for (const l of this.layers.values()) this._disposeLayerGL(l);
       this.layers.clear();
       this.layerOrder = [];
       this.legends = [];
