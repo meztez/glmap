@@ -5,6 +5,78 @@
   const DEG2RAD = Math.PI / 180.0;
   const RAD2DEG = 180.0 / Math.PI;
 
+  const DEFAULT_LABELS = {
+    zoom_in: "Zoom in",
+    zoom_out: "Zoom out",
+    reset_north: "Reset bearing to north",
+    layers_title: "Layers",
+    basemap_header: "Basemap",
+    overlays_header: "Overlays",
+    marker_engine_header: "Marker / Icon Engine",
+    marker_mode_auto: "Auto (Dynamic)",
+    marker_mode_cluster: "Cluster + GPU Atlas",
+    marker_mode_lod: "LOD Hybrid (Dots -> Icons)",
+    marker_mode_atlas: "GPU Sprite Atlas (All Icons)",
+    marker_mode_points: "GPU Fast Dots (SDF)",
+    basemap_groups: {},
+    layer_groups: {},
+    legend_default_title: "Legend",
+    layer_opacity: "Layer Opacity",
+    shader_palette: "GPU Shader Palette",
+    gpu_hillshade: "Real-Time GPU Hillshade",
+    custom_palette: "custom (R)",
+    draw_poly_label: "Poly",
+    draw_rect_label: "Rect",
+    draw_circle_label: "Circle",
+    draw_line_label: "Line",
+    draw_pin_label: "Pin",
+    draw_clear_label: "Clear",
+    draw_poly_title: "Draw a polygon",
+    draw_rect_title: "Draw a rectangle",
+    draw_circle_title: "Draw a circle",
+    draw_line_title: "Draw a polyline",
+    draw_pin_title: "Draw a marker",
+    draw_clear_title: "Clear all drawn shapes",
+    drawn_area_prefix: "Drawn Area #",
+    remove_drawn_button: "Remove",
+    measure_start: "Measure Distance / Area",
+    measure_finish: "Finish Measure",
+    measure_clear: "Clear",
+    measure_length: "Length",
+    measure_area: "Area",
+    measure_hint: "Click points on map (3+ for area, double-click to finish)",
+    search_placeholder: "Search address or place...",
+    search_button_title: "Search OpenStreetMap",
+    search_clear_title: "Clear search",
+    search_searching: "Searching OpenStreetMap...",
+    search_no_results: "No results found.",
+    search_unavailable: "Search unavailable.",
+    minimap_title: "Overview",
+    export_png: "Export PNG",
+    hud_features: "Features",
+    hud_lon_lat: "Lon/Lat",
+    hud_raster: "Raster",
+    hud_dist: "Dist"
+  };
+
+  const VS_PROJ_HEADER = `
+    uniform mat4 u_matrix;
+    uniform float u_use_matrix;
+    uniform vec2 u_center_merc;
+    uniform float u_scale;
+    uniform vec2 u_viewport;
+    uniform vec2 u_rot;
+    vec4 projectMerc(vec2 pos, float elev) {
+      if (u_use_matrix > 0.5) {
+        return u_matrix * vec4(pos, elev, 1.0);
+      }
+      vec2 d = (pos - u_center_merc) * u_scale;
+      vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
+      vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
+      return vec4(clip, 0.0, 1.0);
+    }
+  `;
+
   // Built-in 256-entry RGB palettes for instant client-side raster shader switching
   const BUILTIN_PALETTES = {
     viridis: [
@@ -358,67 +430,21 @@
     }
 
     _defaultLabels() {
-      return {
-        zoom_in: "Zoom in",
-        zoom_out: "Zoom out",
-        reset_north: "Reset bearing to north",
-        layers_title: "Layers",
-        basemap_header: "Basemap",
-        overlays_header: "Overlays",
-        marker_engine_header: "Marker / Icon Engine",
-        marker_mode_auto: "Auto (Dynamic)",
-        marker_mode_cluster: "Cluster + GPU Atlas",
-        marker_mode_lod: "LOD Hybrid (Dots -> Icons)",
-        marker_mode_atlas: "GPU Sprite Atlas (All Icons)",
-        marker_mode_points: "GPU Fast Dots (SDF)",
-        basemap_groups: {},
-        layer_groups: {},
-        legend_default_title: "Legend",
-        layer_opacity: "Layer Opacity",
-        shader_palette: "GPU Shader Palette",
-        gpu_hillshade: "Real-Time GPU Hillshade",
-        custom_palette: "custom (R)",
-        draw_poly_label: "Poly",
-        draw_rect_label: "Rect",
-        draw_circle_label: "Circle",
-        draw_line_label: "Line",
-        draw_pin_label: "Pin",
-        draw_clear_label: "Clear",
-        draw_poly_title: "Draw a polygon",
-        draw_rect_title: "Draw a rectangle",
-        draw_circle_title: "Draw a circle",
-        draw_line_title: "Draw a polyline",
-        draw_pin_title: "Draw a marker",
-        draw_clear_title: "Clear all drawn shapes",
-        drawn_area_prefix: "Drawn Area #",
-        remove_drawn_button: "Remove",
-        measure_start: "Measure Distance / Area",
-        measure_finish: "Finish Measure",
-        measure_clear: "Clear",
-        measure_length: "Length",
-        measure_area: "Area",
-        measure_hint: "Click points on map (3+ for area, double-click to finish)",
-        search_placeholder: "Search address or place...",
-        search_button_title: "Search OpenStreetMap",
-        search_clear_title: "Clear search",
-        search_searching: "Searching OpenStreetMap...",
-        search_no_results: "No results found.",
-        search_unavailable: "Search unavailable.",
-        minimap_title: "Overview",
-        export_png: "Export PNG",
-        hud_features: "Features",
-        hud_lon_lat: "Lon/Lat",
-        hud_raster: "Raster",
-        hud_dist: "Dist"
-      };
+      return Object.assign({}, DEFAULT_LABELS, { basemap_groups: {}, layer_groups: {} });
     }
 
     _t(key, fallback) {
-      if (this.labels && this.labels[key] !== undefined && this.labels[key] !== null && String(this.labels[key]).length > 0) {
-        return String(this.labels[key]);
+      const v = this.labels && this.labels[key];
+      if (v !== undefined && v !== null && String(v).length > 0) return String(v);
+      return DEFAULT_LABELS[key] !== undefined ? DEFAULT_LABELS[key] : (fallback || key);
+    }
+
+    _emitShiny(suffix, payload, opts, rawName = false) {
+      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+        const name = rawName ? suffix : (this.el.id + suffix);
+        if (opts) window.Shiny.setInputValue(name, payload, opts);
+        else window.Shiny.setInputValue(name, payload);
       }
-      const def = this._defaultLabels();
-      return def[key] !== undefined ? def[key] : (fallback || key);
     }
 
     _applyNavLabels() {
@@ -727,25 +753,13 @@
         attribute vec2 a_pos;
         attribute vec4 a_color;
         attribute float a_radius;
-        uniform mat4 u_matrix;
-        uniform float u_use_matrix;
-        uniform vec2 u_center_merc;
-        uniform float u_scale;
-        uniform vec2 u_viewport;
         uniform float u_dpr;
         uniform float u_opacity;
-        uniform vec2 u_rot;
         varying vec4 v_color;
         varying float v_radius;
+        ${VS_PROJ_HEADER}
         void main() {
-          if (u_use_matrix > 0.5) {
-            gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
-          } else {
-            vec2 d = (a_pos - u_center_merc) * u_scale;
-            vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
-            vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
-            gl_Position = vec4(clip, 0.0, 1.0);
-          }
+          gl_Position = projectMerc(a_pos, 0.0);
           float r = max(1.5, a_radius);
           gl_PointSize = (r * 2.0 + 3.0) * u_dpr;
           v_color = vec4(a_color.rgb / 255.0, u_opacity);
@@ -781,30 +795,14 @@
         attribute vec2 a_pos;
         attribute vec4 a_color;
         attribute float a_elev;
-        uniform mat4 u_matrix;
-        uniform float u_use_matrix;
-        uniform vec2 u_center_merc;
-        uniform float u_scale;
-        uniform vec2 u_viewport;
         uniform float u_opacity;
         uniform float u_use_uniform_color;
         uniform vec4 u_uniform_color;
-        uniform vec2 u_rot;
         varying vec4 v_color;
+        ${VS_PROJ_HEADER}
         void main() {
-          if (u_use_matrix > 0.5) {
-            gl_Position = u_matrix * vec4(a_pos, a_elev, 1.0);
-          } else {
-            vec2 d = (a_pos - u_center_merc) * u_scale;
-            vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
-            vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
-            gl_Position = vec4(clip, 0.0, 1.0);
-          }
-          if (u_use_uniform_color > 0.5) {
-            v_color = u_uniform_color;
-          } else {
-            v_color = vec4(a_color.rgb / 255.0, u_opacity);
-          }
+          gl_Position = projectMerc(a_pos, a_elev);
+          v_color = u_use_uniform_color > 0.5 ? u_uniform_color : vec4(a_color.rgb / 255.0, u_opacity);
         }
       `;
       const fsMesh = `
@@ -820,23 +818,11 @@
       const vsHeat = `
         attribute vec2 a_pos;
         attribute float a_radius;
-        uniform mat4 u_matrix;
-        uniform float u_use_matrix;
-        uniform vec2 u_center_merc;
-        uniform float u_scale;
-        uniform vec2 u_viewport;
         uniform float u_dpr;
         uniform float u_radius_mult;
-        uniform vec2 u_rot;
+        ${VS_PROJ_HEADER}
         void main() {
-          if (u_use_matrix > 0.5) {
-            gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
-          } else {
-            vec2 d = (a_pos - u_center_merc) * u_scale;
-            vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
-            vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
-            gl_Position = vec4(clip, 0.0, 1.0);
-          }
+          gl_Position = projectMerc(a_pos, 0.0);
           gl_PointSize = max(8.0, a_radius * u_radius_mult) * 2.0 * u_dpr;
         }
       `;
@@ -859,22 +845,10 @@
       const vsRaster = `
         attribute vec2 a_pos;
         attribute vec2 a_uv;
-        uniform mat4 u_matrix;
-        uniform float u_use_matrix;
-        uniform vec2 u_center_merc;
-        uniform float u_scale;
-        uniform vec2 u_viewport;
-        uniform vec2 u_rot;
         varying vec2 v_uv;
+        ${VS_PROJ_HEADER}
         void main() {
-          if (u_use_matrix > 0.5) {
-            gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
-          } else {
-            vec2 d = (a_pos - u_center_merc) * u_scale;
-            vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
-            vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
-            gl_Position = vec4(clip, 0.0, 1.0);
-          }
+          gl_Position = projectMerc(a_pos, 0.0);
           v_uv = a_uv;
         }
       `;
@@ -936,24 +910,12 @@
       const vsIcons = `
         attribute vec2 a_pos;
         attribute float a_icon_idx;
-        uniform mat4 u_matrix;
-        uniform float u_use_matrix;
-        uniform vec2 u_center_merc;
-        uniform float u_scale;
-        uniform vec2 u_viewport;
         uniform float u_dpr;
         uniform float u_icon_size;
-        uniform vec2 u_rot;
         varying float v_icon_idx;
+        ${VS_PROJ_HEADER}
         void main() {
-          if (u_use_matrix > 0.5) {
-            gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
-          } else {
-            vec2 d = (a_pos - u_center_merc) * u_scale;
-            vec2 delta_px = vec2(d.x * u_rot.x + d.y * u_rot.y, -d.x * u_rot.y + d.y * u_rot.x);
-            vec2 clip = (delta_px / (u_viewport * 0.5)) * vec2(1.0, -1.0);
-            gl_Position = vec4(clip, 0.0, 1.0);
-          }
+          gl_Position = projectMerc(a_pos, 0.0);
           gl_PointSize = u_icon_size * u_dpr;
           v_icon_idx = a_icon_idx;
         }
@@ -1810,27 +1772,26 @@
       this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0);
     }
 
-    _drawPointsLayer(layer, cx, cy, scale, w, h, dpr, opacityMult = 1.0) {
+    _bindAttrib(prog, name, buf, size, type = this.gl.FLOAT) {
+      const gl = this.gl;
+      const loc = gl.getAttribLocation(prog, name);
+      if (loc >= 0 && buf) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, size, type, false, 0, 0);
+      }
+      return loc;
+    }
+
+    _drawPointsLayer(layer, cx, cy, scale, w, h, dpr, opacityMult = 1.0, posBuf = null, colBuf = null, radBuf = null, count = 0) {
       const gl = this.gl;
       const prog = this.progPoints;
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-      const locPos = gl.getAttribLocation(prog, "a_pos");
-      const locCol = gl.getAttribLocation(prog, "a_color");
-      const locRad = gl.getAttribLocation(prog, "a_radius");
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboPos);
-      gl.enableVertexAttribArray(locPos);
-      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboCol);
-      gl.enableVertexAttribArray(locCol);
-      gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboRad);
-      gl.enableVertexAttribArray(locRad);
-      gl.vertexAttribPointer(locRad, 1, gl.FLOAT, false, 0, 0);
+      this._bindAttrib(prog, "a_pos", posBuf || layer.vboPos, 2, gl.FLOAT);
+      this._bindAttrib(prog, "a_color", colBuf || layer.vboCol, 4, gl.UNSIGNED_BYTE);
+      this._bindAttrib(prog, "a_radius", radBuf || layer.vboRad, 1, gl.FLOAT);
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
@@ -1842,7 +1803,7 @@
       gl.uniform3f(gl.getUniformLocation(prog, "u_stroke_color"), sc[0], sc[1], sc[2]);
       gl.uniform1f(gl.getUniformLocation(prog, "u_stroke_width"), st.stroke_width || 1.0);
 
-      gl.drawArrays(gl.POINTS, 0, layer.parsed.nVertices);
+      gl.drawArrays(gl.POINTS, 0, posBuf ? count : layer.parsed.nVertices);
     }
 
     _drawIconAtlasLayerGPU(layer, cx, cy, scale, w, h, dpr, customPosBuf, customIconBuf, customCount, opacityMult = 1.0) {
@@ -1856,16 +1817,8 @@
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-      const locPos = gl.getAttribLocation(prog, "a_pos");
-      const locIdx = gl.getAttribLocation(prog, "a_icon_idx");
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, customPosBuf || layer.vboPos);
-      gl.enableVertexAttribArray(locPos);
-      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, customIconBuf || layer.vboIcon);
-      gl.enableVertexAttribArray(locIdx);
-      gl.vertexAttribPointer(locIdx, 1, gl.FLOAT, false, 0, 0);
+      this._bindAttrib(prog, "a_pos", customPosBuf || layer.vboPos, 2, gl.FLOAT);
+      this._bindAttrib(prog, "a_icon_idx", customIconBuf || layer.vboIcon, 1, gl.FLOAT);
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, layer.atlasTex);
@@ -2015,14 +1968,10 @@
         const progM = this.progMesh;
         gl.useProgram(progM);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        const locMPos = gl.getAttribLocation(progM, "a_pos");
-        const locMCol = gl.getAttribLocation(progM, "a_color");
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegs);
-        gl.enableVertexAttribArray(locMPos);
-        gl.vertexAttribPointer(locMPos, 2, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderLegCols);
-        gl.enableVertexAttribArray(locMCol);
-        gl.vertexAttribPointer(locMCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        this._bindAttrib(progM, "a_pos", layer.vboSpiderLegs, 2, gl.FLOAT);
+        this._bindAttrib(progM, "a_color", layer.vboSpiderLegCols, 4, gl.UNSIGNED_BYTE);
+        const locMElev = gl.getAttribLocation(progM, "a_elev");
+        if (locMElev >= 0) { gl.disableVertexAttribArray(locMElev); gl.vertexAttrib1f(locMElev, 0.0); }
         this._applyProjectionUniforms(progM, cx, cy, scale, w, h);
         gl.uniform1f(gl.getUniformLocation(progM, "u_opacity"), 0.85);
         gl.uniform1f(gl.getUniformLocation(progM, "u_use_uniform_color"), 0.0);
@@ -2038,28 +1987,7 @@
         gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([30, 41, 59, 230]), gl.DYNAMIC_DRAW);
         gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubRad);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([3.5]), gl.DYNAMIC_DRAW);
-
-        const progP = this.progPoints;
-        gl.useProgram(progP);
-        const locPPos = gl.getAttribLocation(progP, "a_pos");
-        const locPCol = gl.getAttribLocation(progP, "a_color");
-        const locPRad = gl.getAttribLocation(progP, "a_radius");
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubPos);
-        gl.enableVertexAttribArray(locPPos);
-        gl.vertexAttribPointer(locPPos, 2, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubCol);
-        gl.enableVertexAttribArray(locPCol);
-        gl.vertexAttribPointer(locPCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSpiderHubRad);
-        gl.enableVertexAttribArray(locPRad);
-        gl.vertexAttribPointer(locPRad, 1, gl.FLOAT, false, 0, 0);
-        this._applyProjectionUniforms(progP, cx, cy, scale, w, h);
-        gl.uniform1f(gl.getUniformLocation(progP, "u_dpr"), dpr);
-        gl.uniform1f(gl.getUniformLocation(progP, "u_opacity"), 0.9);
-        gl.uniform1f(gl.getUniformLocation(progP, "u_stroke"), 1.0);
-        gl.uniform3f(gl.getUniformLocation(progP, "u_stroke_color"), 255, 255, 255);
-        gl.uniform1f(gl.getUniformLocation(progP, "u_stroke_width"), 1.0);
-        gl.drawArrays(gl.POINTS, 0, 1);
+        this._drawPointsLayer({ opacity: 0.9, style: { stroke: true, stroke_color: [255, 255, 255], stroke_width: 1.0 } }, cx, cy, scale, w, h, dpr, 1.0, layer.vboSpiderHubPos, layer.vboSpiderHubCol, layer.vboSpiderHubRad, 1);
       }
 
       // 1. Render all unclustered singletons + spiderfied markers in 1 GPU draw call
@@ -2117,31 +2045,7 @@
           gl.bufferData(gl.ARRAY_BUFFER, colArr, gl.DYNAMIC_DRAW);
           gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
           gl.bufferData(gl.ARRAY_BUFFER, radArr, gl.DYNAMIC_DRAW);
-
-          const prog = this.progPoints;
-          gl.useProgram(prog);
-          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-          const locPos = gl.getAttribLocation(prog, "a_pos");
-          const locCol = gl.getAttribLocation(prog, "a_color");
-          const locRad = gl.getAttribLocation(prog, "a_radius");
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSinglePos);
-          gl.enableVertexAttribArray(locPos);
-          gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleCol);
-          gl.enableVertexAttribArray(locCol);
-          gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboSingleRad);
-          gl.enableVertexAttribArray(locRad);
-          gl.vertexAttribPointer(locRad, 1, gl.FLOAT, false, 0, 0);
-          this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-          gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
-          gl.uniform1f(gl.getUniformLocation(prog, "u_opacity"), layer.opacity);
-          const st = layer.style || {};
-          gl.uniform1f(gl.getUniformLocation(prog, "u_stroke"), st.stroke ? 1.0 : 0.0);
-          const sc = st.stroke_color || [255, 255, 255];
-          gl.uniform3f(gl.getUniformLocation(prog, "u_stroke_color"), sc[0], sc[1], sc[2]);
-          gl.uniform1f(gl.getUniformLocation(prog, "u_stroke_width"), st.stroke_width || 1.0);
-          gl.drawArrays(gl.POINTS, 0, sCount);
+          this._drawPointsLayer(layer, cx, cy, scale, w, h, dpr, 1.0, layer.vboSinglePos, layer.vboSingleCol, layer.vboSingleRad, sCount);
         }
       }
 
@@ -2236,23 +2140,12 @@
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-      const locPos = gl.getAttribLocation(prog, "a_pos");
-      const locCol = gl.getAttribLocation(prog, "a_color");
+      this._bindAttrib(prog, "a_pos", layer.vboPos, 2, gl.FLOAT);
+      this._bindAttrib(prog, "a_color", layer.vboCol, 4, gl.UNSIGNED_BYTE);
       const locElev = gl.getAttribLocation(prog, "a_elev");
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboPos);
-      gl.enableVertexAttribArray(locPos);
-      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboCol);
-      gl.enableVertexAttribArray(locCol);
-      gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-
       if (locElev >= 0) {
         if (layer.vboElev) {
-          gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboElev);
-          gl.enableVertexAttribArray(locElev);
-          gl.vertexAttribPointer(locElev, 1, gl.FLOAT, false, 0, 0);
+          this._bindAttrib(prog, "a_elev", layer.vboElev, 1, gl.FLOAT);
         } else {
           gl.disableVertexAttribArray(locElev);
           gl.vertexAttrib1f(locElev, 0.0);
@@ -2284,18 +2177,9 @@
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-      const locPos = gl.getAttribLocation(prog, "a_pos");
-      const locCol = gl.getAttribLocation(prog, "a_color");
+      this._bindAttrib(prog, "a_pos", layer.vboPos, 2, gl.FLOAT);
+      this._bindAttrib(prog, "a_color", layer.vboCol, 4, gl.UNSIGNED_BYTE);
       const locElev = gl.getAttribLocation(prog, "a_elev");
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboPos);
-      gl.enableVertexAttribArray(locPos);
-      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboCol);
-      gl.enableVertexAttribArray(locCol);
-      gl.vertexAttribPointer(locCol, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-
       if (locElev >= 0) {
         gl.disableVertexAttribArray(locElev);
         gl.vertexAttrib1f(locElev, 0.0);
@@ -2319,16 +2203,8 @@
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
-      const locPos = gl.getAttribLocation(prog, "a_pos");
-      const locRad = gl.getAttribLocation(prog, "a_radius");
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboPos);
-      gl.enableVertexAttribArray(locPos);
-      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboRad);
-      gl.enableVertexAttribArray(locRad);
-      gl.vertexAttribPointer(locRad, 1, gl.FLOAT, false, 0, 0);
+      this._bindAttrib(prog, "a_pos", layer.vboPos, 2, gl.FLOAT);
+      this._bindAttrib(prog, "a_radius", layer.vboRad, 1, gl.FLOAT);
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
       gl.uniform1f(gl.getUniformLocation(prog, "u_dpr"), dpr);
@@ -2346,16 +2222,8 @@
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-      const locPos = gl.getAttribLocation(prog, "a_pos");
-      const locUV = gl.getAttribLocation(prog, "a_uv");
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboQuadPos);
-      gl.enableVertexAttribArray(locPos);
-      gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, layer.vboQuadUV);
-      gl.enableVertexAttribArray(locUV);
-      gl.vertexAttribPointer(locUV, 2, gl.FLOAT, false, 0, 0);
+      this._bindAttrib(prog, "a_pos", layer.vboQuadPos, 2, gl.FLOAT);
+      this._bindAttrib(prog, "a_uv", layer.vboQuadUV, 2, gl.FLOAT);
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, layer.rasterTex);
@@ -2405,13 +2273,11 @@
       }
 
       // Update Shiny inputs (leaflet-compatible <id>_bounds, <id>_zoom, <id>_center, plus MapLibre <id>_pitch & <id>_bearing)
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue(this.el.id + "_bounds", { west: xmin, south: ymin, east: xmax, north: ymax });
-        window.Shiny.setInputValue(this.el.id + "_zoom", this.camera.zoom);
-        window.Shiny.setInputValue(this.el.id + "_center", { lng: this.camera.centerLon, lat: this.camera.centerLat });
-        window.Shiny.setInputValue(this.el.id + "_pitch", this.camera.pitch || 0);
-        window.Shiny.setInputValue(this.el.id + "_bearing", this.camera.bearing || 0);
-      }
+      this._emitShiny("_bounds", { west: xmin, south: ymin, east: xmax, north: ymax });
+      this._emitShiny("_zoom", this.camera.zoom);
+      this._emitShiny("_center", { lng: this.camera.centerLon, lat: this.camera.centerLat });
+      this._emitShiny("_pitch", this.camera.pitch || 0);
+      this._emitShiny("_bearing", this.camera.bearing || 0);
 
       // Dynamic viewport spatial index streaming
       for (const layer of this.layers.values()) {
@@ -2476,21 +2342,11 @@
           const leg = this._activeSpiderfiedLegs[k];
           if (Math.hypot(px - leg.sx, py - leg.sy) <= 15) {
             const layer = this.layers.get(leg.layerId);
-            const fid = layer && layer.parsed ? layer.parsed.vertexFeatureIds[leg.idx] : leg.idx;
-            const customId = (layer && Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
-              ? layer.feature_ids[fid]
-              : (fid + 1);
-            hitFeature = {
-              id: customId,
-              featureIndex: fid + 1,
-              layerId: leg.layerId,
-              group: leg.group,
-              type: "points",
-              lng: leg.lon,
-              lat: leg.lat
-            };
-            if (layer && layer.tooltips) {
-              hitText = Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips;
+            if (layer) {
+              const fid = layer.parsed ? layer.parsed.vertexFeatureIds[leg.idx] : leg.idx;
+              const pickedLeg = this._buildPickedResult(layer, fid, leg.lon, leg.lat, "points", leg.group);
+              hitFeature = pickedLeg.feature;
+              hitText = pickedLeg.tooltip;
             }
             break;
           }
@@ -2521,9 +2377,8 @@
           this.requestRender();
         }
       }
-      if (hitFeature && typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        const evtSuffix = hitFeature.type === "points" ? "_marker_mouseover" : "_shape_mouseover";
-        window.Shiny.setInputValue(this.el.id + evtSuffix, hitFeature);
+      if (hitFeature) {
+        this._emitShiny(hitFeature.type === "points" ? "_marker_mouseover" : "_shape_mouseover", hitFeature);
       }
 
       if (hitText) {
@@ -2534,6 +2389,27 @@
       } else {
         this.tooltipEl.style.display = "none";
       }
+    }
+
+    _buildPickedResult(layer, fid, lon, lat, forceType = null, forceGroup = null) {
+      const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
+        ? layer.feature_ids[fid]
+        : (fid + 1);
+      const tt = layer.tooltips ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null;
+      const pp = layer.popups ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : tt;
+      return {
+        feature: {
+          id: customId,
+          featureIndex: fid + 1,
+          layerId: layer.id,
+          group: forceGroup || layer.group || layer.id,
+          type: forceType || layer.type,
+          lng: lon,
+          lat: lat
+        },
+        tooltip: tt || null,
+        popup: pp || null
+      };
     }
 
     _pickFeatureAt(lon, lat, mx, my, tolMerc) {
@@ -2547,26 +2423,8 @@
         const nV = layer.parsed.nVertices;
         const stride = nV > 150000 ? Math.ceil(nV / 150000) : 1;
         for (let v = 0; v < nV; v += stride) {
-          const dx = mc[2 * v] - mx;
-          const dy = mc[2 * v + 1] - my;
-          if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
-            const fid = layer.parsed.vertexFeatureIds[v];
-            const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
-              ? layer.feature_ids[fid]
-              : (fid + 1);
-            return {
-              feature: {
-                id: customId,
-                featureIndex: fid + 1,
-                layerId: layer.id,
-                group: layer.group || layer.id,
-                type: layer.type,
-                lng: lon,
-                lat: lat
-              },
-              tooltip: (layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null,
-              popup: (layer.popups && layer.popups[fid]) ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : ((layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null)
-            };
+          if (Math.abs(mc[2 * v] - mx) < tolMerc && Math.abs(mc[2 * v + 1] - my) < tolMerc) {
+            return this._buildPickedResult(layer, layer.parsed.vertexFeatureIds[v], lon, lat);
           }
         }
       }
@@ -2594,26 +2452,8 @@
             const d1 = (mx - bx) * (ay - by) - (ax - bx) * (my - by);
             const d2 = (mx - cx) * (by - cy) - (bx - cx) * (my - cy);
             const d3 = (mx - ax) * (cy - ay) - (cx - ax) * (my - ay);
-            const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-            const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-            if (!(hasNeg && hasPos)) {
-              const fid = vfids[i0];
-              const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
-                ? layer.feature_ids[fid]
-                : (fid + 1);
-              return {
-                feature: {
-                  id: customId,
-                  featureIndex: fid + 1,
-                  layerId: layer.id,
-                  group: layer.group || layer.id,
-                  type: layer.type,
-                  lng: lon,
-                  lat: lat
-                },
-                tooltip: (layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null,
-                popup: (layer.popups && layer.popups[fid]) ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : ((layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null)
-              };
+            if (!(((d1 < 0) || (d2 < 0) || (d3 < 0)) && ((d1 > 0) || (d2 > 0) || (d3 > 0)))) {
+              return this._buildPickedResult(layer, vfids[i0], lon, lat);
             }
           }
         }
@@ -2621,26 +2461,8 @@
         const nV = layer.parsed.nVertices;
         const stride = nV > 100000 ? Math.ceil(nV / 100000) : 1;
         for (let v = 0; v < nV; v += stride) {
-          const dx = mc[2 * v] - mx;
-          const dy = mc[2 * v + 1] - my;
-          if (Math.abs(dx) < tolMerc && Math.abs(dy) < tolMerc) {
-            const fid = vfids[v];
-            const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
-              ? layer.feature_ids[fid]
-              : (fid + 1);
-            return {
-              feature: {
-                id: customId,
-                featureIndex: fid + 1,
-                layerId: layer.id,
-                group: layer.group || layer.id,
-                type: layer.type,
-                lng: lon,
-                lat: lat
-              },
-              tooltip: (layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null,
-              popup: (layer.popups && layer.popups[fid]) ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : ((layer.tooltips && layer.tooltips[fid]) ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null)
-            };
+          if (Math.abs(mc[2 * v] - mx) < tolMerc && Math.abs(mc[2 * v + 1] - my) < tolMerc) {
+            return this._buildPickedResult(layer, vfids[v], lon, lat);
           }
         }
       }
@@ -2745,17 +2567,15 @@
         this._popupLonLat = null;
       }
 
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue(this.el.id + "_click", {
-          lng: lon,
-          lat: lat,
-          raster_value: this._cursorRasterVal,
-          nonce: Math.random()
-        });
-        if (clickedFeature) {
-          const evtSuffix = clickedFeature.type === "points" ? "_marker_click" : "_shape_click";
-          window.Shiny.setInputValue(this.el.id + evtSuffix, Object.assign({}, clickedFeature, { nonce: Math.random() }));
-        }
+      this._emitShiny("_click", {
+        lng: lon,
+        lat: lat,
+        raster_value: this._cursorRasterVal,
+        nonce: Math.random()
+      });
+      if (clickedFeature) {
+        const evtSuffix = clickedFeature.type === "points" ? "_marker_click" : "_shape_click";
+        this._emitShiny(evtSuffix, Object.assign({}, clickedFeature, { nonce: Math.random() }));
       }
     }
 
@@ -2806,21 +2626,19 @@
     _removeDrawnFeatureById(fid) {
       const removed = this.drawnFeatures.filter((f) => f.properties && f.properties._leaflet_id === fid);
       this.drawnFeatures = this.drawnFeatures.filter((f) => !(f.properties && f.properties._leaflet_id === fid));
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue("sg_remove", fid, { priority: "event" });
-        window.Shiny.setInputValue(this.el.id + "_draw_deleted_features", {
-          type: "FeatureCollection",
-          features: removed,
-          nonce: Math.random()
-        });
-        window.Shiny.setInputValue(this.el.id + "_draw_all_features", {
-          type: "FeatureCollection",
-          features: this.drawnFeatures,
-          nonce: Math.random()
-        });
-        if (this.drawnFeatures.length === 0) {
-          window.Shiny.setInputValue(this.el.id + "_selected", null);
-        }
+      this._emitShiny("sg_remove", fid, { priority: "event" }, true);
+      this._emitShiny("_draw_deleted_features", {
+        type: "FeatureCollection",
+        features: removed,
+        nonce: Math.random()
+      });
+      this._emitShiny("_draw_all_features", {
+        type: "FeatureCollection",
+        features: this.drawnFeatures,
+        nonce: Math.random()
+      });
+      if (this.drawnFeatures.length === 0) {
+        this._emitShiny("_selected", null);
       }
       this.requestRender();
     }
@@ -3669,12 +3487,10 @@
         }
       }
 
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue(this.el.id + "_draw_start", {
-          feature_type: mode,
-          nonce: Math.random()
-        });
-      }
+      this._emitShiny("_draw_start", {
+        feature_type: mode,
+        nonce: Math.random()
+      });
       this.requestRender();
     }
 
@@ -3694,8 +3510,8 @@
         if (this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
       }
 
-      if (prevMode && typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue(this.el.id + "_draw_stop", {
+      if (prevMode) {
+        this._emitShiny("_draw_stop", {
           feature_type: prevMode,
           nonce: Math.random()
         });
@@ -3724,23 +3540,22 @@
         }
       }
 
-      if (emitServerEvents && typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
+      if (emitServerEvents) {
         if (sgIdsToRemove.length > 0 || deleted.length > 0) {
-          // Emit sg_remove with 1..25 so server-side reactive AOI handlers clear all stored polygons
           const allIds = Array.from({ length: Math.max(25, this._drawSeq + 5) }, (_, i) => i + 1);
-          window.Shiny.setInputValue("sg_remove", allIds, { priority: "event" });
+          this._emitShiny("sg_remove", allIds, { priority: "event" }, true);
         }
-        window.Shiny.setInputValue(this.el.id + "_draw_deleted_features", {
+        this._emitShiny("_draw_deleted_features", {
           type: "FeatureCollection",
           features: deleted,
           nonce: Math.random()
         });
-        window.Shiny.setInputValue(this.el.id + "_draw_all_features", {
+        this._emitShiny("_draw_all_features", {
           type: "FeatureCollection",
           features: [],
           nonce: Math.random()
         });
-        window.Shiny.setInputValue(this.el.id + "_selected", null);
+        this._emitShiny("_selected", null);
       }
       this.requestRender();
     }
@@ -4191,15 +4006,12 @@
 
       // Also update _selected input so apps listening to either _draw_new_feature or _selected work seamlessly!
       this._selectInBbox(bbox, wkt);
-
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue(this.el.id + "_draw_new_feature", feature);
-        window.Shiny.setInputValue(this.el.id + "_draw_all_features", {
-          type: "FeatureCollection",
-          features: this.drawnFeatures,
-          nonce: Math.random()
-        });
-      }
+      this._emitShiny("_draw_new_feature", feature);
+      this._emitShiny("_draw_all_features", {
+        type: "FeatureCollection",
+        features: this.drawnFeatures,
+        nonce: Math.random()
+      });
       this.requestRender();
     }
 
@@ -4468,15 +4280,13 @@
       this._updateHUD();
 
       const wkt = customWkt || `POLYGON ((${xmin.toFixed(6)} ${ymin.toFixed(6)}, ${xmax.toFixed(6)} ${ymin.toFixed(6)}, ${xmax.toFixed(6)} ${ymax.toFixed(6)}, ${xmin.toFixed(6)} ${ymax.toFixed(6)}, ${xmin.toFixed(6)} ${ymin.toFixed(6)}))`;
-      if (typeof HTMLWidgets !== "undefined" && HTMLWidgets.shinyMode && window.Shiny) {
-        window.Shiny.setInputValue(this.el.id + "_selected", {
-          bbox: bbox,
-          wkt: wkt,
-          count: selectedIds.length,
-          indices: selectedIds.slice(0, 50000),
-          nonce: Math.random()
-        });
-      }
+      this._emitShiny("_selected", {
+        bbox: bbox,
+        wkt: wkt,
+        count: selectedIds.length,
+        indices: selectedIds.slice(0, 50000),
+        nonce: Math.random()
+      });
       if (this._ctSelHandle && this.spec && this.spec.crosstalk && Array.isArray(this.spec.crosstalk.keys)) {
         const keys = selectedIds.map((idx) => this.spec.crosstalk.keys[idx - 1]).filter(Boolean);
         this._ctSelHandle.set(keys);
@@ -4600,51 +4410,31 @@
         const args = msg.call.args || {};
         if (m === "addLayer") inst.addLayer(args.layer, args.legend);
         else if (m === "clearLayer") inst.clearLayer(args.id);
-        else if (m === "clearLayers") inst.clearLayers();
-        else if (m === "clearShapes") inst.clearShapes();
-        else if (m === "clearMarkers") inst.clearMarkers();
-        else if (m === "clearControls") inst.clearControls();
         else if (m === "setLayerVisibility") inst.setLayerVisibility(args.id, args.visible);
         else if (m === "setGroupVisibility") inst.setGroupVisibility(args.group, args.visible);
         else if (m === "clearGroup") inst.clearGroup(args.group);
         else if (m === "setLayerOpacity") inst.setLayerOpacity(args.id, args.opacity);
-        else if (m === "setRasterStyle") inst.setRasterStyle(args);
-        else if (m === "setMarkerMode") inst.setMarkerMode(args);
-        else if (m === "addMeasureControl") inst.addMeasureControl(args);
-        else if (m === "addSearchControl") inst.addSearchControl(args);
         else if (m === "addMiniMap") inst.addMiniMapControl(args);
-        else if (m === "showPopup") inst.showPopup(args);
-        else if (m === "clearPopups") inst.clearPopups();
-        else if (m === "setBasemap") inst.setBasemap(args);
-        else if (m === "setView") inst.setView(args);
-        else if (m === "flyTo") inst.flyTo(args);
-        else if (m === "flyToBounds") inst.flyToBounds(args);
-        else if (m === "setMaxBounds") inst.setMaxBounds(args);
         else if (m === "fitBounds") inst.fitBounds(args.bounds);
-        else if (m === "setTerrain") inst.setTerrain(args);
-        else if (m === "setProjection") inst.setProjection(args);
+        else if (m === "usePlugin") inst._runPlugins([args]);
         else if (m === "addLegend") {
           inst.legends = inst.legends.filter((l) => l.layer_id !== args.layer_id);
           inst.legends.push(args);
           inst._rebuildLegends();
-        }
-        else if (m === "setLayersControl") {
+        } else if (m === "setLayersControl" || m === "configureControl") {
           inst.spec = inst.spec || {};
           inst.spec.controls = inst.spec.controls || {};
-          inst.spec.controls.layer_switcher = args;
-          inst._applyControlLayout(inst.spec);
-          inst._rebuildLayerSwitcher();
+          if (m === "setLayersControl") {
+            inst.spec.controls.layer_switcher = args;
+            inst._applyControlLayout(inst.spec);
+            inst._rebuildLayerSwitcher();
+          } else {
+            inst.spec.controls[args.type] = args.config;
+            inst._applyControlLayout(inst.spec);
+          }
+        } else if (typeof inst[m] === "function") {
+          inst[m](args);
         }
-        else if (m === "configureControl") {
-          inst.spec = inst.spec || {};
-          inst.spec.controls = inst.spec.controls || {};
-          inst.spec.controls[args.type] = args.config;
-          inst._applyControlLayout(inst.spec);
-        }
-        else if (m === "setLabels") inst.setLabels(args);
-        else if (m === "addDrawToolbar") inst.addDrawToolbar(args);
-        else if (m === "removeDrawToolbar") inst.removeDrawToolbar(args);
-        else if (m === "usePlugin") inst._runPlugins([args]);
       });
     }
   }
