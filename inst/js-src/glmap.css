@@ -373,23 +373,31 @@
   background: var(--gl-panel-bg-strong);
   border: 1px solid var(--gl-panel-border);
   color: var(--gl-text-primary);
-  padding: 10px 12px;
+  padding: 24px 14px 10px 14px;
   border-radius: 8px;
   font-size: 12px;
   box-shadow: var(--gl-panel-shadow);
   display: none;
-  max-width: 320px;
+  max-width: 340px;
 }
 
 .glmap-popup-close {
   position: absolute;
-  top: 4px;
-  right: 7px;
+  top: 5px;
+  right: 8px;
   background: none;
   border: none;
   color: var(--gl-text-muted);
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
   cursor: pointer;
+}
+
+.glmap-popup-close:hover {
+  color: var(--gl-text-primary);
+  background: var(--gl-accent-soft);
 }
 
 .glmap-hud-fps {
