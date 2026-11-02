@@ -407,7 +407,7 @@ gl_popup_table <- function(data, zcol = NULL, row_numbers = FALSE, feature_id = 
     vals <- as.character(df[[col_nm]])
     vals[is.na(vals)] <- ""
     sprintf(
-      "<tr><td style='color:#94a3b8;padding:1px 8px 1px 0;font-weight:600;'>%s</td><td style='color:#f8fafc;padding:1px 0;text-align:right;'>%s</td></tr>",
+      "<tr><td style='color:var(--gl-text-muted,#475569);padding:2px 10px 2px 0;font-weight:600;vertical-align:top;'>%s</td><td style='color:var(--gl-text-primary,#1e293b);padding:2px 0;text-align:right;font-weight:500;'>%s</td></tr>",
       col_nm, vals
     )
   })

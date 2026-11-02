@@ -2521,7 +2521,7 @@
         ? layer.feature_ids[fid]
         : (fid + 1);
       const tt = layer.tooltips ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null;
-      const pp = layer.popups ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : tt;
+      const pp = layer.popups ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : null;
       return {
         feature: {
           id: customId,
@@ -2683,7 +2683,7 @@
 
       // 2. Direct pick at click coordinates if not already hovered, then open popup/tooltip
       let clickedFeature = this._hoveredFeature;
-      let clickedPopupHtml = (this.tooltipEl && this.tooltipEl.style.display === "block") ? this.tooltipEl.innerHTML : null;
+      let clickedPopupHtml = null;
       const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
       const picked = clickedFeature ? null : this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale);
       if (picked) {

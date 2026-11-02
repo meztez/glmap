@@ -358,6 +358,8 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   expect_length(tbl_html, 2L)
   expect_match(tbl_html[1], "<table")
   expect_match(tbl_html[1], "Montreal")
+  expect_match(tbl_html[1], "var\\(--gl-text-primary")
+  expect_match(tbl_html[1], "var\\(--gl-text-muted")
 
   wkt_str <- gl_bbox_to_wkt(c(-74, 45, -71, 47))
   expect_match(wkt_str, "^POLYGON \\(\\(-74\\.000000 45\\.000000")
