@@ -769,19 +769,23 @@
         gl.getExtension("OES_texture_float_linear");
       }
 
-      // 1. Point SDF Shader (anti-aliased circles + stroke + per-point RGBA & radius)
+      // 1. Point SDF Shader (anti-aliased circles + stroke + per-point RGBA & radius + 3D perspective depth & tilt foreshortening)
       const vsPoints = `
         attribute vec2 a_pos;
         attribute vec4 a_color;
         attribute float a_radius;
         uniform float u_dpr;
         uniform float u_opacity;
+        uniform float u_center_w;
         varying vec4 v_color;
         varying float v_radius;
         ${VS_PROJ_HEADER}
         void main() {
           gl_Position = projectMerc(a_pos, 0.0);
-          float r = max(1.5, a_radius);
+          float persp = (u_use_matrix > 0.5 && gl_Position.w > 0.0)
+            ? clamp(u_center_w / gl_Position.w, 0.35, 1.75)
+            : 1.0;
+          float r = max(1.2, a_radius * persp);
           gl_PointSize = (r * 2.0 + 3.0) * u_dpr;
           v_color = vec4(a_color.rgb / 255.0, u_opacity);
           v_radius = r;
@@ -794,14 +798,19 @@
         uniform float u_stroke;
         uniform vec3 u_stroke_color;
         uniform float u_stroke_width;
+        uniform float u_cos_pitch;
         void main() {
-          vec2 p = (gl_PointCoord - 0.5) * (v_radius * 2.0 + 3.0);
+          float cp = max(0.25, u_cos_pitch);
+          vec2 p0 = (gl_PointCoord - 0.5) * (v_radius * 2.0 + 3.0);
+          vec2 p = vec2(p0.x, p0.y / cp);
           float dist = length(p);
-          float outer_alpha = 1.0 - smoothstep(v_radius - 0.6, v_radius + 0.8, dist);
+          float grad = length(vec2(p.x, p.y / cp)) / max(0.1, dist);
+          float aa = 0.65 * grad;
+          float outer_alpha = 1.0 - smoothstep(v_radius - aa, v_radius + aa, dist);
           if (outer_alpha <= 0.01) discard;
-          if (u_stroke > 0.5 && v_radius >= 2.5) {
+          if (u_stroke > 0.5 && v_radius >= 2.2) {
             float inner_r = max(0.5, v_radius - u_stroke_width);
-            float stroke_mix = smoothstep(inner_r - 0.6, inner_r + 0.5, dist);
+            float stroke_mix = smoothstep(inner_r - 0.55 * grad, inner_r + 0.55 * grad, dist);
             vec3 rgb = mix(v_color.rgb, u_stroke_color / 255.0, stroke_mix * 0.85);
             gl_FragColor = vec4(rgb, v_color.a * outer_alpha);
           } else {
@@ -933,11 +942,15 @@
         attribute float a_icon_idx;
         uniform float u_dpr;
         uniform float u_icon_size;
+        uniform float u_center_w;
         varying float v_icon_idx;
         ${VS_PROJ_HEADER}
         void main() {
           gl_Position = projectMerc(a_pos, 0.0);
-          gl_PointSize = u_icon_size * u_dpr;
+          float persp = (u_use_matrix > 0.5 && gl_Position.w > 0.0)
+            ? clamp(u_center_w / gl_Position.w, 0.35, 1.75)
+            : 1.0;
+          gl_PointSize = u_icon_size * persp * u_dpr;
           v_icon_idx = a_icon_idx;
         }
       `;
@@ -947,8 +960,12 @@
         uniform sampler2D u_atlas_tex;
         uniform float u_atlas_count;
         uniform float u_opacity;
+        uniform float u_cos_pitch;
         void main() {
-          vec2 p = gl_PointCoord;
+          vec2 p = gl_PointCoord - 0.5;
+          p.y /= max(0.25, u_cos_pitch);
+          p += 0.5;
+          if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) discard;
           // Pad 4% inside cell to prevent texture bleeding across adjacent atlas sprites
           vec2 cell_uv = clamp(p, 0.02, 0.98);
           float u = (floor(v_icon_idx + 0.5) + cell_uv.x) / max(1.0, u_atlas_count);
@@ -1642,6 +1659,14 @@
           gl.uniform1f(locUseMat, 0.0);
         }
       }
+      const locCenterW = this._uLoc(prog, "u_center_w");
+      if (locCenterW) {
+        gl.uniform1f(locCenterW, this._curCenterW !== undefined ? this._curCenterW : 1.0);
+      }
+      const locCosPitch = this._uLoc(prog, "u_cos_pitch");
+      if (locCosPitch) {
+        gl.uniform1f(locCosPitch, this._curPitchCos !== undefined ? this._curPitchCos : 1.0);
+      }
     }
 
     mercToScreen(mx, my, cx, cy, scale, w, h) {
@@ -1725,10 +1750,15 @@
       const bRad = (this.camera.bearing || 0) * DEG2RAD;
       this._curRotCos = Math.cos(bRad);
       this._curRotSin = Math.sin(bRad);
+      const pRad = (this.camera.pitch || 0) * DEG2RAD;
+      this._curPitchCos = Math.max(0.25, Math.cos(pRad));
 
       const centerMercX = lonToMercX(this.camera.centerLon);
       const centerMercY = latToMercY(this.camera.centerLat);
       const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
+      this._curCenterW = this._curMatrix
+        ? Math.max(1e-6, this._curMatrix[3] * centerMercX + this._curMatrix[7] * centerMercY + this._curMatrix[15])
+        : 1.0;
 
       this._activeClusterBadges = [];
       this._activeSpiderfiedLegs = [];
@@ -2015,6 +2045,10 @@
           const hubMx = lonToMercX(sp.centerLon);
           const hubMy = latToMercY(sp.centerLat);
           const [hubSx, hubSy] = this.mercToScreen(hubMx, hubMy, cx, cy, scale, w, h);
+          const mMat = this._curMatrix;
+          const hubW = mMat ? Math.max(1e-6, mMat[3] * hubMx + mMat[7] * hubMy + mMat[15]) : 1.0;
+          const hubPersp = mMat ? Math.max(0.35, Math.min(1.75, (this._curCenterW || 1.0) / hubW)) : 1.0;
+          const cpSp = Math.max(0.25, this._curPitchCos || 1.0);
           const mCount = sp.indices.length;
           spScreenLegs = [];
           const legVertsMerc = new Float32Array(mCount * 4);
@@ -2029,8 +2063,8 @@
               legR = 28 + k * 4.5;
               ang = k * 0.65;
             }
-            const lx = hubSx + legR * Math.cos(ang);
-            const ly = hubSy + legR * Math.sin(ang);
+            const lx = hubSx + legR * hubPersp * Math.cos(ang);
+            const ly = hubSy + legR * hubPersp * Math.sin(ang) * cpSp;
             const [lLon, lLat] = this.screenToLonLat(lx, ly);
             const lmx = lonToMercX(lLon);
             const lmy = latToMercY(lLat);
@@ -2178,11 +2212,20 @@
       ctx.font = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      const mCl = this._curMatrix;
+      const cpCl = Math.max(0.35, this._curPitchCos || 1.0);
       for (let i = 0; i < clusters.length; i++) {
         const cl = clusters[i];
         const sx = cl.sumSx / cl.count;
         const sy = cl.sumSy / cl.count;
         const cnt = cl.count;
+        let perspCl = 1.0;
+        if (mCl && cl.firstIdx !== undefined) {
+          const cmx = mc[2 * cl.firstIdx];
+          const cmy = mc[2 * cl.firstIdx + 1];
+          const clW = Math.max(1e-6, mCl[3] * cmx + mCl[7] * cmy + mCl[15]);
+          perspCl = Math.max(0.45, Math.min(1.65, (this._curCenterW || 1.0) / clW));
+        }
         let outerCol = "rgba(181, 226, 140, 0.6)";
         let innerCol = "rgba(110, 204, 57, 0.85)";
         let rIn = 15;
@@ -2197,24 +2240,29 @@
         }
         const rOut = rIn + 5;
 
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.scale(perspCl, perspCl * cpCl);
+
         ctx.fillStyle = outerCol;
         ctx.beginPath();
-        ctx.arc(sx, sy, rOut, 0, Math.PI * 2);
+        ctx.arc(0, 0, rOut, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = innerCol;
         ctx.beginPath();
-        ctx.arc(sx, sy, rIn, 0, Math.PI * 2);
+        ctx.arc(0, 0, rIn, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = "#1e293b";
-        ctx.fillText(String(cnt), sx, sy + 0.5);
+        ctx.fillText(String(cnt), 0, 0.5);
+        ctx.restore();
 
         this._activeClusterBadges.push({
           layerId: layer.id,
           sx,
           sy,
-          r: rOut,
+          r: rOut * perspCl,
           count: cnt,
           indices: cl.indices,
           bbox: [cl.minLon, cl.minLat, cl.maxLon, cl.maxLat]
