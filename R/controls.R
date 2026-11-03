@@ -22,7 +22,7 @@
 #' @param marker_mode_auto,marker_mode_cluster,marker_mode_lod,marker_mode_atlas,marker_mode_points Option labels in the Marker / Icon Engine dropdown.
 #' @param basemap_groups Optional named character vector/list mapping basemap group IDs to display labels (e.g. `c("Light" = "Clair", "Dark" = "Sombre", "Satellite" = "Satellite")`).
 #' @param layer_groups Optional named character vector/list mapping overlay group IDs to display labels (e.g. `c("Risks" = "Risques")`).
-#' @param legend_default_title,layer_opacity,shader_palette,gpu_hillshade,custom_palette Labels inside legend and raster shader cards.
+#' @param legend_default_title,layer_opacity,extrude_elevation,extrude_coverage,extrude_upper_percentile,shader_palette,gpu_hillshade,custom_palette Labels inside legend, 3D extrusion, and raster shader cards.
 #' @param draw_poly_label,draw_rect_label,draw_circle_label,draw_line_label,draw_pin_label,draw_clear_label Short button labels on the draw toolbar.
 #' @param draw_poly_title,draw_rect_title,draw_circle_title,draw_line_title,draw_pin_title,draw_clear_title Hover tooltips on the draw toolbar.
 #' @param drawn_area_prefix,remove_drawn_button Labels inside the popup shown when clicking a drawn shape.
@@ -50,6 +50,9 @@ gl_labels <- function(
     layer_groups = NULL,
     legend_default_title = "Legend",
     layer_opacity = "Layer Opacity",
+    extrude_elevation = "Elevation",
+    extrude_coverage = "Coverage",
+    extrude_upper_percentile = "Upper Percentile",
     shader_palette = "GPU Shader Palette",
     gpu_hillshade = "Real-Time GPU Hillshade",
     custom_palette = "custom (R)",
@@ -104,6 +107,9 @@ gl_labels <- function(
     layer_groups = if (!is.null(layer_groups)) as.list(layer_groups) else stats::setNames(list(), character(0)),
     legend_default_title = as.character(legend_default_title[1]),
     layer_opacity = as.character(layer_opacity[1]),
+    extrude_elevation = as.character(extrude_elevation[1]),
+    extrude_coverage = as.character(extrude_coverage[1]),
+    extrude_upper_percentile = as.character(extrude_upper_percentile[1]),
     shader_palette = as.character(shader_palette[1]),
     gpu_hillshade = as.character(gpu_hillshade[1]),
     custom_palette = as.character(custom_palette[1]),
@@ -479,6 +485,7 @@ layers_control_options <- function(collapsed = TRUE, autoZIndex = TRUE) {
 #' @param labFormat Optional label format function (`leaflet` compatibility).
 #' @param data Optional dataset used to evaluate `values = ~col` formulas (defaults to map data).
 #' @param opacity_slider Optional logical; if `TRUE` (or by default when `group` / `layer_id` points to a map layer and `opacity_slider` is not `FALSE`), renders an interactive layer opacity slider in the legend card.
+#' @param extrude_controls Optional logical; if `TRUE` (default when `group` / `layer_id` points to an extruded polygon layer), renders interactive 3D extrusion sliders (`Elevation`, `Coverage`, `Upper Percentile`) in the legend card.
 #' @export
 add_legend <- function(
     map,
@@ -497,7 +504,8 @@ add_legend <- function(
     layerId = NULL,
     labFormat = NULL,
     data = NULL,
-    opacity_slider = NULL
+    opacity_slider = NULL,
+    extrude_controls = NULL
 ) {
   # Detect positional `add_legend(map, "bottomright", pal = ..., values = ...)`
   pos_tokens <- c("topleft", "topright", "bottomleft", "bottomright", "top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "center-left", "center-right")
@@ -559,7 +567,8 @@ add_legend <- function(
     position = pos_norm,
     direction = direction,
     order = as.numeric(order[1]),
-    opacity_slider = if (is.null(opacity_slider)) !is.null(group) else isTRUE(opacity_slider)
+    opacity_slider = if (is.null(opacity_slider)) !is.null(group) else isTRUE(opacity_slider),
+    extrude_controls = if (is.null(extrude_controls)) TRUE else isTRUE(extrude_controls)
   )
   if (inherits(map, "glmap_proxy")) {
     return(invoke_proxy_method(map, "addLegend", leg))

@@ -14,6 +14,7 @@ add_polygons(
   line_color = "#e2e8f0",
   line_width = 1,
   extrude = NULL,
+  extrude_options = NULL,
   popup = NULL,
   label = NULL,
   id = NULL,
@@ -52,6 +53,8 @@ add_polygons(
 \item{line_width}{Border line width in pixels (default \code{1.0}).}
 
 \item{extrude}{Optional 3D extrusion height aesthetic (formula \code{~height}, column name, or numeric).}
+
+\item{extrude_options}{Optional list of 3D extrusion parameters (\code{scale = "log" | "raw"}, \code{max_height = 35000}, \code{coverage = 0.88}, \code{upper_percentile = 99}, \code{pitch_scale = TRUE}, \code{zoom_adaptive = TRUE}, \code{viewport_ceiling = FALSE}, \code{wall_shading = 0.42}, \code{min_floor = 0.015}, \code{wireframe_pillars = TRUE}).}
 
 \item{popup}{Optional formula (\code{~name}), column name, or character vector for click/hover tooltips.}
 

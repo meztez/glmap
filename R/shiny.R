@@ -314,6 +314,71 @@ set_marker_mode <- function(
   map
 }
 
+#' Dynamically Update 3D Polygon Extrusion Parameters (`set_polygon_extrusion`)
+#'
+#' Live-updates 3D polygon extrusion scaling (`"log"` or `"raw"`),
+#' maximum height in meters, horizontal footprint coverage, upper percentile
+#' outlier ceiling, pitch emergence, zoom-adaptive ceiling, local viewport
+#' ceiling, and wall lighting contrast in 0 ms without re-sending polygon geometry.
+#'
+#' @param map A `glmap` widget or `glmap_proxy`.
+#' @param id Layer ID or group name.
+#' @param enabled Logical; whether 3D extrusion on tilt is enabled.
+#' @param scale Scaling mode: `"log"` (default) or `"raw"`.
+#' @param max_height Numeric maximum target column height in meters at reference zoom.
+#' @param coverage Numeric horizontal footprint scale (`0.25` to `1.0`, default `0.88`).
+#' @param upper_percentile Numeric percentile ceiling (`70` to `100`, default `99`) used for outlier normalization.
+#' @param pitch_scale Logical; if `TRUE`, smoothly scales height from `0` at `pitch = 0` to `1` at `pitch >= 45`.
+#' @param zoom_adaptive Logical; if `TRUE`, adapts maximum height to camera zoom level.
+#' @param viewport_ceiling Logical; if `TRUE`, computes the percentile ceiling from features visible in the current viewport.
+#' @param wall_shading Numeric directional wall contrast (`0` to `0.85`).
+#' @param min_floor Numeric minimum floor fraction (`0` to `0.15`, default `0.015`).
+#' @param wireframe_pillars Logical; if `TRUE`, draws vertical corner lines on 3D columns.
+#' @export
+set_polygon_extrusion <- function(
+    map,
+    id = NULL,
+    enabled = NULL,
+    scale = NULL,
+    max_height = NULL,
+    coverage = NULL,
+    upper_percentile = NULL,
+    pitch_scale = NULL,
+    zoom_adaptive = NULL,
+    viewport_ceiling = NULL,
+    wall_shading = NULL,
+    min_floor = NULL,
+    wireframe_pillars = NULL
+) {
+  patch <- list(id = if (!is.null(id)) as.character(id) else NULL)
+  if (!is.null(enabled)) patch$enabled <- isTRUE(enabled)
+  if (!is.null(scale)) patch$scale <- match.arg(as.character(scale[1]), c("log", "raw"))
+  if (!is.null(max_height)) patch$max_height <- as.numeric(max_height[1])
+  if (!is.null(coverage)) patch$coverage <- as.numeric(coverage[1])
+  if (!is.null(upper_percentile)) patch$upper_percentile <- as.numeric(upper_percentile[1])
+  if (!is.null(pitch_scale)) patch$pitch_scale <- isTRUE(pitch_scale)
+  if (!is.null(zoom_adaptive)) patch$zoom_adaptive <- isTRUE(zoom_adaptive)
+  if (!is.null(viewport_ceiling)) patch$viewport_ceiling <- isTRUE(viewport_ceiling)
+  if (!is.null(wall_shading)) patch$wall_shading <- as.numeric(wall_shading[1])
+  if (!is.null(min_floor)) patch$min_floor <- as.numeric(min_floor[1])
+  if (!is.null(wireframe_pillars)) patch$wireframe_pillars <- isTRUE(wireframe_pillars)
+
+  if (inherits(map, "glmap_proxy")) {
+    return(invoke_proxy_method(map, "setPolygonExtrusion", patch))
+  }
+  for (i in seq_along(map$x$layers)) {
+    lyr <- map$x$layers[[i]]
+    if (is.null(id) || identical(lyr$id, id) || identical(lyr$group, id)) {
+      cur <- map$x$layers[[i]]$style$extrude_options %||% list()
+      for (k in names(patch)) {
+        if (k != "id") cur[[k]] <- patch[[k]]
+      }
+      map$x$layers[[i]]$style$extrude_options <- cur
+    }
+  }
+  map
+}
+
 #' Filter Visible Features by Index on the GPU
 #'
 #' @param map A `glmap` widget or `glmap_proxy`.

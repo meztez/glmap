@@ -1277,6 +1277,7 @@ add_lines <- function(
 #' @param line_color Border line color string (default `"#ffffff"`).
 #' @param line_width Border line width in pixels (default `1.0`).
 #' @param extrude Optional 3D extrusion height aesthetic (formula `~height`, column name, or numeric).
+#' @param extrude_options Optional list of 3D extrusion parameters (`scale = "log" | "raw"`, `max_height = 35000`, `coverage = 0.88`, `upper_percentile = 99`, `pitch_scale = TRUE`, `zoom_adaptive = TRUE`, `viewport_ceiling = FALSE`, `wall_shading = 0.42`, `min_floor = 0.015`, `wireframe_pillars = TRUE`).
 #' @param lng,lat Optional coordinate vectors or formulas (`~long`, `~lat`) when `data` is a `data.frame` or `matrix` (such as `quakes[chull(...), ]`).
 #' @param fill Logical; whether to fill the interior of the polygon (default `TRUE`). When `FALSE`, renders an unfilled outline ring.
 #' @param fillColor,fillOpacity,color,weight,opacity,highlightOptions,labelOptions,dashArray,smoothFactor,layerId Optional `leaflet::addPolygons()` compatibility parameters.
@@ -1291,6 +1292,7 @@ add_polygons <- function(
     line_color = "#e2e8f0",
     line_width = 1.0,
     extrude = NULL,
+    extrude_options = NULL,
     popup = NULL,
     label = NULL,
     id = NULL,
@@ -1414,6 +1416,10 @@ add_polygons <- function(
     )
   }
 
+  if (is.list(extrude_options) && !is.null(extrude_options$scale)) {
+    extrude_options$scale <- match.arg(as.character(extrude_options$scale[1]), c("log", "raw"))
+  }
+
   layer_spec <- list(
     id = id,
     group = group,
@@ -1431,6 +1437,7 @@ add_polygons <- function(
       line_color = line_rgb,
       line_width = as.numeric(line_width),
       extruded = length(elev_vec) > 0L,
+      extrude_options = extrude_options,
       highlight = hl_spec
     ),
     feature_ids = if (length(layer_id_vals) == n && n <= 250000L) as.character(layer_id_vals) else NULL,

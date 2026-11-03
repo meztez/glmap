@@ -482,8 +482,28 @@ test_that("Superuser leaflet parity functions (add_circles, add_rectangles, add_
   # Verify GLMP binary buffer encodes per-feature elevation when extrude is supplied
   poly_ext <- gl_benchmark_data(n_points = 5L, n_polygons = 4L)$polygons_sf
   poly_ext$bldg_h <- c(25, 50, 100, 200)
-  m_ext <- glmap(poly_ext) |> add_polygons(extrude = ~bldg_h, id = "bldg3d")
+  m_ext <- glmap(poly_ext) |>
+    add_polygons(
+      extrude = ~bldg_h,
+      extrude_options = list(scale = "log", max_height = 35000, coverage = 0.88, upper_percentile = 99),
+      id = "bldg3d"
+    ) |>
+    set_polygon_extrusion(id = "bldg3d", scale = "raw", max_height = 45000, coverage = 0.80, upper_percentile = 95)
   expect_true(m_ext$x$layers[[1]]$style$extruded)
+  expect_equal(m_ext$x$layers[[1]]$style$extrude_options$scale, "raw")
+  expect_equal(m_ext$x$layers[[1]]$style$extrude_options$max_height, 45000)
+  expect_equal(m_ext$x$layers[[1]]$style$extrude_options$coverage, 0.80)
+  expect_equal(m_ext$x$layers[[1]]$style$extrude_options$upper_percentile, 95)
+
+  prx_ext <- glmap_proxy("map") |>
+    set_polygon_extrusion(id = "bldg3d", scale = "log", max_height = 35000, coverage = 0.88, upper_percentile = 99)
+  expect_equal(prx_ext$calls[[1]]$method, "setPolygonExtrusion")
+  expect_equal(prx_ext$calls[[1]]$args$scale, "log")
+  expect_equal(prx_ext$calls[[1]]$args$coverage, 0.88)
+  expect_equal(prx_ext$calls[[1]]$args$upper_percentile, 99)
+  expect_equal(lbl_def$extrude_elevation, "Elevation")
+  expect_equal(lbl_def$extrude_coverage, "Coverage")
+  expect_equal(lbl_def$extrude_upper_percentile, "Upper Percentile")
 })
 
 test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API works end-to-end", {

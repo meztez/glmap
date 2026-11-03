@@ -22,6 +22,9 @@
     layer_groups: {},
     legend_default_title: "Legend",
     layer_opacity: "Layer Opacity",
+    extrude_elevation: "Elevation",
+    extrude_coverage: "Coverage",
+    extrude_upper_percentile: "Upper Percentile",
     shader_palette: "GPU Shader Palette",
     gpu_hillshade: "Real-Time GPU Hillshade",
     custom_palette: "custom (R)",
@@ -751,8 +754,8 @@
 
     _initWebGL2Overlay() {
       const gl =
-        this.glCanvas.getContext("webgl2", { antialias: true, alpha: true, preserveDrawingBuffer: true }) ||
-        this.glCanvas.getContext("webgl", { antialias: true, alpha: true, preserveDrawingBuffer: true });
+        this.glCanvas.getContext("webgl2", { antialias: true, alpha: true, depth: true, preserveDrawingBuffer: true }) ||
+        this.glCanvas.getContext("webgl", { antialias: true, alpha: true, depth: true, preserveDrawingBuffer: true });
       this.gl = gl;
       if (!gl) {
         console.warn("WebGL context unavailable in this environment.");
@@ -826,12 +829,13 @@
         attribute vec4 a_color;
         attribute float a_elev;
         uniform float u_opacity;
+        uniform float u_elev_scale;
         uniform float u_use_uniform_color;
         uniform vec4 u_uniform_color;
         varying vec4 v_color;
         ${VS_PROJ_HEADER}
         void main() {
-          gl_Position = projectMerc(a_pos, a_elev);
+          gl_Position = projectMerc(a_pos, a_elev * u_elev_scale);
           v_color = u_use_uniform_color > 0.5 ? u_uniform_color : vec4(a_color.rgb / 255.0, u_opacity);
         }
       `;
@@ -1336,6 +1340,15 @@
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, entry.iboLine);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, parsed.lineIndices, gl.STATIC_DRAW);
           }
+
+          if (entry.type === "polygons" && parsed.featureElevation && parsed.nFeatures > 0) {
+            const grpKey = entry.group || entry.id;
+            const saved = this._extrudeUserOverrides && grpKey ? this._extrudeUserOverrides[grpKey] : null;
+            if (saved && entry.style) {
+              entry.style.extrude_options = Object.assign({}, entry.style.extrude_options || {}, saved);
+            }
+            this._buildPolygonExtrusionBuffers(entry);
+          }
         }
       } else if (entry.type === "raster") {
         const ab = await loadBinaryBuffer(entry.buffer);
@@ -1395,6 +1408,17 @@
           try { gl.deleteBuffer(entry[k]); } catch (e) {}
           entry[k] = null;
         }
+      }
+      if (entry.ext3d) {
+        const extBufs = ["vboPos", "vboCol", "vboElev", "iboTri", "iboLine"];
+        for (let i = 0; i < extBufs.length; i++) {
+          const k = extBufs[i];
+          if (entry.ext3d[k]) {
+            try { gl.deleteBuffer(entry.ext3d[k]); } catch (e) {}
+            entry.ext3d[k] = null;
+          }
+        }
+        entry.ext3d = null;
       }
       const texs = ["rasterTex", "lutTex", "atlasTex"];
       for (let i = 0; i < texs.length; i++) {
@@ -1669,12 +1693,12 @@
       }
     }
 
-    mercToScreen(mx, my, cx, cy, scale, w, h) {
+    mercToScreen(mx, my, cx, cy, scale, w, h, mz = 0) {
       const m = this._curMatrix;
       if (m) {
-        const clipX = m[0] * mx + m[4] * my + m[12];
-        const clipY = m[1] * mx + m[5] * my + m[13];
-        const clipW = m[3] * mx + m[7] * my + m[15];
+        const clipX = m[0] * mx + m[4] * my + m[8] * mz + m[12];
+        const clipY = m[1] * mx + m[5] * my + m[9] * mz + m[13];
+        const clipW = m[3] * mx + m[7] * my + m[11] * mz + m[15];
         if (clipW > 1e-6) {
           return [(clipX / clipW * 0.5 + 0.5) * w, (0.5 - clipY / clipW * 0.5) * h];
         }
@@ -1684,6 +1708,292 @@
       const c = this._curRotCos !== undefined ? this._curRotCos : 1.0;
       const s = this._curRotSin !== undefined ? this._curRotSin : 0.0;
       return [w * 0.5 + (dx * c + dy * s), h * 0.5 + (-dx * s + dy * c)];
+    }
+
+    _buildPolygonExtrusionBuffers(entry) {
+      const gl = this.gl;
+      const parsed = entry && entry.parsed;
+      if (!gl || !parsed || !parsed.featureElevation || !parsed.nFeatures) return;
+
+      if (!parsed._wallEdges) {
+        const walls = [];
+        const rs = parsed.ringStarts;
+        const mc = parsed.mercCoords;
+        if (rs && rs.length >= 2) {
+          for (let r = 0; r < rs.length - 1; r++) {
+            const s = rs[r], e = rs[r + 1];
+            for (let v = s; v + 1 < e; v++) {
+              const vNext = v + 1;
+              const dx = mc[2 * vNext] - mc[2 * v];
+              const dy = mc[2 * vNext + 1] - mc[2 * v + 1];
+              const d2 = dx * dx + dy * dy;
+              if (d2 > 1e-18 && d2 < 6.4e-5) {
+                const len = Math.sqrt(d2);
+                walls.push({ v0: v, v1: vNext, nx: -dy / len, ny: dx / len });
+              }
+            }
+          }
+        }
+        parsed._wallEdges = walls;
+      }
+
+      if (!parsed._featureCosLat) {
+        const fCos = new Float32Array(parsed.nFeatures);
+        fCos.fill(0.7);
+        const coords = parsed.coords;
+        const vfids = parsed.vertexFeatureIds;
+        for (let v = 0; v < parsed.nVertices; v++) {
+          fCos[vfids[v]] = Math.max(0.15, Math.cos(coords[2 * v + 1] * DEG2RAD));
+        }
+        parsed._featureCosLat = fCos;
+      }
+
+      const nRoofV = parsed.nVertices;
+      const walls = parsed._wallEdges;
+      const nWalls = walls.length;
+      const nVerts3D = nRoofV + 4 * nWalls;
+      const mc = parsed.mercCoords;
+      const vfids = parsed.vertexFeatureIds;
+
+      const basePos3D = new Float32Array(nVerts3D * 2);
+      const vertFid3D = new Uint32Array(nVerts3D);
+      basePos3D.set(mc, 0);
+      if (vfids) vertFid3D.set(vfids, 0);
+      for (let k = 0; k < nWalls; k++) {
+        const w = walls[k];
+        const fid = vfids ? vfids[w.v0] : 0;
+        const vOff = nRoofV + 4 * k;
+        const b = vOff * 2;
+        const x0 = mc[2 * w.v0], y0 = mc[2 * w.v0 + 1];
+        const x1 = mc[2 * w.v1], y1 = mc[2 * w.v1 + 1];
+        basePos3D[b] = x0; basePos3D[b + 1] = y0;
+        basePos3D[b + 2] = x1; basePos3D[b + 3] = y1;
+        basePos3D[b + 4] = x1; basePos3D[b + 5] = y1;
+        basePos3D[b + 6] = x0; basePos3D[b + 7] = y0;
+        vertFid3D[vOff] = fid;
+        vertFid3D[vOff + 1] = fid;
+        vertFid3D[vOff + 2] = fid;
+        vertFid3D[vOff + 3] = fid;
+      }
+      const pos3D = new Float32Array(basePos3D);
+
+      const baseTris = parsed.indices ? parsed.indices.length : 0;
+      const tri3D = new Uint32Array(baseTris + 6 * nWalls);
+      if (baseTris > 0) tri3D.set(parsed.indices, 0);
+      for (let k = 0; k < nWalls; k++) {
+        const b = nRoofV + 4 * k;
+        const t = baseTris + 6 * k;
+        tri3D[t] = b; tri3D[t + 1] = b + 1; tri3D[t + 2] = b + 2;
+        tri3D[t + 3] = b; tri3D[t + 4] = b + 2; tri3D[t + 5] = b + 3;
+      }
+
+      const nRoofLines = parsed.lineIndices ? parsed.lineIndices.length : 0;
+      const line3D = new Uint32Array(nRoofLines + 2 * nWalls);
+      if (nRoofLines > 0) line3D.set(parsed.lineIndices, 0);
+      for (let k = 0; k < nWalls; k++) {
+        const b = nRoofV + 4 * k;
+        const lOff = nRoofLines + 2 * k;
+        line3D[lOff] = b;
+        line3D[lOff + 1] = b + 3;
+      }
+
+      const vboPos = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vboPos);
+      gl.bufferData(gl.ARRAY_BUFFER, pos3D, gl.DYNAMIC_DRAW);
+
+      const vboCol = gl.createBuffer();
+      const vboElev = gl.createBuffer();
+
+      const iboTri = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iboTri);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, tri3D, gl.STATIC_DRAW);
+
+      const iboLine = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iboLine);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, line3D, gl.STATIC_DRAW);
+
+      entry.ext3d = {
+        nVerts3D,
+        nTris3D: tri3D.length,
+        nRoofLines,
+        nTotalLines: line3D.length,
+        vboPos,
+        vboCol,
+        vboElev,
+        iboTri,
+        iboLine,
+        basePos3D,
+        pos3D,
+        vertFid3D,
+        _lastCoverage: 1.0,
+        col3D: new Uint8Array(nVerts3D * 4),
+        elev3D: new Float32Array(nVerts3D),
+        featureElevMerc: new Float32Array(parsed.nFeatures)
+      };
+
+      this._updatePolygonExtrusionAttributes(entry, null);
+    }
+
+    _updatePolygonExtrusionAttributes(entry, viewportMercBbox = null) {
+      const gl = this.gl;
+      if (!gl || !entry || !entry.parsed || !entry.ext3d) return;
+      const parsed = entry.parsed;
+      const ext = entry.ext3d;
+      const extCfg = (entry.style && entry.style.extrude_options) || {};
+      const scaleMode = extCfg.scale || "log";
+      const maxHeight = Number(extCfg.max_height !== undefined ? extCfg.max_height : 35000);
+      const wallContrast = Number(extCfg.wall_shading !== undefined ? extCfg.wall_shading : 0.42);
+      const minFloor = Number(extCfg.min_floor !== undefined ? extCfg.min_floor : 0.015);
+      const coverage = Math.max(0.15, Math.min(1.0, Number(extCfg.coverage !== undefined ? extCfg.coverage : 0.88)));
+      const upperPct = Math.max(50, Math.min(100, Number(extCfg.upper_percentile !== undefined ? extCfg.upper_percentile : 99)));
+      const rawElev = parsed.featureElevation;
+      const nFeatures = parsed.nFeatures;
+
+      // Update horizontal hexagon footprint coverage around each feature centroid when coverage changes
+      const fBboxes = parsed.featureBboxes;
+      if (fBboxes && ext.basePos3D && ext.pos3D && ext.vertFid3D && Math.abs(coverage - (ext._lastCoverage || 1.0)) > 1e-4) {
+        const baseP = ext.basePos3D;
+        const outP = ext.pos3D;
+        const vFid = ext.vertFid3D;
+        const nV3D = ext.nVerts3D;
+        if (coverage >= 0.999) {
+          outP.set(baseP);
+        } else {
+          for (let v = 0; v < nV3D; v++) {
+            const fid = vFid[v];
+            const fb = 4 * fid;
+            const fcx = (fBboxes[fb] + fBboxes[fb + 2]) * 0.5;
+            const fcy = (fBboxes[fb + 1] + fBboxes[fb + 3]) * 0.5;
+            outP[2 * v] = fcx + coverage * (baseP[2 * v] - fcx);
+            outP[2 * v + 1] = fcy + coverage * (baseP[2 * v + 1] - fcy);
+          }
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, ext.vboPos);
+        gl.bufferData(gl.ARRAY_BUFFER, outP, gl.DYNAMIC_DRAW);
+        ext._lastCoverage = coverage;
+      }
+
+      // Collect positive finite values (optionally scoped to current viewport if viewport_ceiling is enabled)
+      const posVals = [];
+      if (extCfg.viewport_ceiling && Array.isArray(viewportMercBbox) && fBboxes) {
+        const [vx0, vy0, vx1, vy1] = viewportMercBbox;
+        for (let f = 0; f < nFeatures; f++) {
+          const v = rawElev[f];
+          if (!(v > 0) || !Number.isFinite(v)) continue;
+          const fb = 4 * f;
+          if (fBboxes[fb + 2] >= vx0 && fBboxes[fb] <= vx1 && fBboxes[fb + 3] >= vy0 && fBboxes[fb + 1] <= vy1) {
+            posVals.push(v);
+          }
+        }
+      }
+      if (posVals.length < 5) {
+        posVals.length = 0;
+        for (let f = 0; f < nFeatures; f++) {
+          const v = rawElev[f];
+          if (v > 0 && Number.isFinite(v)) posVals.push(v);
+        }
+      }
+      posVals.sort((a, b) => a - b);
+      const M = posVals.length;
+      const p05 = M > 0 ? posVals[Math.floor(M * 0.05)] : 0.0;
+      const p25 = M > 0 ? posVals[Math.floor(M * 0.25)] : 1.0;
+      const p99 = M > 0 ? posVals[Math.min(M - 1, Math.floor(M * (upperPct / 100.0)))] : 100.0;
+
+      const fElevMerc = ext.featureElevMerc;
+      const fCos = parsed._featureCosLat;
+      for (let f = 0; f < nFeatures; f++) {
+        const v = rawElev[f];
+        let meters = 0.0;
+        if (v > 0 && Number.isFinite(v)) {
+          if (scaleMode === "raw") {
+            meters = v;
+          } else {
+            // Default: "log" (floor-anchored log1p scale with upper_percentile ceiling + 1.25x contrast curve)
+            const ref = Math.max(1e-4, p25 * 0.5);
+            const vAdj = Math.max(0.0, v - p05);
+            const denom = Math.max(1e-6, Math.log1p(Math.max(1e-4, p99 - p05) / ref));
+            const tRaw = Math.min(1.18, Math.log1p(vAdj / ref) / denom);
+            const t = Math.pow(tRaw, 1.25);
+            meters = (minFloor + (1.0 - minFloor) * t) * maxHeight;
+          }
+        }
+        fElevMerc[f] = meters / (40075016.68557849 * (fCos ? fCos[f] : 0.7));
+      }
+
+      const nRoofV = parsed.nVertices;
+      const walls = parsed._wallEdges || [];
+      const nWalls = walls.length;
+      const vfids = parsed.vertexFeatureIds;
+      const fRgba = parsed.featureRgba;
+      const col3D = ext.col3D;
+      const elev3D = ext.elev3D;
+
+      for (let v = 0; v < nRoofV; v++) {
+        const fid = vfids[v];
+        elev3D[v] = fElevMerc[fid];
+        col3D[4 * v] = fRgba[4 * fid];
+        col3D[4 * v + 1] = fRgba[4 * fid + 1];
+        col3D[4 * v + 2] = fRgba[4 * fid + 2];
+        col3D[4 * v + 3] = fRgba[4 * fid + 3];
+      }
+
+      for (let k = 0; k < nWalls; k++) {
+        const w = walls[k];
+        const fid = vfids[w.v0];
+        const b = nRoofV + 4 * k;
+        const hMerc = fElevMerc[fid];
+        elev3D[b] = 0.0;
+        elev3D[b + 1] = 0.0;
+        elev3D[b + 2] = hMerc;
+        elev3D[b + 3] = hMerc;
+
+        const dotL = w.nx * 0.60 + w.ny * 0.80;
+        const topShade = Math.max(0.22, Math.min(1.05, 1.0 - wallContrast * (0.52 - 0.48 * dotL)));
+        const botShade = topShade * 0.80;
+        const r0 = fRgba[4 * fid], g0 = fRgba[4 * fid + 1], b0 = fRgba[4 * fid + 2], a0 = fRgba[4 * fid + 3];
+
+        const rBot = Math.min(255, Math.round(r0 * botShade));
+        const gBot = Math.min(255, Math.round(g0 * botShade));
+        const bBot = Math.min(255, Math.round(b0 * botShade));
+        const rTop = Math.min(255, Math.round(r0 * topShade));
+        const gTop = Math.min(255, Math.round(g0 * topShade));
+        const bTop = Math.min(255, Math.round(b0 * topShade));
+
+        const cOff = b * 4;
+        col3D[cOff] = rBot; col3D[cOff + 1] = gBot; col3D[cOff + 2] = bBot; col3D[cOff + 3] = a0;
+        col3D[cOff + 4] = rBot; col3D[cOff + 5] = gBot; col3D[cOff + 6] = bBot; col3D[cOff + 7] = a0;
+        col3D[cOff + 8] = rTop; col3D[cOff + 9] = gTop; col3D[cOff + 10] = bTop; col3D[cOff + 11] = a0;
+        col3D[cOff + 12] = rTop; col3D[cOff + 13] = gTop; col3D[cOff + 14] = bTop; col3D[cOff + 15] = a0;
+      }
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, ext.vboCol);
+      gl.bufferData(gl.ARRAY_BUFFER, col3D, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ext.vboElev);
+      gl.bufferData(gl.ARRAY_BUFFER, elev3D, gl.DYNAMIC_DRAW);
+    }
+
+    setPolygonExtrusion(patch) {
+      if (!patch) return;
+      const target = patch.id;
+      if (target) {
+        if (!this._extrudeUserOverrides) this._extrudeUserOverrides = {};
+        const prev = this._extrudeUserOverrides[target] || {};
+        if (patch.max_height !== undefined) prev.max_height = Number(patch.max_height);
+        if (patch.coverage !== undefined) prev.coverage = Number(patch.coverage);
+        if (patch.upper_percentile !== undefined) prev.upper_percentile = Number(patch.upper_percentile);
+        this._extrudeUserOverrides[target] = prev;
+      }
+      for (const l of this.layers.values()) {
+        if (l.type === "polygons" && (!target || l.id === target || l.group === target)) {
+          l.style = l.style || {};
+          l.style.extrude_options = Object.assign({}, l.style.extrude_options || {}, patch);
+          if (l.parsed && l.parsed.featureElevation) {
+            if (!l.ext3d) this._buildPolygonExtrusionBuffers(l);
+            else this._updatePolygonExtrusionAttributes(l, this._curViewportMercBbox || null);
+          }
+        }
+      }
+      this.requestRender();
     }
 
     _drawScene() {
@@ -1712,7 +2022,7 @@
 
       gl.viewport(0, 0, pw, ph);
       gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -2193,6 +2503,7 @@
         if (locMElev >= 0) { gl.disableVertexAttribArray(locMElev); gl.vertexAttrib1f(locMElev, 0.0); }
         this._applyProjectionUniforms(progM, cx, cy, scale, w, h);
         gl.uniform1f(this._uLoc(progM, "u_opacity"), 0.85);
+        gl.uniform1f(this._uLoc(progM, "u_elev_scale"), 0.0);
         gl.uniform1f(this._uLoc(progM, "u_use_uniform_color"), 0.0);
         gl.drawArrays(gl.LINES, 0, spScreenLegs.length * 2);
 
@@ -2313,6 +2624,75 @@
       gl.useProgram(prog);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+      const pitch = this.camera.pitch || 0;
+      const extCfg = (layer.style && layer.style.extrude_options) || {};
+      const use3D = Boolean(layer.ext3d && pitch > 0.5 && extCfg.enabled !== false);
+
+      let elevScale = 0.0;
+      if (use3D) {
+        const pitchFactor = extCfg.pitch_scale !== false
+          ? Math.min(1.0, Math.sin(pitch * DEG2RAD) / Math.sin(45.0 * DEG2RAD))
+          : 1.0;
+        const zoomFactor = extCfg.zoom_adaptive !== false
+          ? Math.max(0.01, Math.min(2.5, Math.pow(2.0, (6.5 - (this.camera.zoom || 6.5)) * 0.82)))
+          : 1.0;
+        elevScale = pitchFactor * zoomFactor;
+      }
+      layer._curElevScale = elevScale;
+
+      this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
+      gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(this._uLoc(prog, "u_elev_scale"), elevScale);
+      gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 0.0);
+
+      if (use3D && elevScale > 1e-4) {
+        const ext = layer.ext3d;
+        this._bindAttrib(prog, "a_pos", ext.vboPos, 2, gl.FLOAT);
+        this._bindAttrib(prog, "a_color", ext.vboCol, 4, gl.UNSIGNED_BYTE);
+        const locElev = this._aLoc(prog, "a_elev");
+        if (locElev >= 0) {
+          this._bindAttrib(prog, "a_elev", ext.vboElev, 1, gl.FLOAT);
+        }
+
+        if (ext.iboTri && ext.nTris3D > 0 && (!layer.style || layer.style.fill !== false) && layer.opacity > 0.001) {
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ext.iboTri);
+          gl.enable(gl.DEPTH_TEST);
+          gl.enable(gl.POLYGON_OFFSET_FILL);
+          gl.polygonOffset(1.0, 1.0);
+          // Subpass 1: Depth pre-pass so front-most roof/walls cleanly occlude internal back-walls & background columns
+          gl.depthFunc(gl.LESS);
+          gl.depthMask(true);
+          gl.colorMask(false, false, false, false);
+          gl.drawElements(gl.TRIANGLES, ext.nTris3D, gl.UNSIGNED_INT, 0);
+
+          // Subpass 2: Shaded color pass on visible front-most surfaces
+          gl.colorMask(true, true, true, true);
+          gl.depthFunc(gl.LEQUAL);
+          gl.depthMask(false);
+          gl.drawElements(gl.TRIANGLES, ext.nTris3D, gl.UNSIGNED_INT, 0);
+          gl.disable(gl.POLYGON_OFFSET_FILL);
+        }
+
+        if (layer.style && layer.style.stroke && ext.iboLine) {
+          const lc = layer.style.line_color || [226, 232, 240];
+          gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 1.0);
+          const lineAlpha = (layer.style && layer.style.fill === false) ? 0.92 : Math.min(1.0, Math.max(0.75, layer.opacity + 0.35));
+          gl.uniform4f(this._uLoc(prog, "u_uniform_color"), lc[0] / 255, lc[1] / 255, lc[2] / 255, lineAlpha);
+          gl.enable(gl.DEPTH_TEST);
+          gl.depthFunc(gl.LEQUAL);
+          gl.depthMask(false);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ext.iboLine);
+          const nLines = extCfg.wireframe_pillars === false ? ext.nRoofLines : ext.nTotalLines;
+          if (nLines > 0) {
+            gl.drawElements(gl.LINES, nLines, gl.UNSIGNED_INT, 0);
+          }
+        }
+
+        gl.depthMask(true);
+        gl.disable(gl.DEPTH_TEST);
+        return;
+      }
+
       this._bindAttrib(prog, "a_pos", layer.vboPos, 2, gl.FLOAT);
       this._bindAttrib(prog, "a_color", layer.vboCol, 4, gl.UNSIGNED_BYTE);
       const locElev = this._aLoc(prog, "a_elev");
@@ -2324,10 +2704,6 @@
           gl.vertexAttrib1f(locElev, 0.0);
         }
       }
-
-      this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
-      gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
-      gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 0.0);
 
       if (layer.iboTri && layer.parsed.nIndices > 0 && (!layer.style || layer.style.fill !== false) && layer.opacity > 0.001) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, layer.iboTri);
@@ -2360,6 +2736,7 @@
 
       this._applyProjectionUniforms(prog, cx, cy, scale, w, h);
       gl.uniform1f(this._uLoc(prog, "u_opacity"), layer.opacity);
+      gl.uniform1f(this._uLoc(prog, "u_elev_scale"), 0.0);
       gl.uniform1f(this._uLoc(prog, "u_use_uniform_color"), 0.0);
 
       if (layer.iboLine) {
@@ -2452,6 +2829,19 @@
       this._emitShiny("_pitch", this.camera.pitch || 0);
       this._emitShiny("_bearing", this.camera.bearing || 0);
 
+      const vx0 = lonToMercX(Math.min(xmin, xmax));
+      const vx1 = lonToMercX(Math.max(xmin, xmax));
+      const vy0 = latToMercY(Math.max(ymin, ymax));
+      const vy1 = latToMercY(Math.min(ymin, ymax));
+      this._curViewportMercBbox = [vx0, vy0, vx1, vy1];
+
+      for (const layer of this.layers.values()) {
+        if (layer.visible && layer.type === "polygons" && layer.ext3d && layer.style && layer.style.extrude_options && layer.style.extrude_options.viewport_ceiling) {
+          this._updatePolygonExtrusionAttributes(layer, this._curViewportMercBbox);
+          this.requestRender();
+        }
+      }
+
       // Dynamic viewport spatial index streaming
       for (const layer of this.layers.values()) {
         if (layer.viewport_url && layer.visible) {
@@ -2532,7 +2922,7 @@
       const tolMerc = 8.0 / scale;
 
       if (!hitFeature) {
-        const picked = this._pickFeatureAt(lon, lat, mx, my, tolMerc);
+        const picked = this._pickFeatureAt(lon, lat, mx, my, tolMerc, px, py);
         if (picked) {
           hitFeature = picked.feature;
           hitText = picked.tooltip;
@@ -2585,7 +2975,7 @@
       };
     }
 
-    _pickFeatureAt(lon, lat, mx, my, tolMerc) {
+    _pickFeatureAt(lon, lat, mx, my, tolMerc, px = null, py = null) {
       const ids = this.layerOrder.slice().reverse();
       // Pass 1: check points and labels first so point markers on top of polygons win
       for (const id of ids) {
@@ -2602,19 +2992,73 @@
         }
       }
 
-      // Pass 2: check polygon interiors (using earstrip/earcut triangles) & line/polygon vertices
+      // Pass 2: check polygon interiors (using earstrip/earcut triangles, with 3D prism picking when extruded & tilted) & line/polygon vertices
+      const mapW = this.el.clientWidth || 800;
+      const mapH = this.el.clientHeight || 600;
+      const mapScale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
+      const cmx = lonToMercX(this.camera.centerLon);
+      const cmy = latToMercY(this.camera.centerLat);
+
       for (const id of ids) {
         const layer = this.layers.get(id);
         if (!layer || !layer.visible || !layer.parsed) continue;
         if (layer.type === "points" || layer.type === "labels") continue;
         const bb = layer.bbox || layer.parsed.bbox;
         if (Array.isArray(bb) && bb.length >= 4) {
-          if (lon < bb[0] - 0.05 || lat < bb[1] - 0.05 || lon > bb[2] + 0.05 || lat > bb[3] + 0.05) continue;
+          if (lon < bb[0] - 0.5 || lat < bb[1] - 0.5 || lon > bb[2] + 0.5 || lat > bb[3] + 0.5) continue;
         }
         const mc = layer.parsed.mercCoords;
         const indices = layer.parsed.indices;
         const vfids = layer.parsed.vertexFeatureIds;
         const fBboxes = layer.parsed.featureBboxes;
+
+        // 2a. 3D Extruded Prism Screen-Space Picking when tilted
+        if (layer.type === "polygons" && layer.ext3d && layer._curElevScale > 1e-4 && Number.isFinite(px) && Number.isFinite(py) && mc && indices && indices.length >= 3 && vfids) {
+          const elevScale = layer._curElevScale;
+          const fElevs = layer.ext3d.featureElevMerc;
+          let bestFid = -1;
+          let bestFrontScore = -1e9;
+
+          for (let t = 0; t + 2 < indices.length; t += 3) {
+            const i0 = indices[t];
+            const fid = vfids[i0];
+            const mz = (fElevs ? fElevs[fid] : 0.0) * elevScale;
+            if (fBboxes) {
+              const fb = 4 * fid;
+              const fcx = (fBboxes[fb] + fBboxes[fb + 2]) * 0.5;
+              const fcy = (fBboxes[fb + 1] + fBboxes[fb + 3]) * 0.5;
+              const [scx0, scy0] = this.mercToScreen(fcx, fcy, cmx, cmy, mapScale, mapW, mapH, 0);
+              const [scx1, scy1] = this.mercToScreen(fcx, fcy, cmx, cmy, mapScale, mapW, mapH, mz);
+              if (px < Math.min(scx0, scx1) - 90 || px > Math.max(scx0, scx1) + 90 ||
+                  py < Math.min(scy0, scy1) - 90 || py > Math.max(scy0, scy1) + 90) continue;
+            }
+            const i1 = indices[t + 1], i2 = indices[t + 2];
+            const ax = mc[2 * i0], ay = mc[2 * i0 + 1];
+            const bx = mc[2 * i1], by = mc[2 * i1 + 1];
+            const cx = mc[2 * i2], cy = mc[2 * i2 + 1];
+            const [sax, say] = this.mercToScreen(ax, ay, cmx, cmy, mapScale, mapW, mapH, mz);
+            const [sbx, sby] = this.mercToScreen(bx, by, cmx, cmy, mapScale, mapW, mapH, mz);
+            const [scx, scy] = this.mercToScreen(cx, cy, cmx, cmy, mapScale, mapW, mapH, mz);
+            if (px >= Math.min(sax, sbx, scx) && px <= Math.max(sax, sbx, scx) &&
+                py >= Math.min(say, sby, scy) && py <= Math.max(say, sby, scy)) {
+              const d1 = (px - sbx) * (say - sby) - (sax - sbx) * (py - sby);
+              const d2 = (px - scx) * (sby - scy) - (sbx - scx) * (py - scy);
+              const d3 = (px - sax) * (scy - say) - (scx - sax) * (py - say);
+              if (!(((d1 < 0) || (d2 < 0) || (d3 < 0)) && ((d1 > 0) || (d2 > 0) || (d3 > 0)))) {
+                const [, gay] = this.mercToScreen(ax, ay, cmx, cmy, mapScale, mapW, mapH, 0);
+                const frontScore = gay + mz * 500;
+                if (frontScore > bestFrontScore) {
+                  bestFrontScore = frontScore;
+                  bestFid = fid;
+                }
+              }
+            }
+          }
+          if (bestFid >= 0) {
+            return this._buildPickedResult(layer, bestFid, lon, lat);
+          }
+        }
+
         if (layer.type === "polygons" && mc && indices && indices.length >= 3 && vfids) {
           for (let t = 0; t + 2 < indices.length; t += 3) {
             const i0 = indices[t];
@@ -2733,7 +3177,7 @@
       let clickedFeature = this._hoveredFeature;
       let clickedPopupHtml = null;
       const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
-      const picked = clickedFeature ? null : this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale);
+      const picked = clickedFeature ? null : this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale, px, py);
       if (picked) {
         clickedFeature = picked.feature;
         if (picked.popup) clickedPopupHtml = picked.popup;
@@ -3101,6 +3545,29 @@
               <input type="range" class="gl-op-slider" min="0" max="1" step="0.05" value="${curOp}" style="width:100%;accent-color:var(--gl-accent);cursor:pointer;margin-top:2px"/>
             </div>
           `;
+          const has3D = targetLayer.type === "polygons" && (targetLayer.ext3d || (targetLayer.style && (targetLayer.style.extrude || targetLayer.style.extrude_options)));
+          if (has3D && leg.extrude_controls !== false) {
+            const extCfg = (targetLayer.style && targetLayer.style.extrude_options) || {};
+            const curKm = Math.round(Number(extCfg.max_height !== undefined ? extCfg.max_height : 35000) / 1000);
+            const curCov = Number(extCfg.coverage !== undefined ? extCfg.coverage : 0.88);
+            const curUpPct = Number(extCfg.upper_percentile !== undefined ? extCfg.upper_percentile : 99);
+            html += `
+              <div class="glmap-extrude-ctrl" data-target-id="${opTarget}" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--gl-divider);display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-size:10.5px;color:var(--gl-text-muted);white-space:nowrap">${this._t("extrude_elevation")} <b class="gl-ext-km-val" style="font-weight:600;color:var(--gl-text)">${curKm}km</b></span>
+                  <input type="range" class="gl-ext-km-slider" min="5" max="100" step="5" value="${curKm}" style="width:52%;accent-color:var(--gl-accent);cursor:pointer;margin:0"/>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-size:10.5px;color:var(--gl-text-muted);white-space:nowrap">${this._t("extrude_coverage")} <b class="gl-ext-cov-val" style="font-weight:600;color:var(--gl-text)">${Math.round(curCov * 100)}%</b></span>
+                  <input type="range" class="gl-ext-cov-slider" min="0.25" max="1" step="0.05" value="${curCov}" style="width:52%;accent-color:var(--gl-accent);cursor:pointer;margin:0"/>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-size:10.5px;color:var(--gl-text-muted);white-space:nowrap">${this._t("extrude_upper_percentile")} <b class="gl-ext-pct-val" style="font-weight:600;color:var(--gl-text)">${curUpPct}%</b></span>
+                  <input type="range" class="gl-ext-pct-slider" min="70" max="100" step="1" value="${curUpPct}" style="width:52%;accent-color:var(--gl-accent);cursor:pointer;margin:0"/>
+                </div>
+              </div>
+            `;
+          }
         }
         card.innerHTML = html;
         this.legendsEl.appendChild(card);
@@ -3141,6 +3608,38 @@
               const v = Number(e.target.value);
               if (opVal) opVal.textContent = `${Math.round(v * 100)}%`;
               this.setLayerOpacity(tid, v);
+            });
+          }
+        }
+
+        const extCtrl = card.querySelector(".glmap-extrude-ctrl");
+        if (extCtrl) {
+          const tid = extCtrl.getAttribute("data-target-id");
+          const kmSlider = extCtrl.querySelector(".gl-ext-km-slider");
+          const kmVal = extCtrl.querySelector(".gl-ext-km-val");
+          const covSlider = extCtrl.querySelector(".gl-ext-cov-slider");
+          const covVal = extCtrl.querySelector(".gl-ext-cov-val");
+          const pctSlider = extCtrl.querySelector(".gl-ext-pct-slider");
+          const pctVal = extCtrl.querySelector(".gl-ext-pct-val");
+          if (kmSlider && tid) {
+            kmSlider.addEventListener("input", (e) => {
+              const km = Number(e.target.value);
+              if (kmVal) kmVal.textContent = `${km}km`;
+              this.setPolygonExtrusion({ id: tid, max_height: km * 1000 });
+            });
+          }
+          if (covSlider && tid) {
+            covSlider.addEventListener("input", (e) => {
+              const cov = Number(e.target.value);
+              if (covVal) covVal.textContent = `${Math.round(cov * 100)}%`;
+              this.setPolygonExtrusion({ id: tid, coverage: cov });
+            });
+          }
+          if (pctSlider && tid) {
+            pctSlider.addEventListener("input", (e) => {
+              const pct = Number(e.target.value);
+              if (pctVal) pctVal.textContent = `${pct}%`;
+              this.setPolygonExtrusion({ id: tid, upper_percentile: pct });
             });
           }
         }
@@ -4258,6 +4757,10 @@
           const fids = hLayer.parsed.vertexFeatureIds;
           const rs = hLayer.parsed.ringStarts;
           const col = Array.isArray(hl.color) ? `rgb(${hl.color[0]},${hl.color[1]},${hl.color[2]})` : "#ffffff";
+          const elevScale = hLayer._curElevScale || 0.0;
+          const fElevMerc = (elevScale > 1e-4 && hLayer.ext3d && hLayer.ext3d.featureElevMerc)
+            ? (hLayer.ext3d.featureElevMerc[targetFid] || 0.0) * elevScale
+            : 0.0;
           ctx.strokeStyle = col;
           ctx.lineWidth = Number(hl.weight || 3.0);
           ctx.setLineDash([]);
@@ -4267,7 +4770,7 @@
               if (s < e && fids[s] === targetFid) {
                 ctx.beginPath();
                 for (let v = s; v < e; v++) {
-                    const [sx, sy] = this.mercToScreen(mc[2 * v], mc[2 * v + 1], cx, cy, scale, w, h);
+                    const [sx, sy] = this.mercToScreen(mc[2 * v], mc[2 * v + 1], cx, cy, scale, w, h, fElevMerc);
                     if (v === s) ctx.moveTo(sx, sy);
                     else ctx.lineTo(sx, sy);
                   }

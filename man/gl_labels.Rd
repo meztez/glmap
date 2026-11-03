@@ -22,6 +22,9 @@ gl_labels(
   layer_groups = NULL,
   legend_default_title = "Legend",
   layer_opacity = "Layer Opacity",
+  extrude_elevation = "Elevation",
+  extrude_coverage = "Coverage",
+  extrude_upper_percentile = "Upper Percentile",
   shader_palette = "GPU Shader Palette",
   gpu_hillshade = "Real-Time GPU Hillshade",
   custom_palette = "custom (R)",
@@ -73,7 +76,7 @@ set_labels(map, labels = NULL, ...)
 
 \item{layer_groups}{Optional named character vector/list mapping overlay group IDs to display labels (e.g. \code{c("Risks" = "Risques")}).}
 
-\item{legend_default_title, layer_opacity, shader_palette, gpu_hillshade, custom_palette}{Labels inside legend and raster shader cards.}
+\item{legend_default_title, layer_opacity, extrude_elevation, extrude_coverage, extrude_upper_percentile, shader_palette, gpu_hillshade, custom_palette}{Labels inside legend, 3D extrusion, and raster shader cards.}
 
 \item{draw_poly_label, draw_rect_label, draw_circle_label, draw_line_label, draw_pin_label, draw_clear_label}{Short button labels on the draw toolbar.}
 
