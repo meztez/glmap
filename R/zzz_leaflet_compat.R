@@ -29,11 +29,11 @@
 #' @param icon,iconUrl,iconRetinaUrl,iconWidth,iconHeight,iconAnchorX,iconAnchorY,shadowUrl,shadowRetinaUrl,shadowWidth,shadowHeight,shadowAnchorX,shadowAnchorY,popupAnchorX,popupAnchorY,className Marker icon parameters.
 #' @param library,markerColor,iconColor,spin,extraClasses,squareMarker,iconRotate,fontFamily,text Awesome marker parameters.
 #' @param clusterOptions,clusterId,showCoverageOnHover,zoomToBoundsOnClick,spiderfyOnMaxZoom,disableClusteringAtZoom,maxClusterRadius,freezeAtZoom,render_mode,lod_zoom,id Clustering and GPU marker rendering parameters.
-#' @param radius,stroke,color,weight,opacity,fill,fillColor,fillOpacity,dashArray,smoothFactor,palette,fill_color,fill_opacity,line_color,line_width,extrude,legend Shape and point styling parameters.
+#' @param radius,stroke,color,weight,opacity,fill,fillColor,fillOpacity,dashArray,smoothFactor,palette,fill_color,fill_opacity,line_color,line_width,extrude,extrude_options,legend Shape and point styling parameters.
 #' @param popup,popupOptions,label,labelOptions,highlightOptions,maxWidth,minWidth,maxHeight,autoPan,keepInView,closeButton,closeOnClick,interactive,clickable,noHide,permanent,direction,offset,textsize,textOnly,style,sticky,bringToFront,sendToBack Popup, label, and hover highlight parameters.
 #' @param x,colors,project,method,maxBytes Raster parameters for `addRasterImage()`.
 #' @param baseUrl,layers,styles,format,transparent,version WMS parameters for `addWMSTiles()`.
-#' @param title,labels,domain,position,order,pal,values,labFormat,opacity_slider Legend parameters for `addLegend()`.
+#' @param title,labels,domain,position,order,pal,values,labFormat,opacity_slider,extrude_controls Legend parameters for `addLegend()`.
 #' @param baseGroups,overlayGroups,collapsed,autoZIndex Layer control parameters.
 #' @param primaryLengthUnit,secondaryLengthUnit,primaryAreaUnit,secondaryAreaUnit,activeColor,completedColor,localization Measurement control parameters.
 #' @param zoomLevelOffset,toggleDisplay,aimingRectOptions,interval,sphere,resolution,time MiniMap, Graticule, and Terminator parameters.

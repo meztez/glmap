@@ -610,13 +610,13 @@ leafletProxy(mapId, session = NULL, data = NULL, deferUntilFlush = TRUE)
 
 \item{library, markerColor, iconColor, spin, extraClasses, squareMarker, iconRotate, fontFamily, text}{Awesome marker parameters.}
 
-\item{radius, stroke, color, weight, opacity, fill, fillColor, fillOpacity, dashArray, smoothFactor, palette, fill_color, fill_opacity, line_color, line_width, extrude, legend}{Shape and point styling parameters.}
+\item{radius, stroke, color, weight, opacity, fill, fillColor, fillOpacity, dashArray, smoothFactor, palette, fill_color, fill_opacity, line_color, line_width, extrude, extrude_options, legend}{Shape and point styling parameters.}
 
 \item{x, colors, project, method, maxBytes}{Raster parameters for \code{addRasterImage()}.}
 
 \item{baseUrl, layers, styles, format, transparent, version}{WMS parameters for \code{addWMSTiles()}.}
 
-\item{title, labels, domain, position, order, pal, values, labFormat, opacity_slider}{Legend parameters for \code{addLegend()}.}
+\item{title, labels, domain, position, order, pal, values, labFormat, opacity_slider, extrude_controls}{Legend parameters for \code{addLegend()}.}
 
 \item{baseGroups, overlayGroups, collapsed, autoZIndex}{Layer control parameters.}
 

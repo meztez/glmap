@@ -49,6 +49,7 @@ Suggests:
     shiny,
     terra,
     testthat (>= 3.0.0),
+    V8,
     wk
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0

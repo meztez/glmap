@@ -106,6 +106,7 @@ reference:
       - set_layer_visibility
       - set_layer_opacity
       - set_raster_style
+      - set_polygon_extrusion
       - set_marker_mode
       - set_filter
 

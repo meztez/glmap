@@ -23,8 +23,19 @@ update_maplibre_assets <- function(pkg_dir = ".", target_version = NULL, check_o
   current_version <- trimws(sub("^\\s*version:\\s*", "", yaml_lines[ver_idx[1L]]))
 
   if (is.null(target_version) || !nzchar(target_version)) {
-    npm_meta <- jsonlite::fromJSON("https://registry.npmjs.org/maplibre-gl/latest")
-    target_version <- as.character(npm_meta$version[1L])
+    npm_url <- "https://registry.npmjs.org/maplibre-gl/latest"
+    if (requireNamespace("jsonlite", quietly = TRUE)) {
+      npm_meta <- jsonlite::fromJSON(npm_url)
+      target_version <- as.character(npm_meta$version[1L])
+    } else {
+      raw_json <- paste(readLines(npm_url, warn = FALSE, encoding = "UTF-8"), collapse = "")
+      m <- regexec('"version"\\s*:\\s*"([0-9]+\\.[0-9]+\\.[0-9]+[^"]*)"', raw_json, perl = TRUE)
+      hits <- regmatches(raw_json, m)[[1L]]
+      if (length(hits) < 2L || !nzchar(hits[2L])) {
+        stop("Could not parse latest maplibre-gl version from npm registry.", call. = FALSE)
+      }
+      target_version <- hits[2L]
+    }
   }
 
   is_newer <- utils::compareVersion(target_version, current_version) > 0L
