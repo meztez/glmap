@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glmap</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,6 +47,27 @@
       <small>Source: <a href="https://github.com/meztez/glmap/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.3" id="glmap-103">glmap 1.0.3<a class="anchor" aria-label="anchor" href="#glmap-103"></a></h2>
+<ul><li>
+<strong>3D Polygon Prism Extrusion, Perspective Camera &amp; Bearing Rotation</strong>:
+<ul><li>Added 3D polygon prism extrusion (<code>extrude</code>, <code>extrude_options</code>, <code>extrude_controls</code>, and live <code><a href="../reference/set_polygon_extrusion.html">set_polygon_extrusion()</a></code>) with <code>log</code>/<code>raw</code> scaling, depth pre-pass, directional wall shading, wireframe pillars, and interactive legend controls.</li>
+<li>Upgraded WebGL2 projection to use MapLibre’s 4x4 perspective matrix with full 2D bearing rotation, drag compass, and perspective depth scaling + tilt foreshortening for point and custom icon markers.</li>
+</ul></li>
+<li>
+<strong>High-Density Marker Performance, Picking &amp; Opaque Icons (<code>200k+</code> points)</strong>:
+<ul><li>Removed the lossy <code>&gt;150k</code> vertex picking stride in <code>_pickFeatureAt()</code>, prioritizing cached visible singletons in cluster mode, selecting the nearest marker, and using icon-aware hit tolerances across hover and click.</li>
+<li>Added zero-allocation flat-2D Mercator bounding-box pre-culling and inline scalar projection in <code>_drawClusteredLayer()</code> plus GPU VBO/texture cleanup, cached uniform/attribute locations, and RAF hover throttling.</li>
+<li>Binary-packed large (<code>&gt; 4,096</code>) icon index arrays (<code>u8</code>/<code>u16</code> gzip+base64) and tooltip/popup/feature-ID string tables with deferred async hydration after first draw, and coalesced icon atlas <code>texImage2D</code> uploads via <code>requestAnimationFrame</code>.</li>
+<li>Changed <code><a href="../reference/add_markers.html">add_markers()</a></code> default <code>opacity</code> to <code>1.0</code> when custom <code>icon</code> sprites are provided (<code>0.85</code> otherwise) so opaque PNG/SVG icons do not bleed basemap features.</li>
+</ul></li>
+<li>
+<strong>UI Controls, Localization, Rendering &amp; Shiny Fixes</strong>:
+<ul><li>Added <code><a href="../reference/gl_labels.html">gl_labels()</a></code> and <code><a href="../reference/gl_labels.html">set_labels()</a></code> for customizable UI labels, adaptive light/dark control theme (<code>ui_theme = "auto"</code>), and 9-zone dock mounting for zoom/compass controls.</li>
+<li>Enforced Leaflet-style pane z-order (<code>rasters -&gt; polygons -&gt; lines -&gt; heatmaps -&gt; points -&gt; labels</code>), fixed CDT Steiner extra-point ring isolation on polygon strokes, added theme-aware CSS variables to <code><a href="../reference/gl_popup_table.html">gl_popup_table()</a></code>, and reserved <code>.glmap-popup</code> header space for the close button.</li>
+<li>Debounced Shiny <code>_groups</code> emissions on <code><a href="../reference/leaflet_compat.html">clearGroup()</a></code> + <code>addLayer()</code> batches, fixed <code>dispatch_layer()</code> proxy return values, and synced <code>glmap-gl</code> HTML dependency version (<code>1.0.3</code>) to bust stale browser JS/CSS caches.</li>
+</ul></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.2" id="glmap-102">glmap 1.0.2<a class="anchor" aria-label="anchor" href="#glmap-102"></a></h2>
 <ul><li>
