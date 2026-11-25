@@ -549,8 +549,7 @@ update_map_bounds <- function(map, bbox) {
 
 dispatch_layer <- function(map, layer_spec, legend_spec = NULL, bbox = NULL) {
   if (inherits(map, "glmap_proxy")) {
-    invoke_proxy_method(map, "addLayer", list(layer = layer_spec, legend = legend_spec, bbox = bbox))
-    return(map)
+    return(invoke_proxy_method(map, "addLayer", list(layer = layer_spec, legend = legend_spec, bbox = bbox)))
   }
   map$x$layers[[length(map$x$layers) + 1L]] <- layer_spec
   if (!is.null(legend_spec)) {
@@ -760,7 +759,7 @@ add_points <- function(
       render = render_spec,
       label_options = labelOptions
     ),
-    feature_ids = if (length(layer_id_vals) == n && n <= 250000L) as.character(layer_id_vals) else NULL,
+    feature_ids = if (length(layer_id_vals) == n && n <= 250000L) pack_string_vector(as.character(layer_id_vals)) else NULL,
     tooltips = tooltips,
     popups = popups
   )
@@ -1117,6 +1116,31 @@ resolve_icon_render_spec <- function(render_mode = "auto", lod_zoom = NULL, n = 
   )
 }
 
+pack_icon_indices <- function(idx0, n_atlas, threshold = 4096L) {
+  idx0 <- as.integer(idx0)
+  if (anyNA(idx0)) idx0[is.na(idx0)] <- 0L
+  if (length(idx0) <= threshold) {
+    return(list(indices = if (length(idx0) == 1L) idx0 else idx0, indices_buf = NULL))
+  }
+  if (n_atlas <= 256L) {
+    raw_idx <- as.raw(pmax(0L, pmin(255L, idx0)))
+    dtype <- "u8"
+  } else {
+    raw_idx <- writeBin(pmax(0L, pmin(65535L, idx0)), raw(), size = 2L, endian = "little")
+    dtype <- "u16"
+  }
+  gz_idx <- memCompress(raw_idx, type = "gzip")
+  list(
+    indices = NULL,
+    indices_buf = list(
+      mode = "inline_gzip",
+      dtype = dtype,
+      n = length(idx0),
+      data = base64enc::base64encode(gz_idx)
+    )
+  )
+}
+
 resolve_icon_spec <- function(icon, data, n) {
   if (is.null(icon) || n == 0L) return(NULL)
   if (inherits(icon, "formula")) {
@@ -1130,10 +1154,12 @@ resolve_icon_spec <- function(icon, data, n) {
     f <- as.factor(urls)
     atlas <- levels(f)
     idx0 <- as.integer(f) - 1L
+    packed <- pack_icon_indices(idx0, length(atlas))
     return(list(
       type = "url",
       atlas = as.list(atlas),
-      indices = if (length(idx0) == 1L) idx0 else as.integer(idx0),
+      indices = packed$indices,
+      indices_buf = packed$indices_buf,
       width = as.numeric(icon$iconWidth[1] %||% 28),
       height = as.numeric(icon$iconHeight[1] %||% 28)
     ))
@@ -1154,10 +1180,12 @@ resolve_icon_spec <- function(icon, data, n) {
       parts <- strsplit(k, "\\|")[[1]]
       list(markerColor = parts[1], iconColor = parts[2], text = parts[3])
     })
+    packed <- pack_icon_indices(idx0, length(atlas_items))
     return(list(
       type = "awesome",
       atlas = atlas_items,
-      indices = if (length(idx0) == 1L) idx0 else as.integer(idx0),
+      indices = packed$indices,
+      indices_buf = packed$indices_buf,
       text = txts[1],
       markerColor = mcols[1],
       iconColor = icols[1],
@@ -1445,7 +1473,7 @@ add_polygons <- function(
       extrude_options = extrude_options,
       highlight = hl_spec
     ),
-    feature_ids = if (length(layer_id_vals) == n && n <= 250000L) as.character(layer_id_vals) else NULL,
+    feature_ids = if (length(layer_id_vals) == n && n <= 250000L) pack_string_vector(as.character(layer_id_vals)) else NULL,
     tooltips = tooltips,
     popups = popups
   )
@@ -1691,7 +1719,7 @@ add_hexbin <- function(
       line_width = 0.75,
       extruded = isTRUE(extrude)
     ),
-    tooltips = if (n_bins <= 20000L) tooltips else NULL
+    tooltips = if (n_bins <= 20000L) pack_string_vector(tooltips) else NULL
   )
 
   legend_spec <- if (isTRUE(legend)) col_res$legend else NULL

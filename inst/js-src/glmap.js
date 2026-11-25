@@ -214,6 +214,18 @@
     return bytes.buffer;
   }
 
+  function isPackedStringTable(spec) {
+    return Boolean(spec && !Array.isArray(spec) && typeof spec === "object" && typeof spec.data === "string" && spec.mode);
+  }
+
+  async function decodePackedStrings(spec) {
+    if (!isPackedStringTable(spec)) return spec;
+    const ab = await loadBinaryBuffer(spec);
+    if (!ab) return null;
+    const text = new TextDecoder("utf-8").decode(ab);
+    return text.split(spec.sep || "\x1f");
+  }
+
   // Parse 48-byte GLMP binary vector packet into zero-copy TypedArray views
   function parseGlmpBuffer(arrayBuffer) {
     if (!arrayBuffer || arrayBuffer.byteLength < 48) return null;
@@ -1303,7 +1315,12 @@
       }
 
       if (entry.type === "points" || entry.type === "lines" || entry.type === "polygons" || entry.type === "heatmap" || entry.type === "labels") {
-        const ab = await loadBinaryBuffer(entry.buffer);
+        const iconBufSpec = (entry.style && entry.style.icons && entry.style.icons.indices_buf && entry.style.icons.indices_buf.data)
+          ? entry.style.icons.indices_buf
+          : null;
+        const [ab, iconIdxAb] = iconBufSpec
+          ? await Promise.all([loadBinaryBuffer(entry.buffer), loadBinaryBuffer(iconBufSpec)])
+          : [await loadBinaryBuffer(entry.buffer), null];
         const parsed = parseGlmpBuffer(ab);
         if (parsed && gl) {
           entry.parsed = parsed;
@@ -1326,7 +1343,7 @@
           }
 
           if (entry.style && entry.style.icons) {
-            this._prepareLayerIconAtlas(entry, parsed);
+            this._prepareLayerIconAtlas(entry, parsed, iconIdxAb);
           }
 
           if (parsed.indices && parsed.indices.length > 0) {
@@ -1391,6 +1408,26 @@
       this._rebuildLegends();
       if (addedUserGroup) this._emitActiveGroups();
       this.requestRender();
+      // Decompress packed tooltip/popup/feature_id string tables asynchronously after first GPU draw
+      this._hydratePackedStrings(entry);
+    }
+
+    _hydratePackedStrings(entry) {
+      if (!entry) return;
+      const fields = ["tooltips", "popups", "feature_ids"];
+      for (let i = 0; i < fields.length; i++) {
+        const key = fields[i];
+        const spec = entry[key];
+        if (isPackedStringTable(spec)) {
+          decodePackedStrings(spec).then((arr) => {
+            if (Array.isArray(arr) && this.layers.get(entry.id) === entry) {
+              entry[key] = arr;
+            }
+          }).catch((err) => {
+            console.warn("Packed string table decode error (" + key + "):", err);
+          });
+        }
+      }
     }
 
     _disposeLayerGL(entry) {
@@ -1530,7 +1567,7 @@
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lutBytes);
     }
 
-    _prepareLayerIconAtlas(entry, parsed) {
+    _prepareLayerIconAtlas(entry, parsed, iconIdxAb = null) {
       const gl = this.gl;
       if (!gl) return;
       const iconSpec = entry.style && entry.style.icons;
@@ -1538,7 +1575,15 @@
 
       const n = parsed.nVertices;
       const iconIdxArr = new Float32Array(n);
-      if (Array.isArray(iconSpec.indices)) {
+      if (iconIdxAb && iconSpec.indices_buf) {
+        const rawIdx = iconSpec.indices_buf.dtype === "u16"
+          ? new Uint16Array(iconIdxAb)
+          : new Uint8Array(iconIdxAb);
+        const len = Math.min(n, rawIdx.length);
+        for (let i = 0; i < len; i++) {
+          iconIdxArr[i] = rawIdx[i];
+        }
+      } else if (Array.isArray(iconSpec.indices)) {
         for (let i = 0; i < n; i++) {
           iconIdxArr[i] = Number(iconSpec.indices[i] || 0);
         }
@@ -1563,6 +1608,7 @@
         const actx = atlasCanvas.getContext("2d");
 
         entry.atlasTex = gl.createTexture();
+        let atlasUploadScheduled = false;
         const uploadAtlas = () => {
           if (!this.gl || !entry.atlasTex) return;
           gl.bindTexture(gl.TEXTURE_2D, entry.atlasTex);
@@ -1573,38 +1619,60 @@
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlasCanvas);
           this.requestRender();
         };
+        const scheduleAtlasUpload = () => {
+          if (atlasUploadScheduled) return;
+          atlasUploadScheduled = true;
+          requestAnimationFrame(() => {
+            atlasUploadScheduled = false;
+            uploadAtlas();
+          });
+        };
 
-        // Draw initial fallback circle badges so markers are immediately visible before SVGs finish loading
-        for (let i = 0; i < count; i++) {
-          actx.fillStyle = "#0284c7";
-          actx.strokeStyle = "#ffffff";
-          actx.lineWidth = 3;
-          actx.beginPath();
-          actx.arc(i * cellPx + cellPx * 0.5, cellPx * 0.5, cellPx * 0.34, 0, Math.PI * 2);
-          actx.fill();
-          actx.stroke();
+        const pad = 4;
+        const paintSlot = (idx, loadedImg) => {
+          if (!loadedImg || !loadedImg.complete || loadedImg.naturalWidth === 0) return;
+          actx.clearRect(idx * cellPx, 0, cellPx, cellPx);
+          actx.drawImage(loadedImg, idx * cellPx + pad, pad, cellPx - pad * 2, cellPx - pad * 2);
+        };
+
+        // Paint already-cached icons immediately and draw fallback circles only for pending slots
+        for (let idx = 0; idx < count; idx++) {
+          const url = urls[idx];
+          let img = this._iconCache.get(url);
+          if (img && img.complete && img.naturalWidth > 0) {
+            paintSlot(idx, img);
+          } else {
+            actx.fillStyle = "#0284c7";
+            actx.strokeStyle = "#ffffff";
+            actx.lineWidth = 3;
+            actx.beginPath();
+            actx.arc(idx * cellPx + cellPx * 0.5, cellPx * 0.5, cellPx * 0.34, 0, Math.PI * 2);
+            actx.fill();
+            actx.stroke();
+            if (!img) {
+              img = new Image();
+              img.crossOrigin = "anonymous";
+              img.src = url;
+              this._iconCache.set(url, img);
+            }
+            const targetIdx = idx;
+            const targetImg = img;
+            const onReady = () => {
+              paintSlot(targetIdx, targetImg);
+              scheduleAtlasUpload();
+            };
+            if (targetImg.addEventListener) {
+              targetImg.addEventListener("load", onReady, { once: true });
+            } else {
+              const prevOnload = targetImg.onload;
+              targetImg.onload = () => {
+                if (typeof prevOnload === "function") prevOnload();
+                onReady();
+              };
+            }
+          }
         }
         uploadAtlas();
-
-        urls.forEach((url, idx) => {
-          let img = this._iconCache.get(url);
-          const paintSlot = (loadedImg) => {
-            if (!loadedImg || !loadedImg.complete || loadedImg.naturalWidth === 0) return;
-            actx.clearRect(idx * cellPx, 0, cellPx, cellPx);
-            const pad = 4;
-            actx.drawImage(loadedImg, idx * cellPx + pad, pad, cellPx - pad * 2, cellPx - pad * 2);
-            uploadAtlas();
-          };
-          if (img && img.complete && img.naturalWidth > 0) {
-            paintSlot(img);
-          } else {
-            img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => paintSlot(img);
-            img.src = url;
-            this._iconCache.set(url, img);
-          }
-        });
       } else if (iconSpec.type === "awesome") {
         const items = Array.isArray(iconSpec.atlas) && iconSpec.atlas.length > 0
           ? iconSpec.atlas
@@ -2987,8 +3055,12 @@
       const customId = (Array.isArray(layer.feature_ids) && layer.feature_ids[fid] !== undefined)
         ? layer.feature_ids[fid]
         : (fid + 1);
-      const tt = layer.tooltips ? (Array.isArray(layer.tooltips) ? layer.tooltips[fid] : layer.tooltips) : null;
-      const pp = layer.popups ? (Array.isArray(layer.popups) ? layer.popups[fid] : layer.popups) : null;
+      const tt = Array.isArray(layer.tooltips)
+        ? layer.tooltips[fid]
+        : (typeof layer.tooltips === "string" ? layer.tooltips : null);
+      const pp = Array.isArray(layer.popups)
+        ? layer.popups[fid]
+        : (typeof layer.popups === "string" ? layer.popups : null);
       return {
         feature: {
           id: customId,
@@ -3252,7 +3324,9 @@
         const lyr = this.layers.get(clickedFeature.layerId);
         if (lyr && lyr.popups) {
           const fid = (clickedFeature.featureIndex || 1) - 1;
-          clickedPopupHtml = Array.isArray(lyr.popups) ? lyr.popups[fid] : lyr.popups;
+          clickedPopupHtml = Array.isArray(lyr.popups)
+            ? lyr.popups[fid]
+            : (typeof lyr.popups === "string" ? lyr.popups : null);
         }
       }
       if (clickedFeature && clickedPopupHtml) {

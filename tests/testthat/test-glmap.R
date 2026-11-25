@@ -787,6 +787,156 @@ test_that("JS picking scans all >150k markers, picks nearest, uses icon hit radi
   }
 })
 
+test_that("Large (>4096) icon indices and tooltip/popup/feature_id tables pack as gzip+base64 and decode cleanly in JS", {
+  # Small dataset stays plain integer/character vectors
+  df_sm <- data.frame(
+    lon = c(-73.5, -73.6, -73.7),
+    lat = c(45.5, 45.6, 45.7),
+    ic = c("a.svg", "b.svg", "a.svg"),
+    lbl = c("$100", "$200", "$300"),
+    fid = c("R1", "R2", "R3"),
+    stringsAsFactors = FALSE
+  )
+  m_sm <- glmap(df_sm) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = ~ic, label = ~lbl, layerId = ~fid, id = "sm")
+  l_sm <- m_sm$x$layers[[1]]
+  expect_true(is.integer(l_sm$style$icons$indices))
+  expect_null(l_sm$style$icons$indices_buf)
+  expect_equal(l_sm$tooltips, df_sm$lbl)
+  expect_equal(l_sm$feature_ids, df_sm$fid)
+
+  # Large dataset (>4096) packs icon indices (u8) and string tables via gzip+base64
+  n <- 5000L
+  df_lg <- data.frame(
+    lon = seq(-74, -73, length.out = n),
+    lat = seq(45, 46, length.out = n),
+    ic = paste0("icon_", ((seq_len(n) - 1L) %% 12L) + 1L, ".svg"),
+    lbl = paste0("$", seq_len(n) * 1000L),
+    fid = paste0("ID_", seq_len(n)),
+    stringsAsFactors = FALSE
+  )
+  m_lg <- glmap(df_lg) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = ~ic, label = ~lbl, popup = ~lbl, layerId = ~fid, id = "lg")
+  l_lg <- m_lg$x$layers[[1]]
+
+  # Verify icon indices_buf u8 round-trip
+  ib <- l_lg$style$icons$indices_buf
+  expect_null(l_lg$style$icons$indices)
+  expect_equal(ib$mode, "inline_gzip")
+  expect_equal(ib$dtype, "u8")
+  expect_equal(ib$n, n)
+  raw_idx <- memDecompress(base64enc::base64decode(ib$data), type = "gzip")
+  expect_equal(length(raw_idx), n)
+  atlas_vec <- unlist(l_lg$style$icons$atlas, use.names = FALSE)
+  expect_equal(atlas_vec[as.integer(raw_idx) + 1L], df_lg$ic)
+
+  # Verify u16 packing when > 256 unique icons
+  p_u16 <- glmap:::pack_icon_indices(c(0L, 300L, rep(1L, 5000L)), n_atlas = 310L)
+  expect_equal(p_u16$indices_buf$dtype, "u16")
+  raw_u16 <- memDecompress(base64enc::base64decode(p_u16$indices_buf$data), type = "gzip")
+  u16_vals <- readBin(raw_u16, what = "integer", n = 5002L, size = 2L, signed = FALSE, endian = "little")
+  expect_equal(u16_vals[1:3], c(0L, 300L, 1L))
+
+  # Verify tooltips, popups, and feature_ids string table round-trip
+  for (field in c("tooltips", "popups", "feature_ids")) {
+    spec <- l_lg[[field]]
+    expect_true(is.list(spec))
+    expect_equal(spec$mode, "inline_gzip")
+    expect_equal(spec$n, n)
+    raw_txt <- rawToChar(memDecompress(base64enc::base64decode(spec$data), type = "gzip"))
+    decoded <- strsplit(raw_txt, spec$sep, fixed = TRUE)[[1]]
+    expected <- if (field == "feature_ids") df_lg$fid else df_lg$lbl
+    expect_equal(decoded, expected)
+  }
+
+  # Verify proxy dispatch_layer records addLayer in $calls
+  prx <- glmap_proxy("map") |>
+    add_markers(data = df_sm, lng = ~lon, lat = ~lat, icon = ~ic, id = "prx_m")
+  expect_equal(length(prx$calls), 1L)
+  expect_equal(prx$calls[[1]]$method, "addLayer")
+
+  # Verify JS _prepareLayerIconAtlas u8/u16 decoding & _buildPickedResult guard while hydrating
+  skip_if_not_installed("V8")
+  min_js <- system.file("htmlwidgets", "glmap.js", package = "glmap")
+  js_code <- paste(readLines(min_js, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  js_exposed <- sub("\\}(\\)?\\(\\)\\s*;?\\s*)$", ";globalThis._GLMapInstance=GLMapInstance;}\\1", js_code)
+  ctx <- V8::v8()
+  ctx$eval(js_exposed)
+  ctx$eval("
+    var __pack_res = (function() {
+      const inst = Object.create(globalThis._GLMapInstance.prototype);
+      let texUploads = 0;
+      inst.gl = {
+        ARRAY_BUFFER: 1, STATIC_DRAW: 2, TEXTURE_2D: 3, TEXTURE_WRAP_S: 4,
+        TEXTURE_WRAP_T: 5, CLAMP_TO_EDGE: 6, TEXTURE_MIN_FILTER: 7, TEXTURE_MAG_FILTER: 8,
+        LINEAR: 9, RGBA: 10, UNSIGNED_BYTE: 11,
+        createBuffer() { return {}; }, bindBuffer() {}, bufferData() {},
+        createTexture() { return {}; }, bindTexture() {}, texParameteri() {},
+        texImage2D() { texUploads++; }
+      };
+      inst._iconCache = new Map([
+        ['a.svg', { complete: true, naturalWidth: 32 }],
+        ['b.svg', { complete: true, naturalWidth: 32 }]
+      ]);
+      inst.requestRender = function() {};
+      globalThis.document = {
+        createElement() {
+          return {
+            width: 0, height: 0,
+            getContext() {
+              return { clearRect() {}, drawImage() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, fillText() {} };
+            }
+          };
+        }
+      };
+
+      const entry = {
+        id: 't', type: 'points',
+        style: { icons: { type: 'url', atlas: ['a.svg', 'b.svg'], indices_buf: { dtype: 'u8' }, width: 32, height: 32 } },
+        tooltips: { mode: 'inline_gzip', sep: '\\x1f', n: 3, data: 'AAAA' },
+        popups: { mode: 'inline_gzip', sep: '\\x1f', n: 3, data: 'AAAA' },
+        feature_ids: { mode: 'inline_gzip', sep: '\\x1f', n: 3, data: 'AAAA' }
+      };
+      const u8 = new Uint8Array([0, 1, 0]);
+      inst._prepareLayerIconAtlas(entry, { nVertices: 3 }, u8.buffer);
+      const pendingPick = inst._buildPickedResult(entry, 1, -73.5, 45.5);
+
+      // u16 test
+      const entry16 = {
+        id: 't16', type: 'points',
+        style: { icons: { type: 'awesome', atlas: [{ markerColor: '#000', iconColor: '#fff', text: 'x' }], indices_buf: { dtype: 'u16' } } }
+      };
+      const u16 = new Uint16Array([0, 300, 1]);
+      inst._prepareLayerIconAtlas(entry16, { nVertices: 3 }, u16.buffer);
+
+      // After hydration
+      entry.tooltips = ['$100', '$200', '$300'];
+      entry.feature_ids = ['R1', 'R2', 'R3'];
+      const hydratedPick = inst._buildPickedResult(entry, 1, -73.5, 45.5);
+
+      return {
+        u8Decoded: Array.from(entry.iconIdxArr),
+        u16Decoded: Array.from(entry16.iconIdxArr),
+        cachedTexUploads: texUploads,
+        pendingTooltip: pendingPick.tooltip,
+        pendingPopup: pendingPick.popup,
+        pendingId: pendingPick.feature.id,
+        hydratedTooltip: hydratedPick.tooltip,
+        hydratedId: hydratedPick.feature.id
+      };
+    })();
+  ")
+  pr <- ctx$get("__pack_res")
+  expect_equal(pr$u8Decoded, c(0, 1, 0))
+  expect_equal(pr$u16Decoded, c(0, 300, 1))
+  expect_equal(pr$cachedTexUploads, 2) # 1 for cached URL atlas (not 1+N!), 1 for awesome atlas
+  expect_null(pr$pendingTooltip)
+  expect_null(pr$pendingPopup)
+  expect_equal(pr$pendingId, 2)
+  expect_equal(pr$hydratedTooltip, "$200")
+  expect_equal(pr$hydratedId, "R2")
+})
+
 
 
 
