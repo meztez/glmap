@@ -113,6 +113,7 @@ addMarkers(
   render_mode = "auto",
   lod_zoom = NULL,
   id = NULL,
+  opacity = NULL,
   ...
 )
 
@@ -149,6 +150,7 @@ addAwesomeMarkers(
   render_mode = "auto",
   lod_zoom = NULL,
   id = NULL,
+  opacity = NULL,
   ...
 )
 
@@ -242,6 +244,7 @@ addPolygons(
   line_color = "#e2e8f0",
   line_width = 1,
   extrude = NULL,
+  extrude_options = NULL,
   popup = NULL,
   label = NULL,
   id = NULL,
@@ -442,7 +445,8 @@ addLegend(
   layerId = NULL,
   labFormat = NULL,
   data = NULL,
-  opacity_slider = NULL
+  opacity_slider = NULL,
+  extrude_controls = NULL
 )
 
 addLayersControl(

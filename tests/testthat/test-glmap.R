@@ -623,6 +623,171 @@ test_that("Full drop-in camelCase leaflet & leaflet.extras compatibility API wor
   expect_match(min_code, "setGroupVisibility")
 })
 
+test_that("add_markers defaults opacity to 1.0 for icon markers while preserving overrides", {
+  df <- data.frame(
+    lon = c(-73.57, -71.21, -75.70),
+    lat = c(45.50, 46.81, 45.42),
+    icon_url = c("a.png", "b.png", "a.png")
+  )
+
+  # Custom icon formula and make_icon() default to opaque 1.0
+  m_icon_formula <- glmap(df) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = ~icon_url, id = "m_formula")
+  expect_equal(m_icon_formula$x$layers[[1]]$opacity, 1.0)
+
+  m_icon_obj <- glmap(df) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = make_icon("pin.png", iconWidth = 34, iconHeight = 34), id = "m_obj")
+  expect_equal(m_icon_obj$x$layers[[1]]$opacity, 1.0)
+
+  # Non-icon markers keep 0.85 default
+  m_plain <- glmap(df) |>
+    add_markers(lng = ~lon, lat = ~lat, id = "m_plain")
+  expect_equal(m_plain$x$layers[[1]]$opacity, 0.85)
+
+  # Explicit opacity and fillOpacity overrides are respected without formal/dots conflict
+  m_override <- glmap(df) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = ~icon_url, opacity = 0.6, id = "m_override")
+  expect_equal(m_override$x$layers[[1]]$opacity, 0.6)
+
+  m_fill_override <- glmap(df) |>
+    add_markers(lng = ~lon, lat = ~lat, icon = ~icon_url, fillOpacity = 0.45, id = "m_fill_override")
+  expect_equal(m_fill_override$x$layers[[1]]$opacity, 0.45)
+})
+
+test_that("JS picking scans all >150k markers, picks nearest, uses icon hit radius, and cluster fast path avoids mercToScreen", {
+  skip_if_not_installed("V8")
+
+  src_js <- system.file("js-src", "glmap.js", package = "glmap")
+  min_js <- system.file("htmlwidgets", "glmap.js", package = "glmap")
+  expect_true(nzchar(src_js) && file.exists(src_js))
+  expect_true(nzchar(min_js) && file.exists(min_js))
+
+  # Test both source and minified bundles
+  for (js_path in c(src_js, min_js)) {
+    js_code <- paste(readLines(js_path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+    js_exposed <- sub("\\}(\\)?\\(\\)\\s*;?\\s*)$", ";globalThis._GLMapInstance=GLMapInstance;}\\1", js_code)
+    expect_true(grepl("_GLMapInstance", js_exposed, fixed = TRUE))
+
+    ctx <- V8::v8()
+    ctx$eval(js_exposed)
+    ctx$eval("
+      var __glmap_test_res = (function() {
+        const inst = Object.create(globalThis._GLMapInstance.prototype);
+        const zoom = 10;
+        const scale = 512.0 * Math.pow(2.0, zoom);
+        inst.camera = { centerLon: -73.57, centerLat: 45.50, zoom: zoom, worldSize: scale, bearing: 0, pitch: 0 };
+        inst.el = { clientWidth: 1000, clientHeight: 800 };
+        inst.layers = new Map();
+        inst.layerOrder = ['big'];
+
+        // 1. 206,540 markers: odd indices must never be skipped by a lossy stride
+        const n = 206540;
+        const mc = new Float32Array(n * 2);
+        const coords = new Float32Array(n * 2);
+        const vfids = new Uint32Array(n);
+        for (let i = 0; i < n; i++) {
+          mc[2 * i] = 0.01;
+          mc[2 * i + 1] = 0.01;
+          coords[2 * i] = -176.4;
+          coords[2 * i + 1] = 84.0;
+          vfids[i] = i;
+        }
+        // Put odd index 150001 and 206539 inside viewport near center
+        const cx = (-73.57 + 180.0) / 360.0;
+        const sinLat = Math.sin(45.50 * Math.PI / 180.0);
+        const cy = 0.5 - (0.25 * Math.log((1 + sinLat) / (1 - sinLat))) / Math.PI;
+        const oddA = 150001;
+        const oddB = 206539;
+        mc[2 * oddA] = cx + 40.0 / scale;
+        mc[2 * oddA + 1] = cy;
+        coords[2 * oddA] = -73.5;
+        coords[2 * oddA + 1] = 45.5;
+        // Put two nearby markers near oddB to verify nearest wins over first-match
+        const farIdx = 206538;
+        mc[2 * farIdx] = cx + 106.0 / scale;
+        mc[2 * farIdx + 1] = cy;
+        mc[2 * oddB] = cx + 101.0 / scale;
+        mc[2 * oddB + 1] = cy;
+        coords[2 * farIdx] = -73.4;
+        coords[2 * farIdx + 1] = 45.5;
+        coords[2 * oddB] = -73.4;
+        coords[2 * oddB + 1] = 45.5;
+
+        const layer = {
+          id: 'big',
+          type: 'points',
+          visible: true,
+          style: { icons: { width: 34, height: 34 }, cluster: { enabled: true, maxClusterRadius: 65 } },
+          parsed: { mercCoords: mc, coords: coords, vertexFeatureIds: vfids, nVertices: n }
+        };
+        inst.layers.set('big', layer);
+
+        const tol8 = 8.0 / scale;
+        // Exact hit on odd index 150001 (unclustered full scan)
+        const hitOddA = inst._pickFeatureAt(-73.5, 45.5, cx + 40.0 / scale, cy, tol8, 540, 400);
+        // Nearest hit between farIdx (6px away) and oddB (1px away) at cx + 100/scale
+        const hitNearest = inst._pickFeatureAt(-73.4, 45.5, cx + 100.0 / scale, cy, tol8, 600, 400);
+        // Icon-aware hit radius: 34px icon => 17px tolerance. 13px away from oddA should HIT; 20px away should MISS
+        const hitIconEdge = inst._pickFeatureAt(-73.5, 45.5, cx + 53.0 / scale, cy, tol8, 553, 400);
+        const missIconOut = inst._pickFeatureAt(-73.5, 45.5, cx + 60.0 / scale, cy, tol8, 560, 400);
+        // Plain (non-icon) point layer at 13px away should MISS (8px tolerance)
+        layer.style.icons = null;
+        const missPlain13 = inst._pickFeatureAt(-73.5, 45.5, cx + 53.0 / scale, cy, tol8, 553, 400);
+        layer.style.icons = { width: 34, height: 34 };
+
+        // 2. _drawClusteredLayer flat 2D fast path: 0 calls to mercToScreen, caches singletons
+        let mercCalls = 0;
+        const origMercToScreen = inst.mercToScreen.bind(inst);
+        inst.mercToScreen = function() { mercCalls++; return origMercToScreen.apply(inst, arguments); };
+        inst.gl = null;
+        inst._activeClusterBadges = [];
+        const noopCtx = {
+          font: '', textAlign: '', textBaseline: '', fillStyle: '',
+          save() {}, restore() {}, translate() {}, scale() {},
+          beginPath() {}, arc() {}, fill() {}, fillText() {}
+        };
+        inst._drawClusteredLayer(noopCtx, layer, cx, cy, scale, 1000, 800, 1);
+        const flat2DMercCalls = mercCalls;
+        const cachedSinglesCount = Array.isArray(layer._cachedSingletons) ? layer._cachedSingletons.length : -1;
+        const cachedClustersCount = Array.isArray(layer._cachedClusters) ? layer._cachedClusters.length : -1;
+        // Singleton picking via _cachedSingletons should still pick oddA at icon edge (13px)
+        const hitSingleton = inst._pickFeatureAt(-73.5, 45.5, cx + 53.0 / scale, cy, tol8, 553, 400);
+
+        // Tilted camera fallback uses mercToScreen
+        inst.camera.pitch = 45;
+        inst._drawClusteredLayer(noopCtx, layer, cx, cy, scale, 1000, 800, 1);
+        const tiltedMercCalls = mercCalls;
+
+        return {
+          hitOddA: hitOddA ? hitOddA.feature.featureIndex : null,
+          hitNearest: hitNearest ? hitNearest.feature.featureIndex : null,
+          hitIconEdge: hitIconEdge ? hitIconEdge.feature.featureIndex : null,
+          missIconOut: missIconOut,
+          missPlain13: missPlain13,
+          flat2DMercCalls: flat2DMercCalls,
+          cachedSinglesCount: cachedSinglesCount,
+          cachedClustersCount: cachedClustersCount,
+          hitSingleton: hitSingleton ? hitSingleton.feature.featureIndex : null,
+          tiltedMercCalls: tiltedMercCalls
+        };
+      })();
+    ")
+    res <- ctx$get("__glmap_test_res")
+
+    expect_equal(res$hitOddA, 150002)
+    expect_equal(res$hitNearest, 206540)
+    expect_equal(res$hitIconEdge, 150002)
+    expect_null(res$missIconOut)
+    expect_null(res$missPlain13)
+    expect_equal(res$flat2DMercCalls, 0)
+    expect_equal(res$cachedSinglesCount, 1)
+    expect_equal(res$cachedClustersCount, 1)
+    expect_equal(res$hitSingleton, 150002)
+    expect_equal(res$tiltedMercCalls, 206540)
+  }
+})
+
+
 
 
 

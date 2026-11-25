@@ -2144,6 +2144,7 @@
     }
 
     _dispatchPointAndIconRender(ctx2d, layer, cx, cy, scale, w, h, dpr) {
+      layer._clusteredActive = false;
       const st = layer.style || {};
       const hasIcons = Boolean(st.icons && layer.atlasTex && layer.vboIcon);
       const clCfg = st.cluster || {};
@@ -2275,6 +2276,7 @@
     }
 
     _drawClusteredLayer(ctx, layer, cx, cy, scale, w, h, dpr) {
+      layer._clusteredActive = true;
       const gl = this.gl;
       const mc = layer.parsed.mercCoords;
       const coords = layer.parsed.coords;
@@ -2289,7 +2291,7 @@
       const cacheKey = `${cx.toFixed(7)}|${cy.toFixed(7)}|${scale.toFixed(3)}|${(this.camera.bearing || 0).toFixed(2)}|${(this.camera.pitch || 0).toFixed(2)}|${w}x${h}|${cellPx}|${n}|${spKey}`;
 
       let clusters, spScreenLegs, totalGpuSingletons;
-      if (layer._clusterCacheKey === cacheKey && layer._cachedClusters) {
+      if (layer._clusterCacheKey === cacheKey && layer._cachedClusters && Array.isArray(layer._cachedSingletons)) {
         clusters = layer._cachedClusters;
         spScreenLegs = layer._cachedSpScreenLegs;
         totalGpuSingletons = layer._cachedTotalSingletons || 0;
@@ -2297,16 +2299,40 @@
         // Fast O(N) screen-space spatial hash using pure arithmetic on precomputed mercCoords
         const buckets = new Map();
         const spSet = sp ? sp.memberSet : null;
+        const pitch = this.camera.pitch || 0;
+        const bearing = this.camera.bearing || 0;
+        const isFlat2D = Math.abs(pitch) < 1e-4 && Math.abs(bearing) < 1e-4;
+        const halfW = w * 0.5;
+        const halfH = h * 0.5;
+        const invScale = 1.0 / scale;
+        const minMx = cx - (halfW + pad) * invScale;
+        const maxMx = cx + (halfW + pad) * invScale;
+        const minMy = cy - (halfH + pad) * invScale;
+        const maxMy = cy + (halfH + pad) * invScale;
+        const invCellPx = 1.0 / cellPx;
+        const rowStride = cols + 32;
 
         for (let i = 0; i < n; i++) {
-          if (spSet && spSet.has(i)) continue; // Spiderfied points are rendered on their expanded web legs!
           const mx = mc[2 * i];
-          const my = mc[2 * i + 1];
-          const [sx, sy] = this.mercToScreen(mx, my, cx, cy, scale, w, h);
-          if (sx < -pad || sx > w + pad || sy < -pad || sy > h + pad) continue;
-          const gx = Math.floor(sx / cellPx);
-          const gy = Math.floor(sy / cellPx);
-          const key = (gy + 16) * (cols + 32) + (gx + 16);
+          let my, sx, sy;
+          if (isFlat2D) {
+            if (mx < minMx || mx > maxMx) continue;
+            my = mc[2 * i + 1];
+            if (my < minMy || my > maxMy) continue;
+            if (spSet && spSet.has(i)) continue; // Spiderfied points are rendered on their expanded web legs!
+            sx = (mx - cx) * scale + halfW;
+            sy = (my - cy) * scale + halfH;
+          } else {
+            if (spSet && spSet.has(i)) continue;
+            my = mc[2 * i + 1];
+            const pt = this.mercToScreen(mx, my, cx, cy, scale, w, h);
+            sx = pt[0];
+            sy = pt[1];
+            if (sx < -pad || sx > w + pad || sy < -pad || sy > h + pad) continue;
+          }
+          const gx = Math.floor(sx * invCellPx);
+          const gy = Math.floor(sy * invCellPx);
+          const key = (gy + 16) * rowStride + (gx + 16);
           let b = buckets.get(key);
           if (!b) {
             const lon = coords[2 * i];
@@ -2488,6 +2514,7 @@
 
         layer._clusterCacheKey = cacheKey;
         layer._cachedClusters = clusters;
+        layer._cachedSingletons = singles;
         layer._cachedSpScreenLegs = spScreenLegs;
         layer._cachedTotalSingletons = totalGpuSingletons;
       }
@@ -2903,8 +2930,10 @@
       if (Array.isArray(this._activeSpiderfiedLegs) && this._activeSpiderfiedLegs.length > 0) {
         for (let k = this._activeSpiderfiedLegs.length - 1; k >= 0; k--) {
           const leg = this._activeSpiderfiedLegs[k];
-          if (Math.hypot(px - leg.sx, py - leg.sy) <= 15) {
-            const layer = this.layers.get(leg.layerId);
+          const layer = this.layers.get(leg.layerId);
+          const iconSpec = layer && layer.style && layer.style.icons;
+          const legHitPx = iconSpec ? Math.max(15, Math.max(iconSpec.width || 28, iconSpec.height || 28) * 0.5) : 15;
+          if (Math.hypot(px - leg.sx, py - leg.sy) <= legHitPx) {
             if (layer) {
               const fid = layer.parsed ? layer.parsed.vertexFeatureIds[leg.idx] : leg.idx;
               const pickedLeg = this._buildPickedResult(layer, fid, leg.lon, leg.lat, "points", leg.group);
@@ -2916,7 +2945,7 @@
         }
       }
 
-      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
+      const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
       const mx = lonToMercX(lon);
       const my = latToMercY(lat);
       const tolMerc = 8.0 / scale;
@@ -2977,6 +3006,7 @@
 
     _pickFeatureAt(lon, lat, mx, my, tolMerc, px = null, py = null) {
       const ids = this.layerOrder.slice().reverse();
+      const mapScale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
       // Pass 1: check points and labels first so point markers on top of polygons win
       for (const id of ids) {
         const layer = this.layers.get(id);
@@ -2984,18 +3014,55 @@
         if (layer.type !== "points" && layer.type !== "labels") continue;
         const mc = layer.parsed.mercCoords;
         const nV = layer.parsed.nVertices;
-        const stride = nV > 150000 ? Math.ceil(nV / 150000) : 1;
-        for (let v = 0; v < nV; v += stride) {
-          if (Math.abs(mc[2 * v] - mx) < tolMerc && Math.abs(mc[2 * v + 1] - my) < tolMerc) {
-            return this._buildPickedResult(layer, layer.parsed.vertexFeatureIds[v], lon, lat);
+        if (!mc || !nV) continue;
+
+        const iconSpec = layer.style && layer.style.icons;
+        let layerTolMerc = tolMerc;
+        if (iconSpec) {
+          const iconSize = Math.max(iconSpec.width || 28, iconSpec.height || 28);
+          const iconTolMerc = Math.max(8.0, iconSize * 0.5) / mapScale;
+          if (iconTolMerc > layerTolMerc) layerTolMerc = iconTolMerc;
+        }
+        const tolSq = layerTolMerc * layerTolMerc;
+
+        let bestV = -1;
+        let bestDistSq = tolSq;
+        const useSingletons = layer._clusteredActive !== false && Array.isArray(layer._cachedSingletons);
+        if (useSingletons) {
+          const singles = layer._cachedSingletons;
+          for (let k = 0; k < singles.length; k++) {
+            const v = singles[k];
+            const dx = mc[2 * v] - mx;
+            if (dx > layerTolMerc || dx < -layerTolMerc) continue;
+            const dy = mc[2 * v + 1] - my;
+            if (dy > layerTolMerc || dy < -layerTolMerc) continue;
+            const d2 = dx * dx + dy * dy;
+            if (d2 <= bestDistSq) {
+              bestDistSq = d2;
+              bestV = v;
+            }
           }
+        } else {
+          for (let v = 0; v < nV; v++) {
+            const dx = mc[2 * v] - mx;
+            if (dx > layerTolMerc || dx < -layerTolMerc) continue;
+            const dy = mc[2 * v + 1] - my;
+            if (dy > layerTolMerc || dy < -layerTolMerc) continue;
+            const d2 = dx * dx + dy * dy;
+            if (d2 <= bestDistSq) {
+              bestDistSq = d2;
+              bestV = v;
+            }
+          }
+        }
+        if (bestV >= 0) {
+          return this._buildPickedResult(layer, layer.parsed.vertexFeatureIds[bestV], lon, lat);
         }
       }
 
       // Pass 2: check polygon interiors (using earstrip/earcut triangles, with 3D prism picking when extruded & tilted) & line/polygon vertices
       const mapW = this.el.clientWidth || 800;
       const mapH = this.el.clientHeight || 600;
-      const mapScale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
       const cmx = lonToMercX(this.camera.centerLon);
       const cmy = latToMercY(this.camera.centerLat);
 
@@ -3176,7 +3243,7 @@
       // 2. Direct pick at click coordinates if not already hovered, then open popup/tooltip
       let clickedFeature = this._hoveredFeature;
       let clickedPopupHtml = null;
-      const scale = 512.0 * Math.pow(2.0, this.camera.zoom);
+      const scale = this.camera.worldSize || (512.0 * Math.pow(2.0, this.camera.zoom));
       const picked = clickedFeature ? null : this._pickFeatureAt(lon, lat, lonToMercX(lon), latToMercY(lat), 8.0 / scale, px, py);
       if (picked) {
         clickedFeature = picked.feature;
@@ -4031,6 +4098,9 @@
           if (mode === "cluster") {
             l.style.cluster = l.style.cluster || { enabled: true, maxClusterRadius: 65, disableClusteringAtZoom: 15 };
             l.style.cluster.enabled = true;
+          } else {
+            l._clusteredActive = false;
+            l._cachedSingletons = null;
           }
         }
       }

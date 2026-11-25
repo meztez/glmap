@@ -800,6 +800,8 @@ add_points <- function(
 #' colored pin/badge markers.
 #'
 #' @inheritParams add_points
+#' @param opacity Numeric marker opacity (`0` to `1`). Defaults to `1.0` when `icon` is provided
+#'   and `0.85` otherwise.
 #' @param ... Additional arguments passed to [add_points()].
 #' @export
 add_markers <- function(
@@ -815,6 +817,7 @@ add_markers <- function(
     render_mode = "auto",
     lod_zoom = NULL,
     id = NULL,
+    opacity = NULL,
     ...
 ) {
   if (!is.null(data) && !is.data.frame(data) && !inherits(data, c("sf", "sfc", "SpatVector", "Spatial", "wk_xy", "wk_wkb", "wk_wkt", "nanoarrow_array", "SharedData")) && !is.matrix(data)) {
@@ -826,6 +829,7 @@ add_markers <- function(
       data <- NULL
     }
   }
+  opacity <- opacity %||% if (!is.null(icon)) 1.0 else 0.85
   add_points(
     map = map,
     data = data,
@@ -839,6 +843,7 @@ add_markers <- function(
     render_mode = render_mode,
     lod_zoom = lod_zoom,
     id = id %||% next_layer_id("markers"),
+    opacity = opacity,
     legend = FALSE,
     ...
   )

@@ -25,6 +25,7 @@ add_markers(
   render_mode = "auto",
   lod_zoom = NULL,
   id = NULL,
+  opacity = NULL,
   ...
 )
 
@@ -143,6 +144,9 @@ If \code{NULL}, computed dynamically from feature count (\verb{<= 2,500}: \code{
 \verb{2,501-15,000}: \code{c(8.5, 10.5)}; \verb{> 15,000}: \code{c(10.0, 12.0)}).}
 
 \item{id}{Layer ID string.}
+
+\item{opacity}{Numeric marker opacity (\code{0} to \code{1}). Defaults to \code{1.0} when \code{icon} is provided
+and \code{0.85} otherwise.}
 
 \item{...}{Additional arguments passed to \code{\link[=add_points]{add_points()}}.}
 
