@@ -1,3 +1,18 @@
+# glmap 1.0.3
+
+* **3D Polygon Prism Extrusion, Perspective Camera & Bearing Rotation**:
+  * Added 3D polygon prism extrusion (`extrude`, `extrude_options`, `extrude_controls`, and live `set_polygon_extrusion()`) with `log`/`raw` scaling, depth pre-pass, directional wall shading, wireframe pillars, and interactive legend controls.
+  * Upgraded WebGL2 projection to use MapLibre's 4x4 perspective matrix with full 2D bearing rotation, drag compass, and perspective depth scaling + tilt foreshortening for point and custom icon markers.
+* **High-Density Marker Performance, Picking & Opaque Icons (`200k+` points)**:
+  * Removed the lossy `>150k` vertex picking stride in `_pickFeatureAt()`, prioritizing cached visible singletons in cluster mode, selecting the nearest marker, and using icon-aware hit tolerances across hover and click.
+  * Added zero-allocation flat-2D Mercator bounding-box pre-culling and inline scalar projection in `_drawClusteredLayer()` plus GPU VBO/texture cleanup, cached uniform/attribute locations, and RAF hover throttling.
+  * Binary-packed large (`> 4,096`) icon index arrays (`u8`/`u16` gzip+base64) and tooltip/popup/feature-ID string tables with deferred async hydration after first draw, and coalesced icon atlas `texImage2D` uploads via `requestAnimationFrame`.
+  * Changed `add_markers()` default `opacity` to `1.0` when custom `icon` sprites are provided (`0.85` otherwise) so opaque PNG/SVG icons do not bleed basemap features.
+* **UI Controls, Localization, Rendering & Shiny Fixes**:
+  * Added `gl_labels()` and `set_labels()` for customizable UI labels, adaptive light/dark control theme (`ui_theme = "auto"`), and 9-zone dock mounting for zoom/compass controls.
+  * Enforced Leaflet-style pane z-order (`rasters -> polygons -> lines -> heatmaps -> points -> labels`), fixed CDT Steiner extra-point ring isolation on polygon strokes, added theme-aware CSS variables to `gl_popup_table()`, and reserved `.glmap-popup` header space for the close button.
+  * Debounced Shiny `_groups` emissions on `clearGroup()` + `addLayer()` batches, fixed `dispatch_layer()` proxy return values, and synced `glmap-gl` HTML dependency version (`1.0.3`) to bust stale browser JS/CSS caches.
+
 # glmap 1.0.2
 
 * **Interactive Layer Opacity Slider in Categorical & Group Legends (`add_legend`, `glmap.js`)**:

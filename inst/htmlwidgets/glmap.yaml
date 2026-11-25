@@ -5,6 +5,6 @@ dependencies:
     script: maplibre-gl.js
     stylesheet: maplibre-gl.css
   - name: glmap-gl
-    version: 1.0.0
+    version: 1.0.3
     src: htmlwidgets/lib/glmap-gl
     stylesheet: glmap.css
